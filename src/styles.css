@@ -543,7 +543,13 @@ code, pre, .mono { font-family: var(--font-mono); }
 @media (prefers-reduced-motion: reduce) { .session-item.working::before { animation: none; opacity: 0.8; } }
 .session-title { display: flex; align-items: center; gap: 5px; overflow: hidden; }
 .session-agent { flex-shrink: 0; font-size: 12px; }
-.session-title-text { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+/* ⚠️ ONE STEP BELOW THE SHELF LABEL. The row inherits 13px from .session-item,
+   which put a chat title level with the project name above it — equal size,
+   distinguished only by weight. Tony wanted the header to win outright, so the
+   title drops to 12px and the scale reads 13 / 12 / 11 / 10 from project to
+   chat to subtitle to count. Set here rather than on .session-item so the
+   search results and the row's own metrics are untouched. */
+.session-title-text { font-size: 12px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .session-item.pinned .session-title-text::after { content: ' ★'; color: var(--accent); font-size: 10px; }
 .session-item .session-meta { display: block; font-size: 11px; color: var(--text-faint); margin-top: 1px; font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .session-actions { position: absolute; top: 6px; right: 6px; display: none; gap: 2px; background: var(--bg-hover); border-radius: 6px; padding: 1px; }
