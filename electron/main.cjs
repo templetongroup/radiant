@@ -19,8 +19,16 @@ ipcMain.on('radiant:set-mode', (e, mode) => {
 })
 
 // native folder picker for the workspace chip (window.prompt is a no-op in Electron)
+// ⚠️ PARENT A DIALOG TO THE WINDOW THAT ASKED FOR IT. This was pinned to `win`,
+// the main window, but the caller that matters is the Settings window. On macOS
+// a modal opens as a sheet on its parent, so the sheet appeared on a window
+// behind the one being used: the user ticks "Keep my setup in iCloud Drive",
+// nothing visible happens, and the box springs back because the promise never
+// resolves. Tony, on a third Mac: "i cant click the ccheckbox. nothing checks
+// on."
 ipcMain.handle('rad:pick-folder', async (e, current) => {
-  const res = await dialog.showOpenDialog(win || undefined, {
+  const parent = BrowserWindow.fromWebContents(e.sender) || win || undefined
+  const res = await dialog.showOpenDialog(parent, {
     title: 'Choose workspace folder',
     properties: ['openDirectory', 'createDirectory'],
     defaultPath: current || undefined

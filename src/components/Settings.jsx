@@ -1358,7 +1358,12 @@ function DataFolderBlock () {
     api.getSyncTargets().then(r => {
       setTargets(r.targets || [])
       setChoice((r.targets || [])[0]?.path || '')
-    }).catch(() => {})
+    }).catch(e => {
+      // ⚠️ A SWALLOWED ERROR HERE LOOKS LIKE A DEAD CHECKBOX. iCloud is always
+      // offered, so an empty target list means this call failed — and the empty
+      // list then sends the user down the "pick a folder" path instead. Say so.
+      setMsg({ kind: 'err', text: `Could not work out where your cloud folders are: ${e.message}. Ticking the box will ask you to choose one instead.` })
+    })
   }, [])
 
   const send = async (body, okText) => {
@@ -1388,8 +1393,13 @@ function DataFolderBlock () {
         setMsg({ kind: 'err', text: 'Choosing a folder needs the Radiant app — this is the browser view.' })
         return
       }
+      // Never return in silence — a checkbox that springs back with no message
+      // is indistinguishable from a broken app.
       const picked = await window.radiantNative.pickFolder(info?.active)
-      if (!picked) return
+      if (!picked) {
+        setMsg({ kind: 'err', text: 'No folder chosen, so nothing changed. Pick a folder your other Macs can see — iCloud Drive, Dropbox, or any synced folder.' })
+        return
+      }
       return send({ path: picked }, r => r.adopted
         ? 'That folder already had a Radiant setup and it was adopted as-is. Quit and reopen Radiant.'
         : 'Copied your setup across. Your originals were left where they were. Quit and reopen Radiant.')
