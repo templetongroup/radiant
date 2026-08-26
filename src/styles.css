@@ -473,6 +473,17 @@ code, pre, .mono { font-family: var(--font-mono); }
 }
 .set-hint.is-warn { color: var(--danger); }
 .set-hint.is-restart { color: var(--accent); }
+.set-check { display: flex; align-items: center; gap: 9px; margin: 6px 0 4px; font-size: 13px; cursor: pointer; }
+.set-check input { width: 15px; height: 15px; }
+.data-folder-pick { max-width: 340px; margin: 4px 0 8px; }
+.data-folder-adv { margin-top: 10px; }
+.data-folder-adv summary { font-size: 12px; color: var(--text-faint); cursor: pointer; }
+.data-folder-adv summary:hover { color: var(--text-muted); }
+.sync-conflict {
+  margin: 10px 0; padding: 12px; border-radius: 10px;
+  border: 1px solid var(--accent-dim); background: var(--bg-raised); font-size: 13px;
+}
+.sync-conflict p { margin: 0 0 8px; }
 /* The move-to-project control. It sits in .session-actions, which only reveals
    itself on hover, so it costs the title nothing at rest. Narrow on purpose:
    the sidebar is 248px by default and the chat's name matters more than the

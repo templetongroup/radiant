@@ -234,8 +234,16 @@ async function json (method, path, body) {
   }
   if (!res.ok) {
     let msg = `${res.status}`
-    try { msg = (await res.json()).error || msg } catch {}
-    throw new Error(msg)
+    let body = null
+    // ⚠️ KEEP THE BODY. Only `.error` used to survive, so an endpoint that
+    // answers a 4xx with structured detail — "this needs a decision, here are
+    // the options" — arrived at the caller as a bare string and the decision
+    // could not be offered.
+    try { body = await res.json(); msg = body.error || msg } catch {}
+    const e = new Error(msg)
+    e.status = res.status
+    e.body = body
+    throw e
   }
   return res.json()
 }
@@ -254,6 +262,7 @@ export const api = {
   clearSessions: days => json('POST', '/api/storage/clear-sessions', { days }),
   getModels: () => json('GET', '/api/models'),
   getDataDir: () => json('GET', '/api/data-dir'),
+  getSyncTargets: () => json('GET', '/api/sync-targets'),
   setDataDir: body => json('POST', '/api/data-dir', body),
   listProjects: () => json('GET', '/api/projects'),
   createProject: body => json('POST', '/api/projects', body || {}),

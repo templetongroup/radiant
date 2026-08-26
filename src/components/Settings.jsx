@@ -1309,65 +1309,132 @@ function AboutPane ({ config, onSettings }) {
  */
 function DataFolderBlock () {
   const [info, setInfo] = useState(null)
+  const [targets, setTargets] = useState([])
+  const [choice, setChoice] = useState('')
   const [msg, setMsg] = useState(null)
   const [busy, setBusy] = useState(false)
-  const load = () => api.getDataDir().then(setInfo).catch(() => {})
-  useEffect(() => { load() }, [])
+  const [conflict, setConflict] = useState(null)   // { dest, destModified }
 
-  const apply = async (path, reset) => {
-    setBusy(true); setMsg(null)
+  const load = () => api.getDataDir().then(setInfo).catch(() => {})
+  useEffect(() => {
+    load()
+    api.getSyncTargets().then(r => {
+      setTargets(r.targets || [])
+      setChoice((r.targets || [])[0]?.path || '')
+    }).catch(() => {})
+  }, [])
+
+  const send = async (body, okText) => {
+    setBusy(true); setMsg(null); setConflict(null)
     try {
-      const r = await api.setDataDir(reset ? { path: 'reset', reset: true } : { path })
+      const r = await api.setDataDir(body)
       await load()
-      setMsg(r.unchanged
-        ? { kind: 'ok', text: 'That is already the folder in use.' }
-        : { kind: 'restart', text: r.adopted
-            ? 'That folder already has a Radiant setup, so it was adopted as-is — nothing was overwritten. Quit and reopen Radiant to start using it.'
-            : 'Copied your setup across. The originals were left where they were, untouched. Quit and reopen Radiant to start using the new folder.' })
-    } catch (e) { setMsg({ kind: 'err', text: e.message }) }
+      setMsg({ kind: 'restart', text: okText(r) })
+    } catch (e) {
+      // The server refuses to guess when both sides already have a setup.
+      const c = e?.body || e?.data || null
+      if (c?.needsChoice) setConflict(c)
+      else setMsg({ kind: 'err', text: e.message })
+    }
     setBusy(false)
   }
 
-  const choose = async () => {
-    // The native picker exists in the app; window.prompt does not work here.
-    if (!window.radiantNative?.pickFolder) {
-      setMsg({ kind: 'err', text: 'Choosing a folder needs the Radiant app — this is the browser view.' })
-      return
-    }
-    const next = await window.radiantNative.pickFolder(info?.active)
-    if (next) apply(next, false)
+  const enable = () => {
+    if (!choice) return
+    send({ path: choice }, r => r.adopted
+      ? 'That folder already had a Radiant setup and it was adopted as-is. Quit and reopen Radiant.'
+      : 'Copied your setup across. Your originals were left where they were. Quit and reopen Radiant.')
   }
+  // ⚠️ TURNING SYNC OFF MUST BRING THE WORK HOME. The local folder has been
+  // sitting untouched since sync was turned on — pointing back at it would
+  // silently roll the user back to whatever they had that day. mode:'replace'
+  // copies the live data down and moves the stale copy aside instead.
+  const disable = () => send({ path: 'reset', reset: true, mode: 'replace' },
+    r => `Your setup was copied back to this Mac${r.backedUp ? ' and the old local copy was kept alongside it' : ''}. Quit and reopen Radiant.`)
 
   if (!info) return null
+  // What the user CHOSE, not what is loaded — the pointer changes now, the
+  // active folder only after a restart. Reading `active` here made the box
+  // spring back to unticked the instant it was ticked.
+  const syncing = info.syncing
+  const current = targets.find(t => t.path === (info.configured || info.active))
+
   return (
     <div className='data-folder'>
-      <div className='set-label'>Where Radiant keeps your setup</div>
+      <div className='set-label'>Sync across your Macs</div>
+      <label className='set-check'>
+        <input
+          type='checkbox'
+          checked={syncing}
+          disabled={busy || (!syncing && !targets.length)}
+          onChange={e => (e.target.checked ? enable() : disable())}
+        />
+        <span>Keep my setup in {current ? current.label : (targets.find(t => t.path === choice)?.label || 'a shared folder')}</span>
+      </label>
       <p className='set-hint'>
-        Your projects, chats, agents and preferences all live in one folder. Put
-        it somewhere your other Macs already see — iCloud Drive, Dropbox, a
-        shared volume — and your setup follows you, with no account and nothing
-        of yours stored anywhere else.
+        Your projects, chats, agents and preferences live in one folder. Keep it
+        somewhere your other Macs already see and your setup follows you — no
+        account, and nothing of yours stored anywhere else. Turn this on once per
+        Mac.
       </p>
-      <div className='data-folder-row'>
-        <code className='mono data-folder-path' title={info.active}>
-          {info.active.replace(/^\/Users\/[^/]+/, '~')}
-        </code>
-        <button className='btn-secondary' onClick={choose} disabled={busy}>Choose folder…</button>
-        {!info.isDefault && <button className='btn-secondary' onClick={() => apply(null, true)} disabled={busy}>Use the default</button>}
-      </div>
-      {info.unreachable && (
+
+      {!syncing && targets.length > 1 && (
+        <select className='text-input data-folder-pick' value={choice} onChange={e => setChoice(e.target.value)} disabled={busy}>
+          {targets.map(t => <option key={t.path} value={t.path}>{t.label}</option>)}
+        </select>
+      )}
+      {!syncing && !targets.length && (
         <p className='set-hint is-warn'>
-          The folder you chose (<code className='mono'>{info.configured}</code>) could not be
-          reached, so Radiant is running from the default one and your work is
-          intact. Reconnect that drive, or choose another folder.
+          No shared folder found on this Mac. Turn on iCloud Drive, or install
+          Dropbox or Google Drive, and this will offer it.
         </p>
       )}
-      <p className='set-hint'>
-        One Mac at a time. Two copies of Radiant writing to the same folder at
-        once will overwrite each other — for using two Macs together, share this
-        one below instead.
-      </p>
-      {msg && <p className={'set-hint ' + (msg.kind === 'err' ? 'is-warn' : msg.kind === 'restart' ? 'is-restart' : '')}>{msg.text}</p>}
+
+      {conflict && (
+        <div className='sync-conflict'>
+          <p>
+            That folder already has a Radiant setup{conflict.destModified ? `, last changed ${new Date(conflict.destModified).toLocaleString()}` : ''}.
+            One of the two has to win, and nothing has been changed yet.
+          </p>
+          <div className='data-folder-row'>
+            <button className='btn-secondary' disabled={busy} onClick={() => send({ path: conflict.dest, mode: 'adopt' }, () => 'Using the setup that was already in that folder. Quit and reopen Radiant.')}>
+              Use what is in the folder
+            </button>
+            <button className='btn-secondary' disabled={busy} onClick={() => send({ path: conflict.dest, mode: 'replace' }, r => `Replaced it with this Mac's setup${r.backedUp ? '; the previous one was kept alongside it' : ''}. Quit and reopen Radiant.`)}>
+              Use this Mac&rsquo;s setup
+            </button>
+            <button className='btn-secondary' disabled={busy} onClick={() => setConflict(null)}>Cancel</button>
+          </div>
+        </div>
+      )}
+
+      <details className='data-folder-adv'>
+        <summary>Where it is now</summary>
+        <div className='data-folder-row'>
+          <code className='mono data-folder-path' title={info.active}>{info.active.replace(/^\/Users\/[^/]+/, '~')}</code>
+          <button className='btn-secondary' disabled={busy} onClick={async () => {
+            if (!window.radiantNative?.pickFolder) { setMsg({ kind: 'err', text: 'Choosing a folder needs the Radiant app.' }); return }
+            const next = await window.radiantNative.pickFolder(info.active)
+            if (next) send({ path: next }, r => r.adopted ? 'Adopted the setup already in that folder. Quit and reopen Radiant.' : 'Copied your setup across. Quit and reopen Radiant.')
+          }}>Choose another folder…</button>
+        </div>
+        <p className='set-hint'>
+          One Mac at a time. Two copies of Radiant writing to the same folder at
+          once will overwrite each other — to work from two Macs together, share
+          this one below instead.
+        </p>
+      </details>
+
+      {info.unreachable && (
+        <p className='set-hint is-warn'>
+          The shared folder could not be reached, so Radiant is running from this
+          Mac and your work is intact. Reconnect it, or turn sync off.
+        </p>
+      )}
+      {info.pendingRestart && !msg && (
+        <p className='set-hint is-restart'>Quit and reopen Radiant to start using the shared folder.</p>
+      )}
+      {msg && <p className={'set-hint ' + (msg.kind === 'err' ? 'is-warn' : 'is-restart')}>{msg.text}</p>}
     </div>
   )
 }
@@ -1513,7 +1580,7 @@ const GUIDE = [
   {
     title: 'Chat & agents',
     items: [
-      ['Your setup follows you between Macs', 'Settings → Devices sets where Radiant keeps everything — projects, chats, agents, preferences. Point it at a folder your other Macs already see (iCloud Drive, Dropbox, a shared volume) and your setup moves with you, with no account to create and nothing of yours stored anywhere else. Radiant copies your setup across and leaves the originals where they were; if that folder is ever unreachable it falls back to the local one rather than starting blank. Use one Mac at a time — to work from two at once, share this Mac instead.'],
+      ['Sync across your Macs', 'Settings → Devices has one checkbox: keep my setup in iCloud Drive. Tick it and your projects, chats, agents and preferences follow you to your other Macs — no account to create, no password, and nothing of yours stored anywhere but your own cloud drive. Dropbox and Google Drive work too if you have them. Radiant copies your setup across and leaves the originals alone; turning it off copies everything back. If the shared folder is ever unreachable it runs from this Mac and says so, rather than opening empty. Point a second Mac at a folder that already has a setup and Radiant asks which one wins instead of guessing. Use one Mac at a time — to work from two at once, share this Mac instead.'],
       ['Projects', 'Group your chats into projects in the Chats sidebar. Give a project a folder and every new chat started inside it opens in that folder, so you stop re-pointing each session at the same place. Use the + on a project to start a chat in it, the pencil to rename, and the small menu on any chat row to move it between projects. Deleting a project never deletes its chats — they move to “No project”.'],
       ['Agents', 'Named personas with their own model, personality, and skills. Pick one from the welcome screen; the Agents sidebar view groups your sessions by agent. Edit them in Settings → Agents.'],
       ['Agent library', 'Over 140 ready-made expert agents across two dozen categories — browse, filter, and add one in a click, then tweak its model, name, and skills before saving.'],

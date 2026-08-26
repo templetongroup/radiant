@@ -41,12 +41,21 @@ const CONFIG_PATH = path.join(RADIANT_DIR, 'config.json')
 export function dataDirStatus () {
   let configured = null
   try { configured = fs.readFileSync(DIR_POINTER, 'utf8').trim() || null } catch {}
+  // ⚠️ THREE DIFFERENT STATES LOOK ALIKE AND MUST NOT BE CONFLATED.
+  //   chosen and in use        — normal
+  //   chosen, exists, not live — the pointer was just written; a restart applies it
+  //   chosen and NOT on disk   — the drive is gone; we fell back and must say so
+  // Collapsing the middle case into "unreachable" makes the panel warn about a
+  // missing folder one second after the user successfully chose it.
+  let exists = false
+  try { exists = Boolean(configured) && fs.existsSync(configured) } catch {}
   return {
     active: RADIANT_DIR,
     configured,
     isDefault: RADIANT_DIR === defaultDataDir(),
-    // true when a folder was chosen and Radiant could not use it
-    unreachable: Boolean(configured && configured !== RADIANT_DIR)
+    syncing: Boolean(configured),
+    pendingRestart: Boolean(configured) && exists && configured !== RADIANT_DIR,
+    unreachable: Boolean(configured) && !exists
   }
 }
 

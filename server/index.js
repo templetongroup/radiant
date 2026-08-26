@@ -468,35 +468,63 @@ app.patch('/api/agents/:id', (req, res) => {
 app.get('/api/data-dir', (req, res) => res.json(dataDirStatus()))
 
 app.post('/api/data-dir', (req, res) => {
-  const target = String(req.body?.path || '').trim()
-  if (!target) return res.status(400).json({ error: 'path required' })
-  if (!path.isAbsolute(target)) return res.status(400).json({ error: 'needs an absolute path' })
-
   const reset = req.body?.reset === true
-  const dest = reset ? defaultDataDir() : target
-  if (dest === RADIANT_DIR) return res.json({ ok: true, unchanged: true, ...dataDirStatus() })
+  const dest = reset ? defaultDataDir() : String(req.body?.path || '').trim()
+  const mode = String(req.body?.mode || 'auto')   // auto | adopt | replace
+  if (!dest) return res.status(400).json({ error: 'path required' })
+  if (!path.isAbsolute(dest)) return res.status(400).json({ error: 'needs an absolute path' })
+  // ⚠️ SAME FOLDER STILL NEEDS THE POINTER FIXED. Turning sync on and then off
+  // again BEFORE restarting lands here: the active folder never changed, so an
+  // early return skipped the pointer and sync stayed quietly on while the
+  // checkbox insisted it was off. Do no copying, but do record the intent.
+  if (dest === RADIANT_DIR) {
+    try {
+      if (dest === defaultDataDir()) fs.rmSync(DIR_POINTER, { force: true })
+      else fs.writeFileSync(DIR_POINTER, dest)
+    } catch (e) { return res.status(500).json({ error: `Could not record the location: ${e.message}` }) }
+    return res.json({ ok: true, unchanged: true, ...dataDirStatus() })
+  }
 
   try {
     fs.mkdirSync(dest, { recursive: true })
-    // Writable? A read-only or unmounted volume must fail HERE, loudly, and not
-    // after the pointer has been written — that would strand Radiant.
     const probe = path.join(dest, '.radiant-write-test')
     fs.writeFileSync(probe, 'ok'); fs.rmSync(probe)
   } catch (e) {
     return res.status(400).json({ error: `Cannot write to that folder: ${e.message}` })
   }
 
-  // ⚠️ COPY, THEN POINT. NEVER MOVE. If anything fails midway the originals are
-  // still in the old directory, untouched, and Radiant keeps running from them.
-  // The old directory is deliberately NOT deleted afterwards either — a stale
-  // copy costs disk, a wrong `rm -rf` costs the user everything they have done.
-  let copied = 0
-  const existing = fs.existsSync(path.join(dest, 'config.json'))
+  const destHasProfile = fs.existsSync(path.join(dest, 'config.json'))
+
+  // ⚠️ TWO INTENTS LOOK IDENTICAL AND MEAN OPPOSITE THINGS.
+  //   "put my setup here"      — this Mac's work should win
+  //   "use the setup that's here" — the folder's work should win
+  // Guessing loses somebody's work either way, so when the destination already
+  // has a profile and the caller has not said which it means, ASK. Nothing is
+  // written on this path.
+  if (destHasProfile && mode === 'auto') {
+    let when = null
+    try { when = fs.statSync(path.join(dest, 'config.json')).mtime.toISOString() } catch {}
+    return res.status(409).json({ needsChoice: true, dest, destModified: when })
+  }
+
+  let backedUp = null
   try {
-    if (!existing) {
+    if (destHasProfile && mode === 'adopt') {
+      // Use the folder as it stands. Nothing copied, nothing overwritten.
+    } else {
+      // Replacing, or filling an empty folder. If something is already there it
+      // is moved aside with a dated name — never deleted, never written over.
+      if (destHasProfile) {
+        backedUp = path.join(dest, `radiant-replaced-${Date.now()}`)
+        fs.mkdirSync(backedUp, { recursive: true })
+        for (const e of fs.readdirSync(dest)) {
+          if (e.startsWith('radiant-replaced-')) continue
+          fs.renameSync(path.join(dest, e), path.join(backedUp, e))
+        }
+      }
       for (const entry of fs.readdirSync(RADIANT_DIR)) {
+        if (entry.startsWith('radiant-replaced-')) continue
         fs.cpSync(path.join(RADIANT_DIR, entry), path.join(dest, entry), { recursive: true })
-        copied++
       }
     }
   } catch (e) {
@@ -510,18 +538,28 @@ app.post('/api/data-dir', (req, res) => {
     return res.status(500).json({ error: `Could not record the new location: ${e.message}` })
   }
 
-  // RADIANT_DIR and everything derived from it were resolved at import time, so
-  // the running process still reads the old folder. Say so rather than pretend.
-  res.json({
-    ok: true,
-    from: RADIANT_DIR,
-    to: dest,
-    // "adopted" = the target already had a Radiant profile and was used as-is,
-    // which is exactly what the SECOND Mac should do.
-    adopted: existing,
-    copiedEntries: copied,
-    needsRestart: true
-  })
+  res.json({ ok: true, from: RADIANT_DIR, to: dest, adopted: destHasProfile && mode === 'adopt', backedUp, needsRestart: true })
+})
+
+// Cloud folders this Mac actually has, so the UI can offer a real destination
+// instead of asking someone to go hunting in a file picker.
+app.get('/api/sync-targets', (req, res) => {
+  const home = os.homedir()
+  const out = []
+  const add = (label, dir) => { try { if (fs.existsSync(dir)) out.push({ label, path: path.join(dir, 'Radiant') }) } catch {} }
+  add('iCloud Drive', path.join(home, 'Library', 'Mobile Documents', 'com~apple~CloudDocs'))
+  add('Dropbox', path.join(home, 'Dropbox'))
+  try {
+    const cs = path.join(home, 'Library', 'CloudStorage')
+    for (const e of fs.readdirSync(cs)) {
+      // Skip the dated duplicates macOS leaves behind when an account is re-added.
+      if (/\(.*\d.*\)$/.test(e)) continue
+      if (/^Dropbox/.test(e)) add('Dropbox', path.join(cs, e))
+      else if (/^GoogleDrive-/.test(e)) add(`Google Drive · ${e.replace('GoogleDrive-', '')}`, path.join(cs, e, 'My Drive'))
+      else if (/^OneDrive/.test(e)) add('OneDrive', path.join(cs, e))
+    }
+  } catch {}
+  res.json({ targets: out })
 })
 
 // ── projects ────────────────────────────────────────────────────────────────
