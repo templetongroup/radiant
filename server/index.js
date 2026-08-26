@@ -229,6 +229,22 @@ const pendingQuestions = new Map() // questionId -> resolve(answer string)
 // Reload config from disk before handling config-touching requests, so a second
 // instance (or a stale in-memory copy) can't clobber another's keys/oauth when
 // it saves. Skips long-lived streams that captured config at their start.
+// ⚠️ API RESPONSES MUST NEVER BE CACHED BY THE WEBVIEW.
+//
+// Express stamps an ETag on every JSON response and nothing set a cache
+// directive, so Chromium was free to reuse an /api/ response it had already
+// seen — from the same stable URL, out of a cache that lives in the user data
+// folder and therefore survives quitting, restarting, and reinstalling the app.
+//
+// Tony's About pane insisted the app was running 0.6.128 while the window was
+// plainly rendering 0.6.132's code, through a fresh install and repeated
+// restarts, because /api/version was answering out of that cache. Every other
+// read — projects, sessions, config — was equally cacheable.
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api/')) res.set('Cache-Control', 'no-store, must-revalidate')
+  next()
+})
+
 app.use((req, res, next) => {
   if (req.path.startsWith('/api/') &&
       !/^\/api\/(chat|pull|quantize|abort|approve)/.test(req.path)) {

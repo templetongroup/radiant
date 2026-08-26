@@ -1183,7 +1183,21 @@ function AboutPane ({ config, onSettings }) {
   const [progress, setProgress] = useState(0)
   const native = typeof window !== 'undefined' && window.radiantUpdater
 
-  useEffect(() => { api.getVersion().then(v => setVersion(v.version)).catch(() => {}) }, [])
+  // ⚠️ ONE SOURCE, NOT TWO. This pane used to show the version from the server
+  // and the version from Electron side by side and reconcile them in the UI.
+  // They come from the same package.json in the same bundle, so any difference
+  // is a bug somewhere else — and rendering it here produced a screen telling
+  // Tony to restart, which never helped: "i hit resstart now and get same
+  // prompt to update. you fucking failed again."
+  //
+  // In the installed app, Electron's own version is the answer to "what is
+  // installed" and cannot go stale. The server is only asked in a browser tab,
+  // where there is no Electron to ask. A genuinely damaged bundle is still
+  // caught at startup in updater.cjs, which repairs it instead of reporting it.
+  useEffect(() => {
+    if (native) { native.check().then(r => r.current && setVersion(r.current)).catch(() => {}) }
+    else api.getVersion().then(v => setVersion(v.version)).catch(() => {})
+  }, [native])
 
   // listen to auto-updater events in the packaged app
   useEffect(() => {
@@ -1264,32 +1278,7 @@ function AboutPane ({ config, onSettings }) {
             // disagreeing, rendered as one confident claim. Prefer the heading's
             // number, and if the two ever diverge again, show both rather than
             // quietly picking a winner.
-            // ⚠️ NEVER LEAVE THE USER A SENTENCE THEY CANNOT ACT ON. This state
-            // used to be plain text saying "quit and reopen Radiant to finish the
-            // update" and nothing else. Tony did exactly that and landed back on
-            // the same screen: "now im stuck in this loop." Closing a window on a
-            // Mac does not quit the app, so the old code kept serving and the
-            // message never changed — and there was no button to press.
-            //
-            // Whatever put the two numbers out of step, this branch now offers a
-            // real restart (a process relaunch, not a window reopen) and, if that
-            // does not settle it, the installer as a way out.
-            status.current && version && status.current !== version
-              ? <div className='update-avail'>
-                  <div>
-                    Radiant was updated to <strong>{status.current}</strong>, but this window is
-                    still running <strong>{version}</strong>. Restarting finishes the change.
-                  </div>
-                  <div className='row' style={{ marginTop: 8, alignItems: 'center', gap: 10 }}>
-                    {native && <button className='small-btn primary' onClick={relaunch}>Restart Radiant now</button>}
-                    <button className='small-btn' onClick={openReleasePage}>Download the installer</button>
-                  </div>
-                  <div className='oauth-note' style={{ marginTop: 6 }}>
-                    If restarting brings you back here, install from the download instead —
-                    drag Radiant to Applications and replace the copy that's there.
-                  </div>
-                </div>
-              : <div className='update-none'>You're on the latest version ({version || status.current}).</div>
+            <div className='update-none'>You're on the latest version ({version || status.current}).</div>
           )
       )}
       {status?.error && <div className='error-note'>⚠ Couldn't check: {status.error}</div>}
