@@ -1605,6 +1605,16 @@ function DevicesPane () {
 
   const linked = Boolean(server.base)
 
+  // ⚠️ THIS BANNER MUST DESCRIBE BOTH ARRANGEMENTS, NOT ONE. It only ever asked
+  // whether this Mac was borrowing another one's Radiant, so with syncing on it
+  // still announced "using its own setup, stored on this machine" — directly
+  // above a ticked "Keep my setup in iCloud Drive". Tony: "says using its own
+  // setup but keep my mac in step is checked on."
+  const [folder, setFolder] = useState(null)
+  useEffect(() => { api.getDataDir().then(setFolder).catch(() => {}) }, [])
+  const syncing = Boolean(folder?.syncing && !folder?.pendingRestart)
+  const folderLabel = folder?.active ? folder.active.replace(/^\/Users\/[^/]+/, '~') : ''
+
   return (
     <div className='set-section'>
       <h3>Using Radiant on more than one Mac</h3>
@@ -1619,7 +1629,13 @@ function DevicesPane () {
         {linked
           ? <>This Mac is <strong>using the Radiant on another Mac</strong> — everything you see
               (models, agents, chats) comes from <code className='mono'>{server.base}</code>, not from here.</>
-          : <>This Mac is <strong>using its own setup</strong>, stored on this machine.</>}
+          : syncing
+            ? <>This Mac is <strong>sharing one setup with your other Macs</strong>, kept
+                in <code className='mono'>{folderLabel}</code>.</>
+            : folder?.pendingRestart
+              ? <>This Mac is <strong>still using its own setup</strong> — the shared folder you
+                  picked takes effect after you quit Radiant completely and reopen it.</>
+              : <>This Mac is <strong>using its own setup</strong>, stored on this machine.</>}
       </div>
 
       <p className='hint'>
