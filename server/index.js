@@ -530,10 +530,21 @@ app.post('/api/chats/import', (req, res) => {
   // one project named for the day they arrived: findable, groupable, and
   // removable as a set — and deleting that project keeps the chats, like any
   // other.
-  const stamp = new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+  // ⚠️ THE NAME HAS TO BE TELLABLE APART. Importing twice in a day produced two
+  // shelves both called "Imported Aug 25, 2026", and a move-to-project menu
+  // listing the same words twice — nothing errored, and the feature was still
+  // useless. Fall back to the time, then to a counter.
+  const now = new Date()
+  const day = now.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+  const clock = now.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+  const taken = new Set((config.projects || []).map(x => x.name))
+  let name = `Imported ${day}`
+  if (taken.has(name)) name = `Imported ${day} at ${clock}`
+  for (let n = 2; taken.has(name); n++) name = `Imported ${day} at ${clock} (${n})`
+
   const project = {
     id: 'pr-' + crypto.randomBytes(4).toString('hex'),
-    name: `Imported ${stamp}`,
+    name,
     cwd: null, hue: null, model: null, provider: null, agentId: null,
     createdAt: new Date().toISOString()
   }
