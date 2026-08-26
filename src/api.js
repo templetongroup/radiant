@@ -295,6 +295,7 @@ export const api = {
   patchSession: (id, body) => json('PATCH', `/api/sessions/${id}`, body),
   deleteSession: id => json('DELETE', `/api/sessions/${id}`),
   truncateSession: (id, index) => json('POST', `/api/sessions/${id}/truncate`, { index }),
+  forkSession: (id, index) => json('POST', `/api/sessions/${id}/fork`, { index }),
   approve: (id, approved) => json('POST', '/api/approve', { id, approved }),
   abort: sessionId => json('POST', '/api/abort', { sessionId }),
   getSystem: () => json('GET', '/api/system'),

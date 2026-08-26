@@ -195,6 +195,18 @@ function DesktopApp () {
     refreshSessions()
   }
 
+  // ⚠️ BRANCHING MUST NOT DISTURB THE CHAT YOU ARE IN. Rewind (below) removes
+  // messages; this copies them. The new chat opens, the original is left exactly
+  // as it was, which is the whole reason to offer it next to a destructive
+  // button that people are wary of pressing.
+  const forkSession = async index => {
+    if (!session) return
+    const branch = await api.forkSession(session.id, index)
+    await refreshSessions()
+    openSession(branch.id)
+    return branch
+  }
+
   const truncateSession = async index => {
     if (!session) return
     const s = await api.truncateSession(session.id, index)
@@ -390,6 +402,7 @@ function DesktopApp () {
         onMenu={() => setNavOpen(true)}
         onNewGroup={newGroup}
         onTruncate={truncateSession}
+        onFork={forkSession}
         skillSuggestion={skillSuggestion}
         onReviewSkill={() => { setSkillSuggestion(null); setSettingsTab('skills'); setSettingsOpen(true) }}
         onOpenLibrary={() => { setAgentView('library'); setSettingsTab('agents'); setSettingsOpen(true) }}

@@ -493,6 +493,70 @@ const SAFE_SESSION_KEYS = [
   'useTools', 'computerControl', 'planMode', 'createdAt', 'updatedAt', 'messages'
 ]
 
+// ---- ChatGPT exports --------------------------------------------------------
+//
+// A ChatGPT export is conversations.json: an array of conversations, each
+// holding a `mapping` of message nodes that form a TREE, because every edit or
+// regeneration in ChatGPT creates a branch. `current_node` marks the leaf of the
+// conversation as the user last left it, so walking parents from there and
+// reversing gives the thread they actually saw. Reading `mapping` in object
+// order instead would interleave abandoned branches into one nonsensical
+// transcript.
+function looksLikeChatGPT (body) {
+  const arr = Array.isArray(body) ? body : (Array.isArray(body?.conversations) ? body.conversations : null)
+  return Boolean(arr && arr.length && arr.some(c => c && typeof c.mapping === 'object'))
+}
+
+function chatGPTText (msg) {
+  const c = msg?.content
+  if (!c) return ''
+  if (Array.isArray(c.parts)) {
+    return c.parts.map(p => typeof p === 'string' ? p : (p?.text || '')).filter(Boolean).join('\n').trim()
+  }
+  return typeof c.text === 'string' ? c.text.trim() : ''
+}
+
+function fromChatGPT (body) {
+  const convos = Array.isArray(body) ? body : body.conversations
+  const out = []
+  for (const c of convos) {
+    if (!c || typeof c.mapping !== 'object') continue
+    // Walk up from the leaf, then reverse: this is the thread as last seen.
+    const chain = []
+    let id = c.current_node
+    const guard = new Set()
+    while (id && c.mapping[id] && !guard.has(id)) {
+      guard.add(id)
+      chain.push(c.mapping[id])
+      id = c.mapping[id].parent
+    }
+    chain.reverse()
+
+    const messages = []
+    for (const node of chain) {
+      const m = node?.message
+      const role = m?.author?.role
+      if (role !== 'user' && role !== 'assistant') continue          // skips system + tool nodes
+      if (m?.metadata?.is_visually_hidden_from_conversation) continue
+      const text = chatGPTText(m)
+      if (!text) continue
+      messages.push(role === 'user'
+        ? { role: 'user', text }
+        : { role: 'assistant', parts: [{ type: 'text', text }] })
+    }
+    if (!messages.length) continue
+
+    const stamp = t => (typeof t === 'number' && t > 0) ? new Date(t * 1000).toISOString() : null
+    out.push({
+      title: String(c.title || 'ChatGPT chat').slice(0, 200),
+      messages,
+      createdAt: stamp(c.create_time),
+      updatedAt: stamp(c.update_time) || stamp(c.create_time)
+    })
+  }
+  return out.length ? out : null
+}
+
 function chatToMarkdown (s) {
   const out = [`# ${s.title || 'Chat'}`, '']
   const meta = [s.model && `Model: ${s.model}`, s.cwd && `Folder: ${s.cwd}`,
@@ -543,8 +607,10 @@ app.get('/api/chats/export', (req, res) => {
 
 app.post('/api/chats/import', (req, res) => {
   const body = req.body || {}
-  const incoming = Array.isArray(body.chats) ? body.chats : (body.messages ? [body] : null)
-  if (!incoming) return res.status(400).json({ error: 'That file does not look like a Radiant chat export.' })
+  const incoming = Array.isArray(body.chats) ? body.chats
+    : (body.messages ? [body]
+    : (looksLikeChatGPT(body) ? fromChatGPT(body) : null))
+  if (!incoming) return res.status(400).json({ error: 'That file does not look like a Radiant or ChatGPT chat export.' })
 
   // ⚠️ IMPORTED CHATS NEED A HOME OR THEY ARE LOST ON ARRIVAL. Without this
   // they land loose in the sidebar, indistinguishable from your own, and with
@@ -1631,6 +1697,30 @@ app.post('/api/sessions', (req, res) => {
   }
   saveSession(session)
   res.json(session)
+})
+
+// ⚠️ A BRANCH COPIES, IT NEVER MOVES. The original chat is untouched — the whole
+// point is to try a different direction without losing the one you have. Copies
+// everything that defines how the conversation behaves (agent, model, folder,
+// toggles) so the branch runs under the same conditions, and keeps the messages
+// up to and including the chosen one.
+app.post('/api/sessions/:id/fork', (req, res) => {
+  const src = loadSession(req.params.id)
+  if (!src) return res.status(404).json({ error: 'not found' })
+  const msgs = Array.isArray(src.messages) ? src.messages : []
+  const at = Number.isInteger(req.body?.index) ? req.body.index : msgs.length - 1
+  if (at < 0 || at >= msgs.length) return res.status(400).json({ error: 'no such message' })
+
+  const branch = {
+    ...structuredClone(src),
+    id: crypto.randomUUID(),
+    title: /\(branch(?: \d+)?\)$/.test(src.title || '') ? src.title : `${src.title || 'Chat'} (branch)`,
+    messages: structuredClone(msgs.slice(0, at + 1)),
+    forkedFrom: { id: src.id, title: src.title || null, index: at },
+    createdAt: new Date().toISOString()
+  }
+  saveSession(branch)
+  res.json(branch)
 })
 
 app.get('/api/sessions-search', (req, res) => res.json(searchSessions(req.query.q, 30)))

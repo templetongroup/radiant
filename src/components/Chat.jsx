@@ -397,6 +397,45 @@ const MenuIcon = () => <svg width='18' height='18' viewBox='0 0 24 24' fill='non
 
 const fmtTok = n => n >= 1000 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1) + 'k' : String(n || 0)
 
+// ⚠️ NEVER INVENT THE DENOMINATOR. The input count on the last turn IS the
+// context that request consumed — system prompt, history, tools, everything —
+// so no estimating is needed for the numerator. The window size is the part we
+// may not know: a model we have no entry for gets the number and no bar, rather
+// than a percentage of a guess. A long chat degrading quietly as it overflows
+// is the failure this exists to prevent; a confidently wrong gauge would be
+// worse than none.
+const CONTEXT_WINDOWS = [
+  [/claude.*(opus|sonnet|haiku)/i, 200_000],
+  [/gpt-5|gpt-4\.1|o[34]/i, 400_000],
+  [/gpt-4o|gpt-4-turbo/i, 128_000],
+  [/gemini.*(pro|flash)/i, 1_000_000],
+  [/grok/i, 131_072],
+  [/deepseek/i, 65_536],
+  [/qwen.*(2\.5|3)/i, 32_768],
+  [/llama.*3\.[123]/i, 128_000],
+  [/mistral|mixtral/i, 32_768]
+]
+function contextWindow (model) {
+  for (const [re, n] of CONTEXT_WINDOWS) if (re.test(model || '')) return n
+  return null
+}
+const kfmt = n => n >= 1000 ? `${(n / 1000).toFixed(n >= 10_000 ? 0 : 1)}k` : String(n)
+
+function ContextGauge ({ usage, model }) {
+  const used = usage?.input
+  if (!used) return <span className='usage-note'>{usage?.output ?? '–'} out</span>
+  const win = contextWindow(model)
+  if (!win) return <span className='usage-note'>{kfmt(used)} in · {usage.output ?? '–'} out</span>
+  const pct = Math.min(100, Math.round((used / win) * 100))
+  const level = pct >= 90 ? ' is-full' : pct >= 70 ? ' is-high' : ''
+  return (
+    <span className={'ctx-gauge' + level} data-tip={`Context: ${used.toLocaleString()} of about ${win.toLocaleString()} tokens used on the last turn.\nWhen this fills, the oldest messages stop being sent.`}>
+      <span className='ctx-bar'><span style={{ width: pct + '%' }} /></span>
+      <span className='usage-note'>{pct}% of {kfmt(win)} · {usage.output ?? '–'} out</span>
+    </span>
+  )
+}
+
 function StatsChip ({ stats }) {
   if (!stats || !stats.turns) return null
   const secs = Math.round((stats.llmMs + stats.toolMs) / 1000)
@@ -477,7 +516,7 @@ export function GroupPicker ({ agents, onStart, onCancel }) {
   )
 }
 
-export default function Chat ({ session, live, todos = [], stats, approval, question, onAnswer, usage, error, models, agents = [], recipes = [], onSend, onStop, onApproval, onPickModel, onToggleTools, onToggleComputer, onTogglePlan, onSetCwd, onNew, onNewGroup, onTruncate, onRefreshModels, skillSuggestion, onReviewSkill, onDismissSuggestion, onOpenLibrary, rightOpen, onToggleRight, onMenu, approvalMode = 'ask', onCycleApproval }) {
+export default function Chat ({ session, live, todos = [], stats, approval, question, onAnswer, usage, error, models, agents = [], recipes = [], onSend, onStop, onApproval, onPickModel, onToggleTools, onToggleComputer, onTogglePlan, onSetCwd, onNew, onNewGroup, onTruncate, onRefreshModels, skillSuggestion, onReviewSkill, onDismissSuggestion, onOpenLibrary, rightOpen, onToggleRight, onMenu, approvalMode = 'ask', onCycleApproval, onFork}) {
   const [groupPicker, setGroupPicker] = useState(false)
   const [pickAgent, setPickAgent] = useState(false) // splash: reveal the agent picker
   const [draft, setDraft] = useState('')
@@ -725,6 +764,12 @@ export default function Chat ({ session, live, todos = [], stats, approval, ques
                     )}
                     {m.text}
                   </div>
+                  {onFork && !live && (
+                    <button className='rewind-btn branch-btn' title='Branch — copy this chat up to here into a new one, leaving this one alone'
+                      onClick={() => onFork(i)}>
+                      <Icon.branch size={12} /> branch
+                    </button>
+                  )}
                   {onTruncate && !live && (
                     <button className='rewind-btn' title='Rewind — edit this and retry (removes messages after it)' onClick={async () => {
                       if (!window.confirm('Rewind to here? This removes the messages after this point so you can edit and retry.')) return
@@ -907,7 +952,7 @@ export default function Chat ({ session, live, todos = [], stats, approval, ques
             </div>
             <div className='composer-actions'>
               {usage && (usage.input || usage.output) ? (
-                <span className='usage-note'>{usage.input ?? '–'} in · {usage.output ?? '–'} out</span>
+                <ContextGauge usage={usage} model={session.model} />
               ) : null}
               {streaming
                 ? <>

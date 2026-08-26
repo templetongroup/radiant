@@ -526,6 +526,37 @@ code, pre, .mono { font-family: var(--font-mono); }
   border-radius: 6px; padding: 1px 5px; max-width: 190px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+.artifact-btn {
+  position: absolute; top: 6px; right: 62px;
+  font-size: 11px; padding: 2px 8px; border-radius: 6px;
+  border: 1px solid var(--border); background: var(--bg-raised); color: var(--text-muted);
+}
+.artifact-btn:hover { border-color: var(--accent-dim); color: var(--accent); }
+.artifact-panel {
+  margin: 8px 0 14px; border: 1px solid var(--border); border-radius: 10px;
+  background: var(--bg-panel); overflow: hidden;
+}
+.artifact-bar {
+  display: flex; align-items: center; gap: 8px; padding: 6px 10px;
+  border-bottom: 1px solid var(--border); font-size: 11.5px; color: var(--text-muted);
+}
+.artifact-bar span { flex: 1; }
+.artifact-act {
+  font-size: 11px; padding: 2px 8px; border-radius: 6px;
+  border: 1px solid var(--border); background: var(--bg-raised); color: var(--text-muted);
+}
+.artifact-act:hover { border-color: var(--accent-dim); color: var(--accent); }
+.artifact-body { max-height: 340px; overflow: auto; padding: 10px; }
+.artifact-panel.is-big .artifact-body { max-height: 78vh; }
+.artifact-body svg { max-width: 100%; height: auto; display: block; margin: 0 auto; }
+.artifact-frame { width: 100%; height: 320px; border: 0; background: #fff; border-radius: 6px; }
+.artifact-panel.is-big .artifact-frame { height: 74vh; }
+.artifact-err { color: var(--danger, #d9534f); font-size: 12.5px; }
+.ctx-gauge { display: inline-flex; align-items: center; gap: 7px; }
+.ctx-bar { width: 46px; height: 4px; border-radius: 999px; background: var(--bg-raised); overflow: hidden; }
+.ctx-bar > span { display: block; height: 100%; background: var(--accent); border-radius: 999px; transition: width .3s ease; }
+.ctx-gauge.is-high .ctx-bar > span { background: #d9a441; }
+.ctx-gauge.is-full .ctx-bar > span { background: var(--danger, #d9534f); }
 .dev-option {
   border: 1px solid var(--border); border-radius: 14px;
   background: var(--bg-panel); padding: 16px;

@@ -1,6 +1,6 @@
 {
   "name": "radiant",
-  "version": "0.6.145",
+  "version": "0.6.147",
   "private": true,
   "description": "Radiant — a local coding harness: chat with coding agents across cloud and local models.",
   "author": "Tony Ricciardi",
@@ -79,6 +79,7 @@
     "dompurify": "^3.4.13",
     "electron-updater": "^6.8.9",
     "express": "^4.21.2",
+    "mermaid": "^11.17.2",
     "node-pty": "^1.0.0",
     "playwright-core": "^1.62.1",
     "ws": "^8.18.0"
