@@ -143,6 +143,24 @@ Apple does not count either as collection by the developer.
 
 ## Submission status — 2026-08-24
 
+**REPLIED 2026-08-25 21:45.** All seven answers sent in App Review with two
+screen recordings attached, and the same answers saved in the Notes field.
+"Resubmit to App Review" stays greyed out after replying — for a 2.1
+information request the reply itself is what goes back to the reviewer, so do
+not go looking for a button to press. If the status has not moved in a couple
+of days, that button is the fallback. **No new build is needed; the binary was
+never at fault.**
+
+⚠️ THE VIDEO TOOK THREE TAKES, AND THE FIRST TWO WERE UNUSABLE FOR THE REASON
+THAT MATTERED. Take 1: Airplane Mode on but Wi-Fi re-enabled — the status bar
+showed a live Wi-Fi fan, so it proved nothing about offline use. Take 2:
+genuinely offline, but the 350M model invented Civil War history ("General Andy
+Schmitt", "the Confederate city of App pressed"), which is not something to put
+in front of a reviewer of an AI app. Take 3: Wi-Fi off but cellular still up —
+"5G+" in the status bar. Take 4 is the one: Airplane Mode itself on, iOS showing
+"Disconnecting Nearby Wi-Fi", no Wi-Fi and no cellular in the status bar, and a
+clean haiku. **Check the status bar of any offline demo before believing it.**
+
 **REJECTED 2026-08-25 20:59 — Guideline 2.1, Information Needed.** Not a
 guideline violation and no code change required: Apple's standard request for
 more detail on a new app. They asked for seven things; six are now answered in
