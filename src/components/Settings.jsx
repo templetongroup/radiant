@@ -1339,8 +1339,24 @@ function DataFolderBlock () {
     setBusy(false)
   }
 
-  const enable = () => {
-    if (!choice) return
+  // ⚠️ NEVER DEAD-END ON DETECTION. This used to disable the checkbox when no
+  // cloud folder was found, which makes the feature unusable the moment the
+  // guess is wrong — and it was: Tony's work Mac has iCloud Drive on and was
+  // still told there was no shared folder. Detection is a convenience for the
+  // common case, not a gate. With nothing detected, ticking the box asks where
+  // to put it, which works no matter what the Mac's setup looks like.
+  const enable = async () => {
+    if (!choice) {
+      if (!window.radiantNative?.pickFolder) {
+        setMsg({ kind: 'err', text: 'Choosing a folder needs the Radiant app — this is the browser view.' })
+        return
+      }
+      const picked = await window.radiantNative.pickFolder(info?.active)
+      if (!picked) return
+      return send({ path: picked }, r => r.adopted
+        ? 'That folder already had a Radiant setup and it was adopted as-is. Quit and reopen Radiant.'
+        : 'Copied your setup across. Your originals were left where they were. Quit and reopen Radiant.')
+    }
     send({ path: choice }, r => r.adopted
       ? 'That folder already had a Radiant setup and it was adopted as-is. Quit and reopen Radiant.'
       : 'Copied your setup across. Your originals were left where they were. Quit and reopen Radiant.')
@@ -1366,10 +1382,10 @@ function DataFolderBlock () {
         <input
           type='checkbox'
           checked={syncing}
-          disabled={busy || (!syncing && !targets.length)}
+          disabled={busy}
           onChange={e => (e.target.checked ? enable() : disable())}
         />
-        <span>Keep my setup in {current ? current.label : (targets.find(t => t.path === choice)?.label || 'a shared folder')}</span>
+        <span>Keep my setup in {current ? current.label : (targets.find(t => t.path === choice)?.label || 'a folder my other Macs can see…')}</span>
       </label>
       <p className='set-hint'>
         Your projects, chats, agents and preferences live in one folder. Keep it
@@ -1384,9 +1400,10 @@ function DataFolderBlock () {
         </select>
       )}
       {!syncing && !targets.length && (
-        <p className='set-hint is-warn'>
-          No shared folder found on this Mac. Turn on iCloud Drive, or install
-          Dropbox or Google Drive, and this will offer it.
+        <p className='set-hint'>
+          No cloud folder was detected automatically on this Mac — tick the box
+          and you can choose one yourself. Anything your other Macs can see
+          works: iCloud Drive, Dropbox, Google Drive, or a shared volume.
         </p>
       )}
 
