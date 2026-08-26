@@ -11,7 +11,8 @@ import { fileURLToPath } from 'url'
 import { WebSocketServer } from 'ws'
 import pty from 'node-pty'
 import { execSync, spawn } from 'child_process'
-import { RADIANT_DIR, DIR_POINTER, defaultDataDir, dataDirStatus, loadConfig, saveConfig, publicConfig, listSessions, loadSession, saveSession, deleteSession, searchSessions, upsertCredential, activateAccount, removeAccount, SESSIONS_DIR } from './config.js'
+import { RADIANT_DIR, DIR_POINTER, defaultDataDir, dataDirStatus, loadConfig, saveConfig, publicConfig, listSessions, loadSession, saveSession, deleteSession, searchSessions, upsertCredential, activateAccount, removeAccount, SESSIONS_DIR, listProjects, getProject, saveProject, deleteProject, migrateProjects
+} from './config.js'
 import { runTurn, listModels } from './providers.js'
 import { OAUTH_PROVIDERS, buildAuthUrl, completePaste, startLoopback, validAccessToken, startDevice, pollDevice } from './oauth.js'
 import { checkForUpdate } from './updater.js'
@@ -47,6 +48,9 @@ const APP_VERSION = (() => {
 })()
 
 let config = loadConfig()
+// Projects used to live in config.json. Move them to one file each before
+// anything reads them, so a second Mac cannot overwrite the whole list.
+migrateProjects(config)
 
 // ---- network sharing --------------------------------------------------------
 // Normally the server binds to localhost only. On an always-on "host" Mac you can
@@ -553,7 +557,7 @@ app.post('/api/chats/import', (req, res) => {
   const now = new Date()
   const day = now.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
   const clock = now.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
-  const taken = new Set((config.projects || []).map(x => x.name))
+  const taken = new Set(listProjects().map(x => x.name))
   let name = `Imported ${day}`
   if (taken.has(name)) name = `Imported ${day} at ${clock}`
   for (let n = 2; taken.has(name); n++) name = `Imported ${day} at ${clock} (${n})`
@@ -597,11 +601,7 @@ app.post('/api/chats/import', (req, res) => {
       added++
     } catch { skipped++ }
   }
-  if (added) {
-    config.projects = config.projects || []
-    config.projects.push(project)
-    saveConfig(config)
-  }
+  if (added) saveProject(project)
   res.json({ ok: true, added, skipped, project: added ? project.name : null })
 })
 
@@ -751,12 +751,11 @@ app.get('/api/sync-targets', (req, res) => {
 // looks disposable; the conversations inside it are not. Delete clears the
 // pointer on every session that referenced it and leaves the work in place,
 // where it reappears under "No project".
-app.get('/api/projects', (req, res) => res.json(config.projects || []))
+app.get('/api/projects', (req, res) => res.json(listProjects()))
 
 app.post('/api/projects', (req, res) => {
   const name = String(req.body.name || '').trim()
   if (!name) return res.status(400).json({ error: 'name required' })
-  config.projects = config.projects || []
   const project = {
     id: 'pr-' + crypto.randomBytes(4).toString('hex'),
     name,
@@ -769,25 +768,23 @@ app.post('/api/projects', (req, res) => {
     agentId: req.body.agentId || null,
     createdAt: new Date().toISOString()
   }
-  config.projects.push(project)
-  saveConfig(config)
+  saveProject(project)
   res.json(project)
 })
 
 app.patch('/api/projects/:id', (req, res) => {
-  const p = (config.projects || []).find(x => x.id === req.params.id)
+  const p = getProject(req.params.id)
   if (!p) return res.status(404).json({ error: 'not found' })
   for (const k of ['name', 'cwd', 'hue', 'model', 'provider', 'agentId']) {
     if (k in req.body) p[k] = req.body[k]
   }
-  saveConfig(config)
+  saveProject(p)
   res.json(p)
 })
 
 app.delete('/api/projects/:id', (req, res) => {
   const id = req.params.id
-  config.projects = (config.projects || []).filter(x => x.id !== id)
-  saveConfig(config)
+  deleteProject(id)
   // Unassign, do not delete. See the warning above.
   let freed = 0
   for (const row of listSessions()) {
@@ -1582,7 +1579,7 @@ app.post('/api/download/cancel', (req, res) => {
 app.get('/api/sessions', (req, res) => res.json(listSessions()))
 
 app.post('/api/sessions', (req, res) => {
-  const project = req.body.projectId ? (config.projects || []).find(p => p.id === req.body.projectId) : null
+  const project = req.body.projectId ? getProject(req.body.projectId) : null
   // The project's agent is a DEFAULT, not an override: an explicit agentId on
   // the request still wins, so "new chat with this agent" keeps working inside
   // a project that names a different one.

@@ -35,6 +35,7 @@ function resolveDataDir () {
 
 export const RADIANT_DIR = resolveDataDir()
 export const SESSIONS_DIR = path.join(RADIANT_DIR, 'sessions')
+export const PROJECTS_DIR = path.join(RADIANT_DIR, 'projects')
 const CONFIG_PATH = path.join(RADIANT_DIR, 'config.json')
 
 /** What the UI needs to describe the current location honestly. */
@@ -162,6 +163,18 @@ const DEFAULT_CONFIG = {
 
 function ensureDirs () {
   fs.mkdirSync(SESSIONS_DIR, { recursive: true })
+  fs.mkdirSync(PROJECTS_DIR, { recursive: true })
+}
+
+// ⚠️ A HALF-WRITTEN FILE IN A CLOUD FOLDER GETS SYNCED AS-IS. writeFileSync
+// truncates and then fills; interrupt it — a crash, a quit, a sleeping Mac —
+// and the short version is what the other Macs receive. Write beside it and
+// rename, which is atomic on the same filesystem: readers see the old file or
+// the new one, never a partial one.
+function writeJsonAtomic (file, value) {
+  const tmp = `${file}.tmp-${process.pid}`
+  fs.writeFileSync(tmp, JSON.stringify(value, null, 2), { mode: 0o600 })
+  fs.renameSync(tmp, file)
 }
 
 export function loadConfig () {
@@ -231,9 +244,71 @@ export function loadConfig () {
   return cfg
 }
 
+// ⚠️ NOTHING TEMPORARY BELONGS IN A FILE THAT SYNCS. settings._iconTmp is a
+// base64 icon held while the user is picking one. It was being persisted, and
+// it was 155 KB of a 212 KB config.json — three quarters of everything iCloud
+// had to re-upload on every change, on every Mac, forever. Tony's projects were
+// 635 bytes riding behind it.
 export function saveConfig (cfg) {
   ensureDirs()
-  fs.writeFileSync(CONFIG_PATH, JSON.stringify(cfg, null, 2), { mode: 0o600 })
+  if (cfg?.settings && '_iconTmp' in cfg.settings) {
+    cfg = { ...cfg, settings: { ...cfg.settings } }
+    delete cfg.settings._iconTmp
+  }
+  writeJsonAtomic(CONFIG_PATH, cfg)
+}
+
+// ---- projects: one file each ------------------------------------------------
+//
+// ⚠️ TWO MACS MUST NEVER WRITE THE SAME FILE. iCloud Drive has no merge — the
+// later write wins and the other Mac's work is gone. Projects lived inside the
+// single config.json that every Mac rewrites in full, so adding a project on
+// one Mac could erase one added on another. Chats never had this problem
+// because they are one file per chat; projects now work the same way. Two Macs
+// adding different projects touch different files and both survive.
+const PROJECT_ID = /^[a-z0-9-]+$/
+
+export function listProjects () {
+  ensureDirs()
+  let out = []
+  try {
+    out = fs.readdirSync(PROJECTS_DIR)
+      .filter(f => f.endsWith('.json'))
+      .map(f => { try { return JSON.parse(fs.readFileSync(path.join(PROJECTS_DIR, f), 'utf8')) } catch { return null } })
+      .filter(Boolean)
+  } catch {}
+  return out.sort((a, b) => String(a.createdAt || '').localeCompare(String(b.createdAt || '')))
+}
+
+export function getProject (id) {
+  if (!PROJECT_ID.test(String(id || ''))) return null
+  try { return JSON.parse(fs.readFileSync(path.join(PROJECTS_DIR, id + '.json'), 'utf8')) } catch { return null }
+}
+
+export function saveProject (project) {
+  ensureDirs()
+  if (!PROJECT_ID.test(String(project?.id || ''))) throw new Error('bad project id')
+  writeJsonAtomic(path.join(PROJECTS_DIR, project.id + '.json'), project)
+  return project
+}
+
+export function deleteProject (id) {
+  if (!PROJECT_ID.test(String(id || ''))) return
+  try { fs.unlinkSync(path.join(PROJECTS_DIR, id + '.json')) } catch {}
+}
+
+// Move projects out of config.json the first time this build runs. Copy first,
+// clear second, so an interruption leaves duplicates rather than nothing.
+export function migrateProjects (cfg) {
+  if (!Array.isArray(cfg?.projects) || !cfg.projects.length) return false
+  for (const p of cfg.projects) {
+    if (!PROJECT_ID.test(String(p?.id || ''))) continue
+    if (!getProject(p.id)) saveProject(p)
+  }
+  delete cfg.projects
+  saveConfig(cfg)
+  console.log('[radiant] moved projects out of config.json into projects/')
+  return true
 }
 
 // ---- multiple accounts per provider ----
