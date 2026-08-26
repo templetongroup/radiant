@@ -468,7 +468,7 @@ app.patch('/api/agents/:id', (req, res) => {
 
 const SAFE_SESSION_KEYS = [
   'title', 'agentId', 'group', 'participants', 'provider', 'model', 'cwd',
-  'useTools', 'computerControl', 'projectId', 'planMode', 'createdAt', 'messages'
+  'useTools', 'computerControl', 'planMode', 'createdAt', 'updatedAt', 'messages'
 ]
 
 function chatToMarkdown (s) {
@@ -524,6 +524,20 @@ app.post('/api/chats/import', (req, res) => {
   const incoming = Array.isArray(body.chats) ? body.chats : (body.messages ? [body] : null)
   if (!incoming) return res.status(400).json({ error: 'That file does not look like a Radiant chat export.' })
 
+  // ⚠️ IMPORTED CHATS NEED A HOME OR THEY ARE LOST ON ARRIVAL. Without this
+  // they land loose in the sidebar, indistinguishable from your own, and with
+  // nothing to tell you which of two hundred rows just appeared. They go into
+  // one project named for the day they arrived: findable, groupable, and
+  // removable as a set — and deleting that project keeps the chats, like any
+  // other.
+  const stamp = new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+  const project = {
+    id: 'pr-' + crypto.randomBytes(4).toString('hex'),
+    name: `Imported ${stamp}`,
+    cwd: null, hue: null, model: null, provider: null, agentId: null,
+    createdAt: new Date().toISOString()
+  }
+
   let added = 0, skipped = 0
   for (const raw of incoming) {
     // ⚠️ MINT A NEW ID, ALWAYS. Honouring the id in the file would let an
@@ -536,13 +550,32 @@ app.post('/api/chats/import', (req, res) => {
     for (const k of SAFE_SESSION_KEYS) if (k in raw) s[k] = raw[k]
     s.messages = raw.messages.filter(m => m && (m.role === 'user' || m.role === 'assistant'))
     s.title = String(s.title || 'Imported chat').slice(0, 200)
-    // A project id from another Mac means nothing here.
-    if (s.projectId && !(config.projects || []).some(p => p.id === s.projectId)) s.projectId = null
+    // A project id from the file means nothing here; these go to the new shelf.
+    s.projectId = project.id
     s.pinned = false
     s.imported = true
-    try { saveSession(s); added++ } catch { skipped++ }
+    // ⚠️ KEEP THE ORIGINAL TIMESTAMP. saveSession stamps updatedAt with NOW, so
+    // without this every imported chat claims to be the newest thing you have
+    // and fifty of them bury the work you were actually doing. The sidebar
+    // sorts on this, so it decides where they land.
+    const when = raw.updatedAt || raw.createdAt || null
+    try {
+      saveSession(s)
+      if (when) {
+        const f = path.join(SESSIONS_DIR, s.id + '.json')
+        const saved = JSON.parse(fs.readFileSync(f, 'utf8'))
+        saved.updatedAt = when
+        fs.writeFileSync(f, JSON.stringify(saved, null, 2))
+      }
+      added++
+    } catch { skipped++ }
   }
-  res.json({ ok: true, added, skipped })
+  if (added) {
+    config.projects = config.projects || []
+    config.projects.push(project)
+    saveConfig(config)
+  }
+  res.json({ ok: true, added, skipped, project: added ? project.name : null })
 })
 
 // ── where the data lives ────────────────────────────────────────────────────

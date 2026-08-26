@@ -1478,7 +1478,7 @@ function ChatTransfer () {
       setMsg({
         kind: r.added ? 'ok' : 'warn',
         text: r.added
-          ? `Added ${r.added} chat${r.added === 1 ? '' : 's'}${r.skipped ? `, skipped ${r.skipped} that did not look like chats` : ''}. They are in the sidebar under No project.`
+          ? `Added ${r.added} chat${r.added === 1 ? '' : 's'}${r.skipped ? `, skipped ${r.skipped} that did not look like chats` : ''}. Find them in the sidebar under “${r.project}”, keeping their original dates.`
           : 'Nothing in that file looked like a Radiant chat.'
       })
     } catch (e) { setMsg({ kind: 'warn', text: e.message }) }
@@ -1651,7 +1651,7 @@ const GUIDE = [
   {
     title: 'Chat & agents',
     items: [
-      ['Take your chats with you', 'Hover any chat in the sidebar and the ⤓ button saves it as Markdown — readable, and the right thing to paste into a ticket or send to someone. For everything at once, Settings → Memory → Move your chats exports every conversation as a single file you can keep as a backup or carry to another Mac, and imports one back. Importing only ever adds: it can never overwrite a chat you already have, so the same file imported twice gives you two copies rather than silently replacing anything. An export holds the full text of every chat, so treat the file the way you would treat the conversations.'],
+      ['Take your chats with you', 'Hover any chat in the sidebar and the ⤓ button saves it as Markdown — readable, and the right thing to paste into a ticket or send to someone. For everything at once, Settings → Memory → Move your chats exports every conversation as a single file you can keep as a backup or carry to another Mac, and imports one back. Imported chats arrive in their own project named for the day they came in, so you can find them as a group, and they keep their original dates instead of pretending to be today. Importing only ever adds: it can never overwrite a chat you already have, so the same file imported twice gives you two copies rather than silently replacing anything. An export holds the full text of every chat, so treat the file the way you would treat the conversations.'],
       ['Sync across your Macs', 'Settings → Devices has one checkbox: keep my setup in iCloud Drive. Tick it and your projects, chats, agents and preferences follow you to your other Macs — no account to create, no password, and nothing of yours stored anywhere but your own cloud drive. Dropbox and Google Drive work too if you have them. Radiant copies your setup across and leaves the originals alone; turning it off copies everything back. If the shared folder is ever unreachable it runs from this Mac and says so, rather than opening empty. Point a second Mac at a folder that already has a setup and Radiant asks which one wins instead of guessing. Use one Mac at a time — to work from two at once, share this Mac instead.'],
       ['Projects', 'Group your chats into projects in the Chats sidebar. Give a project a folder and every new chat started inside it opens in that folder, so you stop re-pointing each session at the same place. Use the + on a project to start a chat in it, the pencil to rename, and the small menu on any chat row to move it between projects. Deleting a project never deletes its chats — they move to “No project”.'],
       ['Agents', 'Named personas with their own model, personality, and skills. Pick one from the welcome screen; the Agents sidebar view groups your sessions by agent. Edit them in Settings → Agents.'],
