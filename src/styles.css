@@ -505,6 +505,18 @@ code, pre, .mono { font-family: var(--font-mono); }
   border: 1px solid var(--accent-dim); background: var(--bg-raised); font-size: 13px;
 }
 .sync-conflict p { margin: 0 0 8px; }
+/* What this Mac is doing right now, stated before anything is offered. */
+.devices-now {
+  margin: 2px 0 12px; padding: 10px 12px; border-radius: 10px;
+  background: var(--bg-raised); border: 1px solid var(--border);
+  font-size: 13px; line-height: 1.5;
+}
+.devices-now.is-linked { border-color: var(--accent-dim); }
+.projects-error {
+  margin: 6px 12px 8px; padding: 8px 10px; border-radius: 8px;
+  background: var(--bg-raised); border: 1px solid var(--accent-dim);
+  font-size: 11px; line-height: 1.45; color: var(--text-muted);
+}
 /* The move-to-project control. It sits in .session-actions, which only reveals
    itself on hover, so it costs the title nothing at rest. Narrow on purpose:
    the sidebar is 248px by default and the chat's name matters more than the

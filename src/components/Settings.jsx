@@ -1569,11 +1569,43 @@ function DevicesPane () {
   }
   const useLocal = () => { setServer(null); location.reload() }
 
+  const linked = Boolean(server.base)
+
   return (
     <div className='set-section'>
-      <h3>Devices &amp; sharing</h3>
+      <h3>Using Radiant on more than one Mac</h3>
 
-      <DataFolderBlock />
+      {/* ⚠️ SAY WHAT THIS MAC IS DOING BEFORE OFFERING TO CHANGE IT. The pane
+          used to open with three unlabelled mechanisms and no statement of the
+          current state — so a Mac already borrowing another one's Radiant still
+          showed a sync checkbox that does nothing, with nothing on screen
+          explaining why. Tony hit exactly that: connected to dev-mbp, sync
+          ticked, and no way to tell those two facts were in conflict. */}
+      <div className={'devices-now' + (linked ? ' is-linked' : '')}>
+        {linked
+          ? <>This Mac is <strong>using the Radiant on another Mac</strong> — everything you see
+              (models, agents, chats) comes from <code className='mono'>{server.base}</code>, not from here.</>
+          : <>This Mac is <strong>using its own setup</strong>, stored on this machine.</>}
+      </div>
+
+      <p className='hint'>
+        There are two ways to work across Macs, and they solve different problems.
+        <br /><b>Keep them in step</b> — each Mac runs its own Radiant, and they share one
+        setup through a cloud folder. Best when you use one Mac at a time.
+        <br /><b>Use one Mac from another</b> — one Mac does the work and the others are windows
+        onto it. Best when one Mac is always on, or the other is too slow to run models.
+      </p>
+
+      <div className='set-block'>
+        <div className='set-block-title'>Keep my Macs in step</div>
+        {linked
+          ? <p className='hint' style={{ marginTop: 2 }}>
+              Not used while this Mac is borrowing another one's Radiant — your setup is
+              already coming from that Mac. Switch to this Mac's own server below if you
+              want to sync instead.
+            </p>
+          : <DataFolderBlock />}
+      </div>
 
 
       {/*
@@ -1589,11 +1621,12 @@ function DevicesPane () {
         Sharing itself is real and verified — another Mac connects to this one
         and uses its models, agents and sessions.
       */}
-      <div className='set-block'>
-        <div className='set-block-title'>Share this Mac with your other Macs</div>
+      <div className='set-block' style={{ marginTop: 16 }}>
+        <div className='set-block-title'>Let my other Macs use this one</div>
         <p className='hint' style={{ marginTop: 2 }}>
-          Run the models here and use them from your other Macs. Best on a Mac
-          that stays awake.
+          This Mac runs the models and stores the chats; your other Macs open a window
+          onto it and see exactly the same thing. Best on the Mac that stays awake.
+          You will get an address and a token to enter on the other Mac.
         </p>
         <label className='agent-skill-chk'>
           <input type='checkbox' checked={Boolean(share?.desired)} onChange={toggleShare} /> Share with my other Macs
@@ -1660,8 +1693,12 @@ function DevicesPane () {
       </div>
 
       <div className='set-block' style={{ marginTop: 16 }}>
-        <div className='set-block-title'>Connect this app to another Radiant</div>
-        <p className='hint' style={{ marginTop: 2 }}>Point this app at a shared Radiant on another Mac (e.g. your always-on host). It'll use that server's models, agents, and sessions instead of its own.</p>
+        <div className='set-block-title'>Use another Mac from this one</div>
+        <p className='hint' style={{ marginTop: 2 }}>
+          The other end of the same arrangement. Paste the address and token from the Mac
+          that is sharing, and this app will use that Mac's models, agents and chats
+          instead of its own. Nothing on this Mac is deleted — switch back any time.
+        </p>
         <label className='connect-field'>Server address
           <input className='text-input' placeholder='100.x.y.z:5834 (Tailscale) or host.local:5834' value={base} onChange={e => setBase(e.target.value)} />
         </label>
@@ -1674,8 +1711,8 @@ function DevicesPane () {
           {server.base && <button className='small-btn' onClick={useLocal}>Use this Mac's own server</button>}
         </div>
         {server.base
-          ? <div className='v-meta' style={{ marginTop: 6 }}>Currently connected to <code className='mono'>{server.base}</code></div>
-          : <div className='v-meta' style={{ marginTop: 6 }}>Currently using this Mac's own server.</div>}
+          ? <div className='v-meta' style={{ marginTop: 6 }}>Using <code className='mono'>{server.base}</code>. Press “Use this Mac's own server” to go back.</div>
+          : <div className='v-meta' style={{ marginTop: 6 }}>Not connected — this Mac is using its own server.</div>}
       </div>
     </div>
   )

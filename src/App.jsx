@@ -35,6 +35,7 @@ function DesktopApp () {
   const [models, setModels] = useState([])
   const [sessions, setSessions] = useState([])
   const [projects, setProjects] = useState([])
+  const [projectsError, setProjectsError] = useState(null)
   const [session, setSession] = useState(null) // full active session {id,...,messages}
   const [live, setLive] = useState(null) // in-flight assistant message view {parts, thinking, streaming}
   const [approval, setApproval] = useState(null) // {id, name, args}
@@ -58,7 +59,20 @@ function DesktopApp () {
   const streamingSessionRef = useRef(null)
 
   const refreshSessions = useCallback(() => api.listSessions().then(setSessions).catch(() => {}), [])
-  const refreshProjects = useCallback(() => api.listProjects().then(setProjects).catch(() => {}), [])
+  // ⚠️ DO NOT SWALLOW THIS. It was `.catch(() => {})`, so when the Radiant you
+  // are connected to cannot serve projects — most obviously a host Mac running
+  // a build older than the one that added them — the sidebar simply showed no
+  // projects, with nothing anywhere saying why. Tony: "and i dont see the
+  // projects i setup on another mac." An empty list and a failed request must
+  // not look identical.
+  const refreshProjects = useCallback(() => api.listProjects()
+    .then(p => { setProjects(p); setProjectsError(null) })
+    .catch(e => {
+      setProjects([])
+      setProjectsError(e?.status === 404
+        ? 'The Mac you are connected to is running an older Radiant that does not have projects. Update it and they will appear.'
+        : `Could not load projects: ${e.message}`)
+    }), [])
 
   // Project handlers. Each one refreshes BOTH lists: deleting a project rewrites
   // the projectId on every session that referenced it, so a sessions list left
@@ -349,6 +363,7 @@ function DesktopApp () {
         onOpen={id => { openSession(id); setNavOpen(false) }}
         onNew={(...a) => { newSession(...a); setNavOpen(false) }}
         projects={projects}
+        projectsError={projectsError}
         onNewProject={newProject}
         onRenameProject={renameProject}
         onDeleteProject={deleteProject}
@@ -403,6 +418,7 @@ function DesktopApp () {
         onSetCwd={cwd => patchSession({ cwd })}
         onNew={newSession}
         projects={projects}
+        projectsError={projectsError}
         onNewProject={newProject}
         onRenameProject={renameProject}
         onDeleteProject={deleteProject}

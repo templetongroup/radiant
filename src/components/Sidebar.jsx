@@ -72,7 +72,7 @@ function UsageChip () {
 const MIN_W = 190
 const MAX_W = 460
 
-export default function Sidebar ({ sessions, activeId, working, onOpen, onNew, onNewGroup, onDelete, onRename, onPin, agents = [], projects = [], onNewProject, onRenameProject, onDeleteProject, onMoveSession, onSettings, mode, onToggleMode, updateInfo, onUpdate, onCloseNav }) {
+export default function Sidebar ({ sessions, activeId, working, onOpen, onNew, onNewGroup, onDelete, onRename, onPin, agents = [], projects = [], projectsError = null, onNewProject, onRenameProject, onDeleteProject, onMoveSession, onSettings, mode, onToggleMode, updateInfo, onUpdate, onCloseNav }) {
   const agentOf = id => agents.find(a => a.id === id)
   const [width, setWidth] = useState(() => {
     const saved = Number(localStorage.getItem('radiant.sidebarWidth'))
@@ -266,6 +266,9 @@ export default function Sidebar ({ sessions, activeId, working, onOpen, onNew, o
                 sidebar would be exactly the inconsistency Tony has called out
                 before. "No project" is rendered LAST and only when it has
                 something in it, so a fully-filed sidebar shows no empty tail. */}
+            {projectsError && (
+              <div className='projects-error'>{projectsError}</div>
+            )}
             {projectGroups.map(({ project, rows }) => {
               const isCollapsed = collapsed[project.id]
               return (
