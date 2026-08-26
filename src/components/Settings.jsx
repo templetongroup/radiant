@@ -1182,6 +1182,8 @@ function AboutPane ({ config, onSettings }) {
   const [phase, setPhase] = useState('idle') // idle | downloading | ready
   const [progress, setProgress] = useState(0)
   const native = typeof window !== 'undefined' && window.radiantUpdater
+  const remote = getServer()
+  const remoteLabel = remote.base ? (() => { try { return new URL(remote.base).host } catch { return remote.base } })() : ''
 
   // ⚠️ ONE SOURCE, NOT TWO. This pane used to show the version from the server
   // and the version from Electron side by side and reconcile them in the UI.
@@ -1240,6 +1242,16 @@ function AboutPane ({ config, onSettings }) {
         </div>
       </div>
 
+      {/* If this window is pointed at another Mac, say so here too. The number
+          above is this app; everything else in the window is that Mac. */}
+      {remote.base && (
+        <div className='update-avail' style={{ marginTop: 12 }}>
+          This window is showing Radiant on <strong>{remoteLabel}</strong>, so the chats,
+          projects and models you see are that Mac's, not this one's. The version above is
+          this app. To use this Mac instead, go to <strong>Devices</strong> and press
+          “Use this Mac's own server”.
+        </div>
+      )}
       <div style={{ marginTop: 14 }}>
         <button className='small-btn primary' onClick={check} disabled={checking || phase !== 'idle'}>
           {checking ? 'Checking…' : 'Check for updates'}

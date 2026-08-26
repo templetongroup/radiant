@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { Icon } from './Icons.jsx'
 import { AgentGlyph } from './AgentIcons.jsx'
 import { isImported } from './Chat.jsx'
-import { api, saveToFile } from '../api.js'
+import { api, saveToFile, getServer } from '../api.js'
 
 function UsageChip () {
   const [items, setItems] = useState(null)
@@ -110,6 +110,15 @@ export default function Sidebar ({ sessions, activeId, working, onOpen, onNew, o
   const toggleGroup = id => setCollapsed(c => ({ ...c, [id]: !c[id] }))
 
   const [version, setVersion] = useState('')
+  // ⚠️ THIS WINDOW MAY NOT BE SHOWING THIS MAC. A stored server address in
+  // localStorage points every API call at another Mac — its models, chats,
+  // projects and version — and nothing in the main window ever said so. The
+  // footer showed that remote version as if it were this app's, while Settings
+  // → About showed the local one, so the two disagreed permanently and the
+  // update pill offered to "update" based on someone else's build. Tony chased
+  // that across four releases: "nav bar says .128 about screen says 133."
+  const remoteBase = getServer().base || ''
+  const remoteHost = remoteBase ? (() => { try { return new URL(remoteBase).host } catch { return remoteBase } })() : ''
   useEffect(() => { let alive = true; api.getVersion().then(v => { if (alive) setVersion(v.version || '') }).catch(() => {}); return () => { alive = false } }, [])
 
   const [search, setSearch] = useState('')
@@ -374,7 +383,7 @@ export default function Sidebar ({ sessions, activeId, working, onOpen, onNew, o
           )})()}
         </div>
       )}
-      {updateInfo && (
+      {updateInfo && !remoteBase && (
         <button className='update-pill' onClick={onUpdate} title={`Radiant ${updateInfo.latest} is available`}>
           ↑ Update to {updateInfo.latest}
         </button>
@@ -389,7 +398,13 @@ export default function Sidebar ({ sessions, activeId, working, onOpen, onNew, o
             not only in Settings → About: the first question about any odd
             behaviour is "are you on the current version", and until now
             answering it meant opening another screen. */}
-        {version && <span className='sidebar-version' title={`Radiant ${version}`}>{version}</span>}
+        {version && (
+          remoteBase
+            ? <span className='sidebar-version is-remote' title={`Showing Radiant ${version} on ${remoteHost}. Settings → Devices to use this Mac instead.`}>
+                {remoteHost} · {version}
+              </span>
+            : <span className='sidebar-version' title={`Radiant ${version}`}>{version}</span>
+        )}
       </div>
       <div className='sidebar-resize' onMouseDown={startDrag} title='Drag to resize' />
     </nav>

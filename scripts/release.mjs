@@ -34,6 +34,10 @@ const assets = [
   stable
 ]
 
+// The window must actually render before anything is published.
+console.log('[release] smoke testing the built app')
+execFileSync('node', ['scripts/test-smoke.mjs'], { stdio: 'inherit' })
+
 const notes = process.argv[2] || `Radiant ${version}`
 try {
   sh('gh', ['release', 'create', tag, ...assets, '--title', tag, '--notes', notes])
