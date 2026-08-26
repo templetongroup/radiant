@@ -19,6 +19,33 @@ export const DIR_POINTER = path.join(os.homedir(), '.radiant-location')
 
 export function defaultDataDir () { return path.join(os.homedir(), '.radiant') }
 
+// ⚠️ SOME SETTINGS DESCRIBE THE MAC, NOT THE PERSON. The synced folder carries
+// one settings object, which is right for a theme and wrong for anything that
+// depends on what is installed here: the default model, the provider serving
+// it, the folder work starts in. Tony has local models downloaded on different
+// Macs and wants each to use its own — "on my work mba, i want to use the local
+// models i downloaded there" — and a single shared value cannot express that.
+//
+// These live beside the location pointer, OUTSIDE the data directory, so they
+// can never sync no matter which folder is shared. Everything else stays in
+// config.json and follows him between Macs, which is the point of syncing.
+export const MACHINE_KEYS = ['defaultModel', 'defaultProvider', 'defaultCwd']
+const MACHINE_FILE = path.join(os.homedir(), '.radiant-machine.json')
+
+export function loadMachineSettings () {
+  try {
+    const raw = JSON.parse(fs.readFileSync(MACHINE_FILE, 'utf8'))
+    return Object.fromEntries(MACHINE_KEYS.filter(k => k in raw).map(k => [k, raw[k]]))
+  } catch { return {} }
+}
+
+export function saveMachineSettings (patch) {
+  const next = { ...loadMachineSettings() }
+  for (const k of MACHINE_KEYS) if (k in patch) next[k] = patch[k]
+  try { writeJsonAtomic(MACHINE_FILE, next) } catch {}
+  return next
+}
+
 /** Does this directory exist AND answer promptly? See resolveDataDir. */
 function reachable (dir) {
   try {
@@ -282,13 +309,33 @@ export function loadConfig () {
 // it was 155 KB of a 212 KB config.json — three quarters of everything iCloud
 // had to re-upload on every change, on every Mac, forever. Tony's projects were
 // 635 bytes riding behind it.
+// ⚠️ RECORDS THAT LIVE IN FILES MUST NEVER BE WRITTEN BACK HERE. Deleting the
+// key at migration time was not enough: loadConfig repopulates agents, skills
+// and recipes from the built-in defaults, the middleware reloads config on
+// every API request, and the next save put them straight back into the shared
+// file. Nothing broke — reads come from the stores — but config.json kept
+// re-acquiring the very records this change exists to get out of it, which is
+// how two Macs would go on overwriting each other's agents.
+//
+// Stripping them here makes it structural: whatever is in memory, the shared
+// file cannot carry them. Migration is unaffected, because it copies records
+// into their own files before this ever runs.
+const OWN_FILE_NOW = ['agents', 'skills', 'recipes', 'projects']
+
 export function saveConfig (cfg) {
   ensureDirs()
-  if (cfg?.settings && '_iconTmp' in cfg.settings) {
-    cfg = { ...cfg, settings: { ...cfg.settings } }
-    delete cfg.settings._iconTmp
+  const out = { ...cfg }
+  if (out.settings && '_iconTmp' in out.settings) {
+    out.settings = { ...out.settings }
+    delete out.settings._iconTmp
   }
-  writeJsonAtomic(CONFIG_PATH, cfg)
+  for (const k of OWN_FILE_NOW) delete out[k]
+  // Machine-specific values must not travel in the shared file either.
+  if (out.settings) {
+    out.settings = { ...out.settings }
+    for (const k of MACHINE_KEYS) delete out.settings[k]
+  }
+  writeJsonAtomic(CONFIG_PATH, out)
 }
 
 // ---- is this folder actually in iCloud? -------------------------------------
@@ -563,7 +610,11 @@ export function publicConfig (cfg) {
     agents: agentsStore.list(),
     recipes: recipesStore.list(),
     mcpServers: cfg.mcpServers || [],
-    settings: cfg.settings
+    // ⚠️ THIS MAC'S OWN CHOICES WIN. Model, provider and starting folder depend
+    // on what is installed here, so they come from the machine-local file
+    // rather than the synced one. Everything else follows the user between
+    // Macs, which is the point of syncing.
+    settings: { ...cfg.settings, ...loadMachineSettings() }
   }
 }
 

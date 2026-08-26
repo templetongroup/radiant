@@ -11,7 +11,7 @@ import { fileURLToPath } from 'url'
 import { WebSocketServer } from 'ws'
 import pty from 'node-pty'
 import { execSync, spawn } from 'child_process'
-import { RADIANT_DIR, DIR_POINTER, defaultDataDir, dataDirStatus, loadConfig, saveConfig, publicConfig, listSessions, loadSession, saveSession, deleteSession, searchSessions, upsertCredential, activateAccount, removeAccount, SESSIONS_DIR, listProjects, getProject, saveProject, deleteProject, migrateProjects, agentsStore, skillsStore, recipesStore, cloudStatus
+import { RADIANT_DIR, DIR_POINTER, defaultDataDir, dataDirStatus, loadConfig, saveConfig, publicConfig, listSessions, loadSession, saveSession, deleteSession, searchSessions, upsertCredential, activateAccount, removeAccount, SESSIONS_DIR, listProjects, getProject, saveProject, deleteProject, migrateProjects, agentsStore, skillsStore, recipesStore, cloudStatus, MACHINE_KEYS, saveMachineSettings
 } from './config.js'
 import { runTurn, listModels } from './providers.js'
 import { OAUTH_PROVIDERS, buildAuthUrl, completePaste, startLoopback, validAccessToken, startDevice, pollDevice } from './oauth.js'
@@ -286,7 +286,18 @@ app.use('/api', (req, res, next) => {
 app.get('/api/config', (req, res) => res.json(publicConfig(config)))
 
 app.put('/api/settings', (req, res) => {
-  config.settings = { ...config.settings, ...req.body }
+  // ⚠️ SPLIT THE SAVE. Anything in MACHINE_KEYS describes this Mac — which model
+  // is downloaded here, which provider serves it, where work starts — and goes
+  // to a file outside the shared folder. Writing them into config.json would
+  // mean picking a model on one Mac changes it on a Mac that does not have it.
+  const body = req.body || {}
+  const machine = {}
+  for (const k of MACHINE_KEYS) if (k in body) machine[k] = body[k]
+  if (Object.keys(machine).length) saveMachineSettings(machine)
+
+  const shared = { ...body }
+  for (const k of MACHINE_KEYS) delete shared[k]
+  config.settings = { ...config.settings, ...shared }
   saveConfig(config)
   res.json(publicConfig(config))
 })

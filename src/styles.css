@@ -435,13 +435,13 @@ code, pre, .mono { font-family: var(--font-mono); }
 .bot-head-name { font-size: 13px; font-weight: 600; color: var(--text); flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; text-align: left; }
 /* ⚠️ --text-faint IS FOR DECORATION, NOT INFORMATION. This is the number of
    chats in a project — something the user reads — and it was rendered at the
-   dimmest step in the palette, at 10px, in a mono face. Tony: "the indicator
-   number of how many chats are in a project folder is too dim. barely
-   readable." A pill at --text-muted holds its own without shouting. */
+   dimmest step in the palette. Raising it to --text-muted fixes that.
+   The first attempt also made it a bold padded pill, which grew every shelf row
+   by ~6px and pulled the eye to a number nobody needs to notice: "why does the
+   folder text seem larger now?" Contrast was the ask, not prominence. */
 .bot-head-count {
   font-size: 10.5px; color: var(--text-muted); font-family: var(--font-mono);
-  background: var(--bg-raised); border-radius: 999px;
-  padding: 1px 6px; line-height: 1.5; font-weight: 600;
+  line-height: 1; font-variant-numeric: tabular-nums;
 }
 /* The glyph is an SVG now, so no font metric can push it off centre; the flex
    centring below is exact because the child has real dimensions. */
