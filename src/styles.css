@@ -425,7 +425,14 @@ code, pre, .mono { font-family: var(--font-mono); }
 .bot-head-toggle:hover .bot-head-name { color: var(--accent); }
 .bot-head-caret { width: 10px; font-size: 9px; color: var(--text-faint); display: inline-flex; justify-content: center; }
 .bot-head-icon { display: inline-flex; }
-.bot-head-name { font-size: 12px; font-weight: 600; color: var(--text); flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; text-align: left; }
+/* ⚠️ AT LEAST AS LARGE AS THE ROWS IT CONTAINS. This was 12px while a chat
+   title inside it is 13px, so the shelf label was smaller than its own
+   contents — Tony: "the chat title/name is larger than the project folder".
+   A container that reads as subordinate to what it holds inverts the
+   hierarchy. Matching the row size and staying semibold is the header
+   treatment; going bigger would shout in a 248px sidebar.
+   This rule is shared with the Agents tab, which had the same inversion. */
+.bot-head-name { font-size: 13px; font-weight: 600; color: var(--text); flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; text-align: left; }
 .bot-head-count { font-size: 10px; color: var(--text-faint); font-family: var(--font-mono); }
 /* The glyph is an SVG now, so no font metric can push it off centre; the flex
    centring below is exact because the child has real dimensions. */
