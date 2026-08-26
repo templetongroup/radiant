@@ -1,0 +1,52 @@
+#!/usr/bin/env node
+// Contrast gate for pinned theme palettes.
+//
+// ⚠️ THE MOBILE THEME SYSTEM DELIBERATELY FORBIDS THEMING LIGHTNESS, because a
+// theme that can darken the surface can make the app unreadable. Nous Classic
+// is the one palette allowed to break that rule, so the protection the rule
+// provided has to come from somewhere — here.
+const hex = h => {
+  const m = /^#([0-9a-f]{6})$/i.exec(h.trim())
+  if (!m) return null
+  const n = parseInt(m[1], 16)
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255]
+}
+const lum = rgb => {
+  const [r, g, b] = rgb.map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4 })
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b
+}
+const ratio = (fg, bg) => {
+  const a = lum(hex(fg)), b = lum(hex(bg))
+  return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05)
+}
+
+const { THEMES: DESKTOP } = await import('../src/theme.js')
+const { THEMES: MOBILE } = await import('../src/mobile/theme.js')
+
+const cases = []
+for (const t of DESKTOP.filter(t => t.vars)) {
+  for (const [mode, v] of Object.entries(t.vars)) {
+    cases.push([`mac ${t.id}/${mode}: text on bg`, v['--text'], v['--bg'], 4.5])
+    cases.push([`mac ${t.id}/${mode}: text on panel`, v['--text'], v['--bg-panel'], 4.5])
+    cases.push([`mac ${t.id}/${mode}: muted on bg`, v['--text-muted'], v['--bg'], 4.5])
+    cases.push([`mac ${t.id}/${mode}: on-accent on accent`, v['--on-accent'], v['--accent'], 4.5])
+  }
+}
+for (const t of MOBILE.filter(t => t.vars)) {
+  const v = t.vars
+  cases.push([`ios ${t.id}: label on bg`, v['--rx-label'], v['--rx-bg'], 4.5])
+  cases.push([`ios ${t.id}: label on cell`, v['--rx-label'], v['--rx-cell'], 4.5])
+  cases.push([`ios ${t.id}: on-tint on tint`, v['--rx-on-tint'], v['--rx-tint'], 4.5])
+  cases.push([`ios ${t.id}: separator-opaque on bg`, v['--rx-separator-opaque'], v['--rx-bg'], 1.4])
+}
+
+let bad = 0
+for (const [name, fg, bg, min] of cases) {
+  if (!hex(fg) || !hex(bg)) { console.log(`  ? ${name} — not a plain hex, skipped`); continue }
+  const r = ratio(fg, bg)
+  const pass = r >= min
+  if (!pass) bad++
+  console.log(`  ${pass ? '✓' : '✗'} ${name}: ${r.toFixed(2)}:1 (needs ${min})`)
+}
+console.log(`\n${cases.length - bad}/${cases.length} contrast checks passed`)
+process.exit(bad ? 1 : 0)

@@ -21,7 +21,53 @@ export const THEMES = [
   { id: 'rosepine', name: 'Rosé Pine', hue: 350, chroma: 0.10 },
   { id: 'solarized', name: 'Solarized', hue: 195, chroma: 0.10 },
   { id: 'moss', name: 'Moss', hue: 150, chroma: 0.12 },
-  { id: 'graphite', name: 'Graphite', hue: 260, chroma: 0.01 }
+  { id: 'graphite', name: 'Graphite', hue: 260, chroma: 0.01 },
+  // ⚠️ THE EXCEPTION TO "LIGHTNESS IS NOT THEMEABLE", AND IT HAD TO BE.
+  //
+  // The rule above exists so a theme cannot darken the tint into illegibility.
+  // Nous Classic is the one palette that cannot survive it: its whole identity
+  // is cream text on a deep blue ground, which means the SURFACE has to change,
+  // not just the accent. Left as a hue and a chroma it would be one more blue
+  // accent on black and nothing anyone would recognise.
+  //
+  // So it pins surfaces and labels outright. The contrast of every pair below
+  // is checked in scripts/test-contrast.mjs and must stay at or above the 4.5:1
+  // that the rule was protecting in the first place.
+  {
+    id: 'nousclassic',
+    name: 'Nous Classic',
+    hue: 250,
+    chroma: 0.16,
+    vars: {
+      '--rx-bg': '#09286F',
+      '--rx-bg-grouped': '#0D2F86',
+      '--rx-cell': '#12378F',
+      '--rx-cell-2': '#183F9A',
+      '--rx-separator': 'rgba(255, 230, 203, 0.24)',
+      '--rx-separator-opaque': '#3158AD',
+      '--rx-hairline': 'rgba(255, 230, 203, 0.16)',
+      '--rx-label': '#FFE6CB',
+      '--rx-label-2': 'rgba(255, 230, 203, 0.70)',
+      '--rx-label-3': 'rgba(255, 230, 203, 0.40)',
+      '--rx-label-4': 'rgba(255, 230, 203, 0.20)',
+      '--rx-tint': '#FFE6CB',
+      '--rx-on-tint': '#0D2F86',
+      '--rx-tint-pressed': '#E8CFB4',
+      '--rx-mat-regular-bg': 'rgba(13, 47, 134, 0.78)',
+      '--rx-mat-thick-bg': 'rgba(9, 40, 111, 0.92)',
+      '--rx-mat-opaque': '#12378F'
+    }
+  }
+]
+
+// Every token a theme may pin, so applyAppearance can clear them all before
+// applying the next one — otherwise switching away leaves the blues behind.
+export const PINNABLE = [
+  '--rx-bg', '--rx-bg-grouped', '--rx-cell', '--rx-cell-2',
+  '--rx-separator', '--rx-separator-opaque', '--rx-hairline',
+  '--rx-label', '--rx-label-2', '--rx-label-3', '--rx-label-4',
+  '--rx-tint', '--rx-on-tint', '--rx-tint-pressed',
+  '--rx-mat-regular-bg', '--rx-mat-thick-bg', '--rx-mat-opaque'
 ]
 
 // The Mac's UI scale, which on iOS rides on top of Dynamic Type rather than
@@ -108,6 +154,9 @@ export function applyAppearance (a) {
   const root = document.documentElement
   root.style.setProperty('--rx-accent-h', String(t.hue))
   root.style.setProperty('--rx-accent-c', String(t.chroma))
+  // Clear before applying: a pinned palette must not outlive its theme.
+  for (const v of PINNABLE) root.style.removeProperty(v)
+  if (t.vars) for (const [k, val] of Object.entries(t.vars)) root.style.setProperty(k, val)
   // ⚠️ NOT a variable of its own that nothing reads. The type scale is driven
   // by --rx-dt in 21 rules; a second "--rx-text-scale" nobody consumed is
   // exactly why Text size did nothing at all. This publishes the user's
@@ -127,4 +176,4 @@ export function applyAppearance (a) {
 }
 
 /** A swatch for the picker, at the same lightness the UI actually uses. */
-export const swatch = t => `oklch(0.72 ${t.chroma} ${t.hue})`
+export const swatch = t => t.vars?.['--rx-tint'] || `oklch(0.72 ${t.chroma} ${t.hue})`

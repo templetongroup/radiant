@@ -15,7 +15,60 @@ export const THEMES = [
   { id: 'rosepine', name: 'Rosé Pine', hue: 350, chroma: 0.10, tint: 2.6 },
   { id: 'solarized', name: 'Solarized', hue: 195, chroma: 0.10, tint: 2.8 },
   { id: 'moss', name: 'Moss', hue: 150, chroma: 0.12, tint: 1.6 },
-  { id: 'graphite', name: 'Graphite', hue: 260, chroma: 0.01, tint: 0.5 }
+  { id: 'graphite', name: 'Graphite', hue: 260, chroma: 0.01, tint: 0.5 },
+  // ⚠️ THE ONE THEME THE DERIVED SYSTEM CANNOT EXPRESS. Every other palette here
+  // is a hue, a chroma and a tint, and everything else falls out of that in CSS
+  // — which works because those themes are near-neutral surfaces with text of
+  // the same hue. Nous Classic is not: a saturated deep blue behind CREAM text,
+  // two different hues, and a background far more colourful than a tint
+  // multiplier can reach. Approximating it would just have produced another
+  // blue theme and lost the thing that makes it recognisable.
+  //
+  // So a theme may optionally pin exact tokens per mode. Only this one does.
+  // Everything without `vars` still derives exactly as before.
+  {
+    id: 'nousclassic',
+    name: 'Nous Classic',
+    hue: 250,
+    chroma: 0.16,
+    tint: 3.4,
+    vars: {
+      dark: {
+        '--bg': '#0D2F86', '--bg-panel': '#12378F', '--bg-raised': '#183F9A',
+        '--bg-hover': '#1B45A4', '--bg-input': '#0B2566',
+        '--border': '#3158AD', '--border-strong': '#3A63BD',
+        '--text': '#FFE6CB', '--text-muted': '#B5C7F3', '--text-faint': '#7E97D4',
+        '--accent': '#FFE6CB', '--accent-hot': '#FFF3E4', '--accent-dim': '#1540B1',
+        '--accent-wash': '#143B91', '--on-accent': '#0D2F86'
+      },
+      medium: {
+        '--bg': '#12378F', '--bg-panel': '#183F9A', '--bg-raised': '#1B45A4',
+        '--bg-hover': '#234A9C', '--bg-input': '#0D2F86',
+        '--border': '#3158AD', '--border-strong': '#3A63BD',
+        '--text': '#FFE6CB', '--text-muted': '#C3D2F6', '--text-faint': '#8CA3DC',
+        '--accent': '#FFE6CB', '--accent-hot': '#FFF3E4', '--accent-dim': '#1540B1',
+        '--accent-wash': '#1B45A4', '--on-accent': '#0D2F86'
+      },
+      light: {
+        '--bg': '#F8FAFF', '--bg-panel': '#FFFFFF', '--bg-raised': '#F2F6FF',
+        '--bg-hover': '#EDF3FF', '--bg-input': '#FFFFFF',
+        '--border': '#C7D9FF', '--border-strong': '#B2CBFE',
+        '--text': '#17171A', '--text-muted': '#666678', '--text-faint': '#8B8B9C',
+        '--accent': '#0053FD', '--accent-hot': '#2A6CFF', '--accent-dim': '#B2CBFE',
+        '--accent-wash': '#E6EEFF', '--on-accent': '#FCFCFC'
+      }
+    }
+  }
+]
+
+// Every token any theme may pin. Listed once so applyTheme can clear the lot
+// before applying a new theme — otherwise switching away from Nous Classic
+// would leave its blues behind on a theme that never asked for them.
+export const PINNABLE = [
+  '--bg', '--bg-panel', '--bg-raised', '--bg-hover', '--bg-input',
+  '--border', '--border-strong',
+  '--text', '--text-muted', '--text-faint',
+  '--accent', '--accent-hot', '--accent-dim', '--accent-wash', '--on-accent'
 ]
 
 export const MODES = [
@@ -102,6 +155,14 @@ export function applyTheme (settings) {
   root.style.setProperty('--accent-h', String(hue))
   root.style.setProperty('--accent-c', String(chroma))
   root.style.setProperty('--bg-tint', String(tint))
+  // Clear first, always: a theme that pins tokens must not leave them behind
+  // for the next one, and a custom accent must be able to take over cleanly.
+  for (const v of PINNABLE) root.style.removeProperty(v)
+  // Guarded on the preset alone: a custom accent means no preset matched, so
+  // there is nothing to pin anyway. Testing customHue as well would have
+  // switched the palette off for anyone who had ever touched the colour picker.
+  const pinned = preset?.vars?.[mode]
+  if (pinned) for (const [k, v] of Object.entries(pinned)) root.style.setProperty(k, v)
   const font = FONTS.find(f => f.id === settings.fontFamily) || FONTS[0]
   root.style.setProperty('--font-body', font.stack)
   root.style.setProperty('--ui-scale', String(settings.uiScale || 1))
