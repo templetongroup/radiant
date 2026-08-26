@@ -94,6 +94,29 @@ function DesktopApp () {
     refreshModels()
   }, [refreshSessions, refreshProjects, refreshModels])
 
+  // ⚠️ A SHARED SERVER HAS MORE THAN ONE CLIENT, AND NOTHING TOLD THIS ONE.
+  // The sidebar only ever refreshed after an action taken HERE, so a second Mac
+  // pointed at a shared Radiant showed a stale list forever. Measured: a chat
+  // created on the host was on the server instantly, and the other client still
+  // did not have it after ten seconds, after being refocused, or at any point
+  // until something unrelated was clicked on it.
+  //
+  // Poll while the window is actually being looked at, and refresh the moment it
+  // is focused — which is exactly when you have walked back to the other Mac.
+  // Nothing runs while hidden, so an idle window in the background costs zero.
+  useEffect(() => {
+    const sync = () => { if (!document.hidden) { refreshSessions(); refreshProjects() } }
+    const onVisible = () => { if (!document.hidden) sync() }
+    let timer = setInterval(sync, 12000)
+    window.addEventListener('focus', sync)
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      clearInterval(timer)
+      window.removeEventListener('focus', sync)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [refreshSessions, refreshProjects])
+
   const saveSettings = async patch => {
     const cfg = await api.saveSettings(patch)
     setConfig(cfg)
