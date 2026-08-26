@@ -18,6 +18,10 @@ contextBridge.exposeInMainWorld('radiantUpdater', {
   check: () => ipcRenderer.invoke('rad:check-update'),
   download: () => ipcRenderer.send('rad:download-update'),
   install: () => ipcRenderer.send('rad:install-update'),
+  // Quitting Radiant properly is the one step a user can get wrong: closing the
+  // window leaves the process running, so the old code keeps serving and the
+  // "quit and reopen" advice appears to do nothing. This does it for them.
+  relaunch: () => ipcRenderer.send('rad:relaunch'),
   onEvent: cb => {
     const handler = (_e, payload) => cb(payload)
     ipcRenderer.on('rad:update-event', handler)

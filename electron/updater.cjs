@@ -109,6 +109,9 @@ function installUpdater ({ getWindow }) {
   })
   ipcMain.on('rad:download-update', () => { autoUpdater.downloadUpdate().catch(e => send('error', { message: String(e.message || e) })) })
   ipcMain.on('rad:install-update', () => { setImmediate(() => autoUpdater.quitAndInstall(false, true)) })
+  // A full process restart, not a window reopen. app.exit skips the quit
+  // handlers that could keep it alive; relaunch queues the new process first.
+  ipcMain.on('rad:relaunch', () => { app.relaunch(); app.exit(0) })
 
   async function checkNow (silent) {
     let r
