@@ -143,6 +143,19 @@ Apple does not count either as collection by the developer.
 
 ## Submission status — 2026-08-24
 
+**REJECTED 2026-08-25 20:59 — Guideline 2.1, Information Needed.** Not a
+guideline violation and no code change required: Apple's standard request for
+more detail on a new app. They asked for seven things; six are now answered in
+the App Review Notes field (capped at 4,000 characters — a 4,151-character
+draft was refused). The seventh is a **screen recording made on a physical
+device**, which only Tony can produce, and it must be attached to the reply in
+App Review.
+
+⚠️ The prediction in this file was wrong. It said the likeliest ground was
+guideline 1.2 (AI-generated content with no filter or report path). Apple did
+not raise 1.2 at all. Do not treat that prediction as settled — it has not been
+tested, because review never got that far.
+
 **SUBMITTED. Status: "1.0 Waiting for Review" as of 2026-08-24 ~23:20.**
 Build 1.0 (2) uploaded at 22:59. App ID 6804891721,
 bundle `com.templetongroup.radiant`, arm64, iPhone only (device family 1).
