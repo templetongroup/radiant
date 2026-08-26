@@ -565,7 +565,15 @@ code, pre, .mono { font-family: var(--font-mono); }
 .usage-sub { color: var(--text-faint); font-size: 10px; font-family: var(--font-body); text-transform: uppercase; letter-spacing: 0.04em; }
 .usage-line.sub { flex-wrap: wrap; }
 .usage-reset { text-transform: none; letter-spacing: 0; opacity: 0.85; }
-.sidebar-foot { padding: 10px 12px; border-top: 1px solid var(--border); display: flex; gap: 6px; }
+.sidebar-foot { padding: 10px 12px; border-top: 1px solid var(--border); display: flex; gap: 6px; align-items: center; }
+/* Build number, to the right of the theme toggle. Quiet on purpose: it is a
+   fact you occasionally need, not something to read every time you look at the
+   sidebar. Tabular figures so it does not jitter as versions change width. */
+.sidebar-version {
+  margin-left: auto; font-size: 10px; color: var(--text-faint);
+  font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+  white-space: nowrap; user-select: text;
+}
 
 /* About pane */
 .about-row { display: flex; align-items: center; gap: 12px; }

@@ -109,6 +109,9 @@ export default function Sidebar ({ sessions, activeId, working, onOpen, onNew, o
   const [collapsed, setCollapsed] = useState({})
   const toggleGroup = id => setCollapsed(c => ({ ...c, [id]: !c[id] }))
 
+  const [version, setVersion] = useState('')
+  useEffect(() => { let alive = true; api.getVersion().then(v => { if (alive) setVersion(v.version || '') }).catch(() => {}); return () => { alive = false } }, [])
+
   const [search, setSearch] = useState('')
   const [results, setResults] = useState(null)
   useEffect(() => {
@@ -379,6 +382,11 @@ export default function Sidebar ({ sessions, activeId, working, onOpen, onNew, o
         <button className='icon-btn' onClick={onToggleMode} title={`Appearance: ${mode}`} data-tip={`Theme: ${mode} — click to cycle\nlight / medium / dark`}>
           {mode === 'light' ? <Icon.sun /> : mode === 'medium' ? <Icon.contrast /> : <Icon.moon />}
         </button>
+        {/* Which build you are actually running. Worth having in the window and
+            not only in Settings → About: the first question about any odd
+            behaviour is "are you on the current version", and until now
+            answering it meant opening another screen. */}
+        {version && <span className='sidebar-version' title={`Radiant ${version}`}>{version}</span>}
       </div>
       <div className='sidebar-resize' onMouseDown={startDrag} title='Drag to resize' />
     </nav>
