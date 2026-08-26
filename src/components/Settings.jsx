@@ -1254,7 +1254,22 @@ function AboutPane ({ config, onSettings }) {
                     <span className='oauth-note' style={{ marginLeft: 8 }}>Opens the release page (auto-install works in the installed app).</span>
                   </div>}
             </div>
-          : <div className='update-none'>You're on the latest version ({status.current}).</div>
+          : (
+            // ⚠️ ONE NUMBER, OR SAY THERE ARE TWO. The heading reads the running
+            // version from the server's own bundle; this line used to read a
+            // DIFFERENT source (Electron's app version) and present it as the
+            // same fact. Tony's About pane said "Version 0.6.123" and directly
+            // under it "You're on the latest version (0.6.124)" — two sources
+            // disagreeing, rendered as one confident claim. Prefer the heading's
+            // number, and if the two ever diverge again, show both rather than
+            // quietly picking a winner.
+            status.current && version && status.current !== version
+              ? <div className='update-none'>
+                  You're on the latest release ({status.current}), but this window is running {version}.
+                  Quit and reopen Radiant to finish the update.
+                </div>
+              : <div className='update-none'>You're on the latest version ({version || status.current}).</div>
+          )
       )}
       {status?.error && <div className='error-note'>⚠ Couldn't check: {status.error}</div>}
 

@@ -97,7 +97,12 @@ function installUpdater ({ getWindow }) {
     try {
       const r = await autoUpdater.checkForUpdates()
       const v = r && r.updateInfo && r.updateInfo.version
-      return { version: v, current: app.getVersion(), hasUpdate: Boolean(v) && v !== app.getVersion() }
+      // ⚠️ COMPARE, DO NOT JUST TEST INEQUALITY. `v !== current` is also true
+      // when the published release is OLDER than what is installed — a pulled
+      // or rolled-back release would have been offered as an "update" that
+      // silently downgrades. cmpVersion already existed a few lines above and
+      // was used by checkNow; this handler simply never called it.
+      return { version: v, current: app.getVersion(), hasUpdate: Boolean(v) && cmpVersion(v, app.getVersion()) > 0 }
     } catch (e) {
       return { error: String(e && e.message || e), current: app.getVersion() }
     }
