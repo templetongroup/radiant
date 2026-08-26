@@ -8,7 +8,51 @@ export const THEMES = [
   { id: 'ember', name: 'Ember', hue: 55, chroma: 0.17, tint: 1.4 },
   { id: 'tokyonight', name: 'Tokyo Night', hue: 265, chroma: 0.14, tint: 2.4 },
   { id: 'catppuccin', name: 'Catppuccin', hue: 310, chroma: 0.11, tint: 2.6 },
-  { id: 'everforest', name: 'Everforest', hue: 150, chroma: 0.09, tint: 3.2 },
+  // ⚠️ EVERFOREST IS A REAL PALETTE, NOT A GREEN HUE. This was hue 150 with the
+  // rest derived, which produced *a* green theme but not Everforest — none of
+  // its actual colours appeared. Tony sent the real ones, so it is pinned like
+  // Nous Classic and now looks like what it is named after.
+  {
+    id: 'everforest',
+    name: 'Everforest',
+    hue: 150,
+    chroma: 0.09,
+    tint: 3.2,
+    vars: {
+      dark: {
+        '--bg-input': '#222a30', '--bg': '#2d353b',
+        '--bg-panel': '#363e44', '--bg-raised': '#3f474d', '--bg-hover': '#495157',
+        '--border': '#586065', '--border-strong': '#6f777d',
+        '--text': '#d3c6aa', '--text-muted': '#a89d87', '--text-faint': '#766e5c',
+        '--accent': '#a7c080', '--accent-hot': '#bbd298',
+        '--accent-dim': '#4f6032', '--accent-wash': '#3f4734', '--on-accent': '#12171a'
+      },
+      medium: {
+        '--bg-input': '#2d353b', '--bg': '#374146',
+        '--bg-panel': '#404a50', '--bg-raised': '#495359', '--bg-hover': '#535d63',
+        '--border': '#626c71', '--border-strong': '#798389',
+        // Medium sits lighter than dark, so the muted tone that clears 4.5:1
+        // there does not here — lifted until it does.
+        '--text': '#d3c6aa', '--text-muted': '#b6ab94', '--text-faint': '#8a8271',
+        '--accent': '#a7c080', '--accent-hot': '#bbd298',
+        '--accent-dim': '#5b6c3e', '--accent-wash': '#495340', '--on-accent': '#12171a'
+      },
+      light: {
+        '--bg-input': '#FFFBEF', '--bg': '#FDF6E3',
+        '--bg-panel': '#FFFBEF', '--bg-raised': '#F4F0D9', '--bg-hover': '#EFEBD4',
+        '--border': '#DDD8BE', '--border-strong': '#C7C3A9',
+        // ⚠️ THE CONTRAST GATE REJECTED THE PALETTE'S OWN VALUES HERE, AND IT
+        // WAS RIGHT. Everforest light's grey2 (#829181) reaches only 3.08:1 on
+        // its cream ground, and cream on its green accent 2.69:1 — both below
+        // 4.5:1, i.e. hard to read for anyone who needs contrast. Darkened to
+        // the nearest passing shade on the same hue, and the accent carries
+        // dark ink rather than cream.
+        '--text': '#5C6A72', '--text-muted': '#657364', '--text-faint': '#8E998B',
+        '--accent': '#8DA101', '--accent-hot': '#A4B71C', '--accent-dim': '#C7CFA0',
+        '--accent-wash': '#E9EDD4', '--on-accent': '#272E33'
+      }
+    }
+  },
   { id: 'gruvbox', name: 'Gruvbox', hue: 60, chroma: 0.13, tint: 2.6 },
   { id: 'nord', name: 'Nord', hue: 240, chroma: 0.08, tint: 2.2 },
   { id: 'dracula', name: 'Dracula', hue: 290, chroma: 0.15, tint: 2.2 },
@@ -33,25 +77,30 @@ export const THEMES = [
     chroma: 0.16,
     tint: 3.4,
     vars: {
+      // ⚠️ THESE ARE THE COLOURS TONY ACTUALLY SEES, NOT THE EXPORT'S. The file
+      // he sent listed #0D2F86 / #FFE6CB; the running app is #182B5F / #F4DDC5,
+      // a darker and softer pair. What is on his screen wins over what a theme
+      // export claims. The rest of the ramp is derived from those two in OKLCH
+      // so the steps stay even.
       dark: {
-        '--bg': '#0D2F86', '--bg-panel': '#12378F', '--bg-raised': '#183F9A',
-        '--bg-hover': '#1B45A4', '--bg-input': '#0B2566',
-        '--border': '#3158AD', '--border-strong': '#3A63BD',
-        '--text': '#FFE6CB', '--text-muted': '#B5C7F3', '--text-faint': '#7E97D4',
-        '--accent': '#FFE6CB', '--accent-hot': '#FFF3E4', '--accent-dim': '#1540B1',
-        '--accent-wash': '#143B91', '--on-accent': '#0D2F86'
+        '--bg-input': '#0e1f52', '--bg': '#182b5f',
+        '--bg-panel': '#203469', '--bg-raised': '#293e73', '--bg-hover': '#33487c',
+        '--border': '#445888', '--border-strong': '#5a6fa0',
+        '--text': '#f4ddc5', '--text-muted': '#c7b4a0', '--text-faint': '#928374',
+        '--accent': '#f4ddc5', '--accent-hot': '#fff1db',
+        '--accent-dim': '#2645a1', '--accent-wash': '#1d357c', '--on-accent': '#182b5f'
       },
       medium: {
-        '--bg': '#12378F', '--bg-panel': '#183F9A', '--bg-raised': '#1B45A4',
-        '--bg-hover': '#234A9C', '--bg-input': '#0D2F86',
-        '--border': '#3158AD', '--border-strong': '#3A63BD',
-        '--text': '#FFE6CB', '--text-muted': '#C3D2F6', '--text-faint': '#8CA3DC',
-        '--accent': '#FFE6CB', '--accent-hot': '#FFF3E4', '--accent-dim': '#1540B1',
-        '--accent-wash': '#1B45A4', '--on-accent': '#0D2F86'
+        '--bg-input': '#172b62', '--bg': '#22376f',
+        '--bg-panel': '#2b417a', '--bg-raised': '#344b83', '--bg-hover': '#3e558d',
+        '--border': '#506598', '--border-strong': '#667db1',
+        '--text': '#f4ddc5', '--text-muted': '#c7b4a0', '--text-faint': '#9c8d7c',
+        '--accent': '#f4ddc5', '--accent-hot': '#fff1db',
+        '--accent-dim': '#2f52b4', '--accent-wash': '#27408c', '--on-accent': '#182b5f'
       },
       light: {
-        '--bg': '#F8FAFF', '--bg-panel': '#FFFFFF', '--bg-raised': '#F2F6FF',
-        '--bg-hover': '#EDF3FF', '--bg-input': '#FFFFFF',
+        '--bg-input': '#FFFFFF', '--bg': '#F8FAFF',
+        '--bg-panel': '#FFFFFF', '--bg-raised': '#F2F6FF', '--bg-hover': '#EDF3FF',
         '--border': '#C7D9FF', '--border-strong': '#B2CBFE',
         '--text': '#17171A', '--text-muted': '#666678', '--text-faint': '#8B8B9C',
         '--accent': '#0053FD', '--accent-hot': '#2A6CFF', '--accent-dim': '#B2CBFE',
