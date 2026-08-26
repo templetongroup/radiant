@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { Icon } from './Icons.jsx'
 import { AgentGlyph } from './AgentIcons.jsx'
 import { isImported } from './Chat.jsx'
-import { api } from '../api.js'
+import { api, saveToFile } from '../api.js'
 
 function UsageChip () {
   const [items, setItems] = useState(null)
@@ -202,6 +202,16 @@ export default function Sidebar ({ sessions, activeId, working, onOpen, onNew, o
             </select>
           )}
           <button title={s.pinned ? 'Unpin' : 'Pin to top'} onClick={e => { e.stopPropagation(); onPin(s.id, !s.pinned) }}>{s.pinned ? '★' : '☆'}</button>
+          {/* Export one chat. Markdown, not JSON: the reason you export a single
+              conversation is to show it to somebody. The JSON archive lives in
+              Settings, where you go to move everything at once. */}
+          <button title='Export as Markdown' onClick={async e => {
+            e.stopPropagation()
+            try {
+              const r = await api.exportChat(s.id, 'md')
+              await saveToFile(r.filename, r.mime, r.content)
+            } catch (err) { window.alert(`Could not export: ${err.message}`) }
+          }}>⤓</button>
           <button title='Rename' onClick={e => { e.stopPropagation(); setEditing({ kind: 'session', id: s.id, value: s.title }) }}>✎</button>
           <button title='Delete' onClick={e => { e.stopPropagation(); if (window.confirm(`Delete "${s.title}"?`)) onDelete(s.id) }}>✕</button>
         </div>

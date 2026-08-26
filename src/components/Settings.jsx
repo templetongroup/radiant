@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { verdict, FIT_LABEL, FITS_WELL, FITS_TIGHT, FITS_NO, COMFORTABLE } from '../fit.js'
-import { api, startDownload, getDownloads, cancelDownload, streamQuantize, getServer, setServer, testServer } from '../api.js'
+import { api, startDownload, getDownloads, cancelDownload, streamQuantize, getServer, setServer, testServer, saveToFile } from '../api.js'
 import { THEMES, MODES, FONTS, UI_SCALES, applyTheme, hexToOklch, accentHex } from '../theme.js'
 import { MOTIONS } from './MotionBackground.jsx'
 import { Icon } from './Icons.jsx'
@@ -1439,6 +1439,77 @@ function DataFolderBlock () {
   )
 }
 
+/**
+ * Take your chats somewhere else, or bring them back.
+ *
+ * ⚠️ AN IMPORT CAN ONLY EVER ADD. Every imported chat gets a fresh id on the
+ * server, so a file cannot overwrite a conversation you already have — there
+ * would be no undo if it could. Re-importing the same file twice gives you two
+ * copies, which is the safe way round.
+ */
+function ChatTransfer () {
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState(null)
+  const file = useRef(null)
+
+  const exportAll = async () => {
+    setBusy(true); setMsg(null)
+    try {
+      const r = await api.exportAllChats()
+      if (!r.count) { setMsg({ kind: 'warn', text: 'There are no chats to export yet.' }); setBusy(false); return }
+      const where = await saveToFile(r.filename, r.mime, r.content)
+      // null means the Save dialog was cancelled — not an error, and not a
+      // success either. Saying "Saved!" there would be a lie.
+      setMsg(where === null
+        ? { kind: 'warn', text: 'Export cancelled.' }
+        : { kind: 'ok', text: `Saved ${r.count} chat${r.count === 1 ? '' : 's'}${where ? ` to ${where.replace(/^\/Users\/[^/]+/, '~')}` : ` as ${r.filename}`}.` })
+    } catch (e) { setMsg({ kind: 'warn', text: e.message }) }
+    setBusy(false)
+  }
+
+  const doImport = async (f) => {
+    if (!f) return
+    setBusy(true); setMsg(null)
+    try {
+      const text = await f.text()
+      let payload
+      try { payload = JSON.parse(text) } catch { throw new Error('That file is not valid JSON.') }
+      const r = await api.importChats(payload)
+      setMsg({
+        kind: r.added ? 'ok' : 'warn',
+        text: r.added
+          ? `Added ${r.added} chat${r.added === 1 ? '' : 's'}${r.skipped ? `, skipped ${r.skipped} that did not look like chats` : ''}. They are in the sidebar under No project.`
+          : 'Nothing in that file looked like a Radiant chat.'
+      })
+    } catch (e) { setMsg({ kind: 'warn', text: e.message }) }
+    setBusy(false)
+    if (file.current) file.current.value = ''
+  }
+
+  return (
+    <>
+      <h3 style={{ marginTop: 26 }}>Move your chats</h3>
+      <p className='hint' style={{ marginTop: 0 }}>
+        Export everything as one file to keep a copy, move to another Mac, or
+        hand a conversation to someone. Importing only ever adds — it never
+        replaces a chat you already have, so the same file imported twice gives
+        you two copies.
+      </p>
+      <div className='row' style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 12, alignItems: 'center' }}>
+        <button className='small-btn' disabled={busy} onClick={exportAll}>Export all chats</button>
+        <button className='small-btn' disabled={busy} onClick={() => file.current?.click()}>Import chats…</button>
+        <input ref={file} type='file' accept='application/json,.json' style={{ display: 'none' }}
+          onChange={e => doImport(e.target.files?.[0])} />
+      </div>
+      <p className='hint'>
+        An export contains the full text of every chat, including anything you
+        pasted in. Treat the file the way you would treat the conversations.
+      </p>
+      {msg && <p className={'hint ' + (msg.kind === 'warn' ? 'is-warn' : 'is-restart')}>{msg.text}</p>}
+    </>
+  )
+}
+
 function DevicesPane () {
   const [share, setShare] = useState(null)
   // The token is a credential; it starts hidden. See the note beside it.
@@ -1580,6 +1651,7 @@ const GUIDE = [
   {
     title: 'Chat & agents',
     items: [
+      ['Take your chats with you', 'Hover any chat in the sidebar and the ⤓ button saves it as Markdown — readable, and the right thing to paste into a ticket or send to someone. For everything at once, Settings → Memory → Move your chats exports every conversation as a single file you can keep as a backup or carry to another Mac, and imports one back. Importing only ever adds: it can never overwrite a chat you already have, so the same file imported twice gives you two copies rather than silently replacing anything. An export holds the full text of every chat, so treat the file the way you would treat the conversations.'],
       ['Sync across your Macs', 'Settings → Devices has one checkbox: keep my setup in iCloud Drive. Tick it and your projects, chats, agents and preferences follow you to your other Macs — no account to create, no password, and nothing of yours stored anywhere but your own cloud drive. Dropbox and Google Drive work too if you have them. Radiant copies your setup across and leaves the originals alone; turning it off copies everything back. If the shared folder is ever unreachable it runs from this Mac and says so, rather than opening empty. Point a second Mac at a folder that already has a setup and Radiant asks which one wins instead of guessing. Use one Mac at a time — to work from two at once, share this Mac instead.'],
       ['Projects', 'Group your chats into projects in the Chats sidebar. Give a project a folder and every new chat started inside it opens in that folder, so you stop re-pointing each session at the same place. Use the + on a project to start a chat in it, the pencil to rename, and the small menu on any chat row to move it between projects. Deleting a project never deletes its chats — they move to “No project”.'],
       ['Agents', 'Named personas with their own model, personality, and skills. Pick one from the welcome screen; the Agents sidebar view groups your sessions by agent. Edit them in Settings → Agents.'],
@@ -1683,6 +1755,8 @@ function MemoryPane ({ config, onSettings }) {
         <button className='small-btn' onClick={() => clearOld(30)}>Older than 30 days</button>
         <button className='small-btn danger' onClick={() => clearOld(0)}>Delete all sessions</button>
       </div>
+
+      <ChatTransfer />
 
       <h3 style={{ marginTop: 26 }}>Memory</h3>
       <p className='hint' style={{ marginTop: 0 }}>Radiant remembers durable facts about you and your projects across sessions, and gives the relevant ones to the agent. Everything is stored locally in <code className='mono'>~/.radiant/memory.json</code>.</p>

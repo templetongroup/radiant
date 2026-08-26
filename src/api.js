@@ -261,6 +261,9 @@ export const api = {
   getStorage: () => json('GET', '/api/storage'),
   clearSessions: days => json('POST', '/api/storage/clear-sessions', { days }),
   getModels: () => json('GET', '/api/models'),
+  exportChat: (id, format) => json('GET', `/api/sessions/${id}/export?format=${format || 'json'}`),
+  exportAllChats: () => json('GET', '/api/chats/export'),
+  importChats: payload => json('POST', '/api/chats/import', payload),
   getDataDir: () => json('GET', '/api/data-dir'),
   getSyncTargets: () => json('GET', '/api/sync-targets'),
   setDataDir: body => json('POST', '/api/data-dir', body),
@@ -414,4 +417,23 @@ export async function streamChat (sessionId, content, onEvent) {
       try { onEvent(JSON.parse(line.slice(5))) } catch {}
     }
   }
+}
+
+/**
+ * Write a file the user asked for, and say where it went.
+ *
+ * In the app this is a real Save dialog over IPC; in a browser it is a blob
+ * download, which is that platform's equivalent. Returns the path when we know
+ * it, '' when the browser handled it, and null if the user cancelled.
+ */
+export async function saveToFile (name, mime, content) {
+  if (window.radiantNative?.saveFile) {
+    return await window.radiantNative.saveFile({ name, content })
+  }
+  const url = URL.createObjectURL(new Blob([content], { type: mime }))
+  const a = document.createElement('a')
+  a.href = url; a.download = name
+  document.body.appendChild(a); a.click(); a.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 10000)
+  return ''
 }

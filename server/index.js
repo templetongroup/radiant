@@ -461,6 +461,90 @@ app.patch('/api/agents/:id', (req, res) => {
   res.json(publicConfig(config))
 })
 
+// ── chat import / export ────────────────────────────────────────────────────
+// Two formats, because they answer different questions. JSON is the archive:
+// everything, and it can be imported back. Markdown is the artefact you paste
+// into a ticket or send to someone — readable, and deliberately lossy.
+
+const SAFE_SESSION_KEYS = [
+  'title', 'agentId', 'group', 'participants', 'provider', 'model', 'cwd',
+  'useTools', 'computerControl', 'projectId', 'planMode', 'createdAt', 'messages'
+]
+
+function chatToMarkdown (s) {
+  const out = [`# ${s.title || 'Chat'}`, '']
+  const meta = [s.model && `Model: ${s.model}`, s.cwd && `Folder: ${s.cwd}`,
+    s.createdAt && `Started: ${new Date(s.createdAt).toLocaleString()}`].filter(Boolean)
+  if (meta.length) out.push(meta.join('  ·  '), '')
+  for (const m of s.messages || []) {
+    if (m.role === 'user') {
+      out.push('## You', '', m.text || '', '')
+      for (const a of m.attachments || []) out.push(`_[attached: ${a.name || a.kind}]_`, '')
+    } else {
+      out.push('## Radiant', '')
+      for (const p of m.parts || []) {
+        if (p.type === 'text') out.push(p.text || '', '')
+        // A tool call is a fact about what the agent DID; losing it would make
+        // the transcript read as if files changed themselves.
+        else if (p.type === 'tool') out.push(`\`[tool] ${p.name || 'tool'}\`${p.args ? ' ' + JSON.stringify(p.args).slice(0, 200) : ''}`, '')
+        else if (p.type === 'notice') out.push(`_${p.text || ''}_`, '')
+      }
+    }
+  }
+  return out.join('\n')
+}
+
+app.get('/api/sessions/:id/export', (req, res) => {
+  const s = loadSession(req.params.id)
+  if (!s) return res.status(404).json({ error: 'not found' })
+  const safe = (s.title || 'chat').replace(/[^\w.-]+/g, '-').slice(0, 60).replace(/^-|-$/g, '') || 'chat'
+  if (req.query.format === 'md') {
+    return res.json({ filename: `${safe}.md`, mime: 'text/markdown', content: chatToMarkdown(s) })
+  }
+  res.json({
+    filename: `${safe}.json`,
+    mime: 'application/json',
+    content: JSON.stringify({ radiantChats: 1, exportedAt: new Date().toISOString(), chats: [s] }, null, 2)
+  })
+})
+
+app.get('/api/chats/export', (req, res) => {
+  const chats = listSessions().map(r => loadSession(r.id)).filter(Boolean)
+  const stamp = new Date().toISOString().slice(0, 10)
+  res.json({
+    filename: `radiant-chats-${stamp}.json`,
+    mime: 'application/json',
+    count: chats.length,
+    content: JSON.stringify({ radiantChats: 1, exportedAt: new Date().toISOString(), chats }, null, 2)
+  })
+})
+
+app.post('/api/chats/import', (req, res) => {
+  const body = req.body || {}
+  const incoming = Array.isArray(body.chats) ? body.chats : (body.messages ? [body] : null)
+  if (!incoming) return res.status(400).json({ error: 'That file does not look like a Radiant chat export.' })
+
+  let added = 0, skipped = 0
+  for (const raw of incoming) {
+    // ⚠️ MINT A NEW ID, ALWAYS. Honouring the id in the file would let an
+    // import overwrite a chat you already have — silently, and with no undo.
+    // An import can only ever ADD.
+    if (!raw || typeof raw !== 'object' || !Array.isArray(raw.messages)) { skipped++; continue }
+    const s = { id: crypto.randomUUID(), createdAt: new Date().toISOString() }
+    // Copy only fields we know. Anything else in the file is ignored rather
+    // than written into a session file we later read back and trust.
+    for (const k of SAFE_SESSION_KEYS) if (k in raw) s[k] = raw[k]
+    s.messages = raw.messages.filter(m => m && (m.role === 'user' || m.role === 'assistant'))
+    s.title = String(s.title || 'Imported chat').slice(0, 200)
+    // A project id from another Mac means nothing here.
+    if (s.projectId && !(config.projects || []).some(p => p.id === s.projectId)) s.projectId = null
+    s.pinned = false
+    s.imported = true
+    try { saveSession(s); added++ } catch { skipped++ }
+  }
+  res.json({ ok: true, added, skipped })
+})
+
 // ── where the data lives ────────────────────────────────────────────────────
 // Radiant has no account and no server of ours. "Sync across devices" is
 // therefore a folder question, not an identity question: put the data

@@ -28,6 +28,25 @@ ipcMain.handle('rad:pick-folder', async (e, current) => {
   return res.canceled || !res.filePaths?.length ? null : res.filePaths[0]
 })
 
+// Save a file the user asked for, with a real Save dialog.
+//
+// ⚠️ NOT AN <a download>. That leans on Electron's default download handling,
+// which this app has never configured — and a feature resting on unconfigured
+// default behaviour is the same bet that shipped a button wired to
+// window.prompt(). This is explicit: our dialog, our write, and the path comes
+// back so the app can say where the file went. The browser build still falls
+// back to a blob download, because there that IS the native behaviour.
+ipcMain.handle('rad:save-file', async (e, { name, content } = {}) => {
+  const res = await dialog.showSaveDialog(win || undefined, {
+    title: 'Save',
+    defaultPath: path.join(os.homedir(), 'Downloads', name || 'radiant-export'),
+    properties: ['createDirectory']
+  })
+  if (res.canceled || !res.filePath) return null
+  fs.writeFileSync(res.filePath, String(content ?? ''), 'utf8')
+  return res.filePath
+})
+
 console.log('[radiant] main.cjs loaded, electron', process.versions.electron)
 process.on('uncaughtException', e => console.error('[radiant] uncaught:', e))
 process.on('unhandledRejection', e => console.error('[radiant] unhandled rejection:', e))

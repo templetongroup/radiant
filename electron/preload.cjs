@@ -4,6 +4,7 @@ contextBridge.exposeInMainWorld('radiantNative', {
   setMode: mode => ipcRenderer.send('radiant:set-mode', mode),
   openSettings: tab => ipcRenderer.send('rad:open-settings', tab),
   pickFolder: current => ipcRenderer.invoke('rad:pick-folder', current),
+  saveFile: payload => ipcRenderer.invoke('rad:save-file', payload),
   closeSettings: () => ipcRenderer.send('rad:close-settings'),
   onSettingsClosed: cb => {
     const h = () => cb()
