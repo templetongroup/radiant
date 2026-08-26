@@ -1,4 +1,4 @@
-const { app, BrowserWindow, shell, ipcMain, nativeTheme, dialog, screen } = require('electron')
+const { app, BrowserWindow, shell, ipcMain, nativeTheme, dialog, screen, session } = require('electron')
 const path = require('path')
 const fs = require('fs')
 const os = require('os')
@@ -87,7 +87,29 @@ async function ensureServer () {
   return serverPort
 }
 
+// ⚠️ AN UPGRADE MUST START FROM A CLEAN HTTP CACHE.
+//
+// The webview cached /api/ reads into the user data folder, where they outlived
+// quitting, restarting and reinstalling. Refusing the cache on new requests
+// (src/api.js) stops it recurring, but entries already stored on someone's Mac
+// would keep being served to any code path that ever asks for them. Clear the
+// cache once per version so an upgrade cannot inherit a poisoned one.
+async function clearStaleCacheOnce () {
+  try {
+    const marker = path.join(app.getPath('userData'), 'cache-cleared-for')
+    let seen = null
+    try { seen = fs.readFileSync(marker, 'utf8').trim() } catch {}
+    if (seen === app.getVersion()) return
+    await session.defaultSession.clearCache()
+    fs.writeFileSync(marker, app.getVersion(), 'utf8')
+    console.log('[radiant] cleared http cache for', app.getVersion())
+  } catch (e) {
+    console.warn('[radiant] could not clear http cache:', e.message)
+  }
+}
+
 async function createWindow () {
+  await clearStaleCacheOnce()
   const port = await ensureServer()
   const state = windowState.restore('main', { width: 1360, height: 860 }, screen.getAllDisplays())
   win = new BrowserWindow({

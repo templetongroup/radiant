@@ -162,6 +162,7 @@ export async function testServer (base, token) {
   let res
   try {
     res = await fetch(url + '/api/config', {
+      cache: 'no-store',
       headers: token ? { 'x-radiant-token': token } : {},
       credentials: 'same-origin',
       signal: ctl.signal
@@ -222,6 +223,22 @@ async function json (method, path, body) {
       method,
       headers: authHeaders(body ? { 'content-type': 'application/json' } : {}),
       body: body ? JSON.stringify(body) : undefined,
+      // ⚠️ THE SERVER'S no-store CANNOT EVICT WHAT IS ALREADY CACHED.
+      //
+      // Express stamps an ETag on every JSON response and nothing set a cache
+      // directive, so the webview cached /api/ reads — from stable URLs, into a
+      // cache that lives in the user data folder and survives quitting,
+      // restarting, reinstalling, and replacing the app bundle entirely.
+      //
+      // Adding no-store on the server only marks responses it actually serves.
+      // An entry already sitting in that cache is returned without a request
+      // ever reaching the server, so the new header is never seen. Tony's
+      // sidebar kept reading 0.6.128 out of a cache from days earlier while the
+      // About pane, which had stopped asking the server at all, showed 0.6.133:
+      // "nav bar says .128 about screen says 133."
+      //
+      // Only the caller can refuse the cache. This does, for every API call.
+      cache: 'no-store',
       signal: ctl.signal
     })
   } catch (e) {
@@ -384,7 +401,7 @@ export async function startDownload ({ repo, files, model }) {
   return res.json()
 }
 export async function getDownloads () {
-  const res = await fetch(apiUrl('/api/downloads'), { headers: authHeaders() })
+  const res = await fetch(apiUrl('/api/downloads'), { cache: 'no-store', headers: authHeaders() })
   return res.ok ? res.json() : []
 }
 export async function cancelDownload (model) {
