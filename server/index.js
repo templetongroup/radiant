@@ -618,7 +618,16 @@ app.post('/api/data-dir', (req, res) => {
     const probe = path.join(dest, '.radiant-write-test')
     fs.writeFileSync(probe, 'ok'); fs.rmSync(probe)
   } catch (e) {
-    return res.status(400).json({ error: `Cannot write to that folder: ${e.message}` })
+    // Say which kind of failure it is. "Cannot write to that folder: EPERM" is
+    // a permissions problem the user can act on; ENOENT on a cloud path usually
+    // means the service is signed out. Both were previously one opaque line.
+    const code = e?.code || ''
+    const why = /EPERM|EACCES/.test(code)
+      ? 'macOS would not let Radiant write there. If this is a managed Mac, that folder may be restricted.'
+      : /ENOENT|ENOTDIR/.test(code)
+        ? 'That folder does not exist and could not be created. If it is a cloud folder, check the service is signed in.'
+        : e.message
+    return res.status(400).json({ error: `Cannot use that folder — ${why}` })
   }
 
   const destHasProfile = fs.existsSync(path.join(dest, 'config.json'))
@@ -690,10 +699,19 @@ app.get('/api/sync-targets', (req, res) => {
   // directory is missing, setDataDir creates it, and its write probe rejects
   // the folder if it is not actually usable. Verification was never what made
   // this safe, so it should not be what makes it unavailable.
+  // ⚠️ NO WARNING BASED ON A FILESYSTEM GUESS. A note reading "turn on iCloud
+  // Drive if it is off" was attached whenever ~/Library/Mobile Documents did
+  // not stat — and it fired on a Mac with iCloud Drive plainly switched on,
+  // telling the user to fix something that was not broken. That is the SECOND
+  // wrong guess about the same machine from a stat call that evidently cannot
+  // be trusted there, most likely because a managed Mac denies the read.
+  //
+  // So do not guess. Offer iCloud, and let ticking the box produce a REAL
+  // answer: setDataDir creates the folder and write-probes it, so a genuine
+  // failure arrives as a specific error at the moment it happens, instead of
+  // speculative advice on a screen where nothing has been attempted yet.
   const CLOUD_DOCS = path.join(home, 'Library', 'Mobile Documents', 'com~apple~CloudDocs')
-  let iCloudSignedIn = false
-  try { iCloudSignedIn = fs.existsSync(path.join(home, 'Library', 'Mobile Documents')) } catch {}
-  push('iCloud Drive', CLOUD_DOCS, iCloudSignedIn ? undefined : 'Turn on iCloud Drive in System Settings if it is off.')
+  push('iCloud Drive', CLOUD_DOCS)
 
   addIfPresent('Dropbox', path.join(home, 'Dropbox'))
   try {
@@ -707,7 +725,7 @@ app.get('/api/sync-targets', (req, res) => {
     }
   } catch { /* no CloudStorage directory on this Mac */ }
 
-  res.json({ targets: out, iCloudSignedIn })
+  res.json({ targets: out })
 })
 
 // ── projects ────────────────────────────────────────────────────────────────

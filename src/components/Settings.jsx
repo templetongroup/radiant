@@ -1422,9 +1422,7 @@ function DataFolderBlock () {
           Tick the box and choose any folder your other Macs can see.
         </p>
       )}
-      {!syncing && targets.find(t => t.path === choice)?.note && (
-        <p className='set-hint is-warn'>{targets.find(t => t.path === choice).note}</p>
-      )}
+
 
       {conflict && (
         <div className='sync-conflict'>
