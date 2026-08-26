@@ -675,46 +675,39 @@ app.get('/api/sync-targets', (req, res) => {
   const home = os.homedir()
   const out = []
   const seen = new Set()
-  const add = (label, dir) => {
-    try {
-      if (!dir || seen.has(dir) || !fs.existsSync(dir)) return
-      seen.add(dir)
-      out.push({ label, path: path.join(dir, 'Radiant') })
-    } catch { /* unreadable is the same as absent */ }
+  const push = (label, dir, note) => {
+    if (!dir || seen.has(dir)) return
+    seen.add(dir)
+    out.push({ label, path: path.join(dir, 'Radiant'), note })
   }
+  const addIfPresent = (label, dir) => { try { if (dir && fs.existsSync(dir)) push(label, dir) } catch {} }
 
-  // ⚠️ iCloud DRIVE IS NOT ALWAYS AT THE OBVIOUS PATH. com~apple~CloudDocs is
-  // the usual one, but a Mac can present it as the ~/iCloud Drive alias, and a
-  // managed work Mac may have neither while iCloud is plainly switched on.
-  // Tony's work MBA reported "no shared folder found" with iCloud Drive
-  // enabled, so this checks every place it is known to live and treats failure
-  // as "offer the picker" rather than "the feature is unavailable".
-  add('iCloud Drive', path.join(home, 'Library', 'Mobile Documents', 'com~apple~CloudDocs'))
-  add('iCloud Drive', path.join(home, 'iCloud Drive'))
-  add('iCloud Drive', path.join(home, 'Library', 'CloudStorage', 'iCloud Drive'))
-  add('Dropbox', path.join(home, 'Dropbox'))
+  // ⚠️ iCloud IS ALWAYS OFFERED ON A MAC, DETECTED OR NOT.
+  // This used to require com~apple~CloudDocs to stat successfully, and when it
+  // did not — Tony's work MBA, iCloud Drive plainly switched on — the feature
+  // fell back to "choose a folder", which is a question the user should never
+  // have to answer. A Mac's iCloud Drive is ALWAYS at this path; if the
+  // directory is missing, setDataDir creates it, and its write probe rejects
+  // the folder if it is not actually usable. Verification was never what made
+  // this safe, so it should not be what makes it unavailable.
+  const CLOUD_DOCS = path.join(home, 'Library', 'Mobile Documents', 'com~apple~CloudDocs')
+  let iCloudSignedIn = false
+  try { iCloudSignedIn = fs.existsSync(path.join(home, 'Library', 'Mobile Documents')) } catch {}
+  push('iCloud Drive', CLOUD_DOCS, iCloudSignedIn ? undefined : 'Turn on iCloud Drive in System Settings if it is off.')
+
+  addIfPresent('Dropbox', path.join(home, 'Dropbox'))
   try {
-    const cs = path.join(home, 'Library', 'CloudStorage')
-    for (const e of fs.readdirSync(cs)) {
-      // Skip the dated duplicates macOS leaves when an account is re-added.
-      if (/\(.*\d.*\)$/.test(e)) continue
-      if (/^Dropbox/i.test(e)) add('Dropbox', path.join(cs, e))
-      else if (/^GoogleDrive-/i.test(e)) add(`Google Drive · ${e.replace('GoogleDrive-', '')}`, path.join(cs, e, 'My Drive'))
-      else if (/^OneDrive/i.test(e)) add('OneDrive', path.join(cs, e))
-      else if (/^Box/i.test(e)) add('Box', path.join(cs, e))
-      else if (/^iCloud/i.test(e)) add('iCloud Drive', path.join(cs, e))
+    for (const e of fs.readdirSync(path.join(home, 'Library', 'CloudStorage'))) {
+      const dir = path.join(home, 'Library', 'CloudStorage', e)
+      if (/\(.*\d.*\)$/.test(e)) continue          // dated duplicates macOS leaves behind
+      if (/^Dropbox/i.test(e)) addIfPresent('Dropbox', dir)
+      else if (/^GoogleDrive-/i.test(e)) addIfPresent(`Google Drive · ${e.replace('GoogleDrive-', '')}`, path.join(dir, 'My Drive'))
+      else if (/^OneDrive/i.test(e)) addIfPresent('OneDrive', dir)
+      else if (/^Box/i.test(e)) addIfPresent('Box', dir)
     }
   } catch { /* no CloudStorage directory on this Mac */ }
 
-  // What was looked at, so a wrong answer can be diagnosed from the app rather
-  // than by asking someone to run commands in a terminal.
-  const checked = [
-    path.join(home, 'Library', 'Mobile Documents', 'com~apple~CloudDocs'),
-    path.join(home, 'iCloud Drive'),
-    path.join(home, 'Dropbox'),
-    path.join(home, 'Library', 'CloudStorage')
-  ].map(d => { let ok = false; try { ok = fs.existsSync(d) } catch {} return { path: d.replace(home, '~'), found: ok } })
-  res.json({ targets: out, checked })
+  res.json({ targets: out, iCloudSignedIn })
 })
 
 // ── projects ────────────────────────────────────────────────────────────────

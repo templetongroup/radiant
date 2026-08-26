@@ -1401,6 +1401,7 @@ function DataFolderBlock () {
           onChange={e => (e.target.checked ? enable() : disable())}
         />
         <span>Keep my setup in {current ? current.label : (targets.find(t => t.path === choice)?.label || 'a folder my other Macs can see…')}</span>
+        {/* Nobody should have to know where iCloud Drive lives on disk. */}
       </label>
       <p className='set-hint'>
         Your projects, chats, agents and preferences live in one folder. Keep it
@@ -1414,12 +1415,15 @@ function DataFolderBlock () {
           {targets.map(t => <option key={t.path} value={t.path}>{t.label}</option>)}
         </select>
       )}
+      {/* iCloud is always offered on a Mac, so this only appears somewhere it
+          genuinely cannot be. */}
       {!syncing && !targets.length && (
         <p className='set-hint'>
-          No cloud folder was detected automatically on this Mac — tick the box
-          and you can choose one yourself. Anything your other Macs can see
-          works: iCloud Drive, Dropbox, Google Drive, or a shared volume.
+          Tick the box and choose any folder your other Macs can see.
         </p>
+      )}
+      {!syncing && targets.find(t => t.path === choice)?.note && (
+        <p className='set-hint is-warn'>{targets.find(t => t.path === choice).note}</p>
       )}
 
       {conflict && (
@@ -1686,7 +1690,7 @@ const GUIDE = [
       ['Shared Macs keep up on their own', 'When you point one Mac at another Radiant (Settings → Devices), the second Mac now keeps its chat list current by itself: it checks every few seconds while you are looking at it, and catches up immediately when you click back into the window. A window in the background does nothing at all, so it costs no battery. Before this it only ever updated after you did something on that Mac, so a chat started on the host could sit unseen indefinitely.'],
       ['The version is in the window', 'The build you are running now shows at the bottom of the sidebar, to the right of the light/dark button. The first question about any odd behaviour is whether you are on the current version, and answering it no longer means opening Settings.'],
       ['Take your chats with you', 'Hover any chat in the sidebar and the ⤓ button saves it as Markdown — readable, and the right thing to paste into a ticket or send to someone. For everything at once, Settings → Memory → Move your chats exports every conversation as a single file you can keep as a backup or carry to another Mac, and imports one back. Imported chats arrive in their own project named for the day they came in, so you can find them as a group, and they keep their original dates instead of pretending to be today. Importing only ever adds: it can never overwrite a chat you already have, so the same file imported twice gives you two copies rather than silently replacing anything. An export holds the full text of every chat, so treat the file the way you would treat the conversations.'],
-      ['Sync across your Macs', 'Settings → Devices has one checkbox: keep my setup in iCloud Drive. Tick it and your projects, chats, agents and preferences follow you to your other Macs — no account to create, no password, and nothing of yours stored anywhere but your own cloud drive. Dropbox and Google Drive work too if you have them. Radiant copies your setup across and leaves the originals alone; turning it off copies everything back. If the shared folder is ever unreachable it runs from this Mac and says so, rather than opening empty. Point a second Mac at a folder that already has a setup and Radiant asks which one wins instead of guessing. Use one Mac at a time — to work from two at once, share this Mac instead.'],
+      ['Sync across your Macs', 'Settings → Devices has one checkbox: keep my setup in iCloud Drive. Tick it and your projects, chats, agents and preferences follow you to your other Macs — no account to create, no password, and nothing of yours stored anywhere but your own cloud drive. Dropbox, Google Drive, OneDrive and Box are offered as well if you use them, and you can point it at any other folder from “Where it is now”. Radiant copies your setup across and leaves the originals alone; turning it off copies everything back. If the shared folder is ever unreachable it runs from this Mac and says so, rather than opening empty. Point a second Mac at a folder that already has a setup and Radiant asks which one wins instead of guessing. Use one Mac at a time — to work from two at once, share this Mac instead.'],
       ['Projects', 'Group your chats into projects in the Chats sidebar. Give a project a folder and every new chat started inside it opens in that folder, so you stop re-pointing each session at the same place. Use the + on a project to start a chat in it, the pencil to rename, and the small menu on any chat row to move it between projects. Deleting a project never deletes its chats — they move to “No project”.'],
       ['Agents', 'Named personas with their own model, personality, and skills. Pick one from the welcome screen; the Agents sidebar view groups your sessions by agent. Edit them in Settings → Agents.'],
       ['Agent library', 'Over 140 ready-made expert agents across two dozen categories — browse, filter, and add one in a click, then tweak its model, name, and skills before saving.'],
