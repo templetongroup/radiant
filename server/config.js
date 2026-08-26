@@ -19,6 +19,19 @@ export const DIR_POINTER = path.join(os.homedir(), '.radiant-location')
 
 export function defaultDataDir () { return path.join(os.homedir(), '.radiant') }
 
+/** Does this directory exist AND answer promptly? See resolveDataDir. */
+function reachable (dir) {
+  try {
+    execFileSync('/bin/test', ['-d', dir], { timeout: 3000, stdio: 'ignore' })
+    return true
+  } catch (e) {
+    if (e && (e.code === 'ETIMEDOUT' || e.signal)) {
+      console.warn('[radiant] data folder did not respond in 3s, treating as unreachable:', dir)
+    }
+    return false
+  }
+}
+
 function resolveDataDir () {
   // An explicit env var wins — it is how the test harness and a sandboxed run
   // get their own directory without touching a real one.
@@ -29,7 +42,19 @@ function resolveDataDir () {
     // out cloud drive) must NOT silently start a blank profile: that reads as
     // "Radiant lost all my work". Fall back to the default and let the UI say
     // the configured folder is unreachable.
-    if (p && fs.existsSync(p)) return p
+    //
+    // ⚠️ existsSync ITSELF CAN HANG. A path inside a wedged File Provider — an
+    // iCloud Drive that is signed in but not actually running — blocks in the
+    // kernel, and this runs at module load, inside the Electron main process,
+    // before a window exists. The app opens and freezes with no way back: Tony
+    // hit exactly that on his dev Mac after its iCloud folder went away.
+    //
+    // A blocked syscall cannot be raced from inside this process, so the probe
+    // happens in a child that can be killed. Slow means unreachable here, which
+    // is the safe reading: worst case Radiant starts on the local folder and
+    // says the configured one is unreachable, which is recoverable. Freezing is
+    // not.
+    if (p && reachable(p)) return p
   } catch { /* no pointer: the default */ }
   return defaultDataDir()
 }
