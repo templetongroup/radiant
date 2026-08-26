@@ -6,9 +6,15 @@ import { api, saveToFile, getServer } from '../api.js'
 
 function UsageChip () {
   const [items, setItems] = useState(null)
+  const [stale, setStale] = useState(false)
   useEffect(() => {
     let alive = true
-    const load = () => api.getUsage().then(u => { if (alive) setItems(u.items) }).catch(() => {})
+    // ⚠️ A SWALLOWED FAILURE LOOKS LIKE "NO USAGE". This kept the previous items
+    // and said nothing, so a provider could sit there with no number and no
+    // reason — indistinguishable from one that does not publish usage.
+    const load = () => api.getUsage()
+      .then(u => { if (alive) { setItems(u.items); setStale(false) } })
+      .catch(() => { if (alive) setStale(true) })
     load()
     const t = setInterval(load, 5 * 60 * 1000)
     return () => { alive = false; clearInterval(t) }
@@ -52,15 +58,26 @@ function UsageChip () {
         </span>
       )}
       {subs.map(s => {
-        const primary = s.windows?.[0]
+        // ⚠️ SHOW THE WINDOW THAT ACTUALLY BINDS, NOT THE FIRST ONE. Claude
+        // reports a 5-hour and a weekly window; this took windows[0] and so
+        // announced "81% left" from the 5-hour figure while the weekly one sat
+        // at 90% used. The number a person needs is the smallest amount
+        // remaining — that is the one that will stop them working.
+        const withPct = (s.windows || []).filter(w => w.usedPct != null)
+        const primary = withPct.length
+          ? withPct.reduce((a, w) => (w.usedPct > a.usedPct ? w : a))
+          : s.windows?.[0]
         const pct = primary?.usedPct
         const left = pct != null ? Math.max(0, 100 - pct) : null
         const reset = primary?.resetAt ? resetShort(primary.resetAt) : ''
+        const scope = withPct.length > 1 && primary?.name ? primary.name : ''
         return (
           <span key={s.provider} className='usage-line sub' title={subTitle(s)}>
             <span className={'usage-dot' + (left != null && left <= 10 ? ' warn' : ' ok')} /> {s.label}
             <span className='usage-sub'>
-              {left != null ? <span className='num-pop' key={left}>{left}% left</span> : 'signed in'}{reset ? <span className='usage-reset'> · ↻ {reset}</span> : ''}
+              {left != null
+                ? <><span className='num-pop' key={left}>{left}% left</span>{scope ? <span className='usage-reset'> {scope}</span> : ''}</>
+                : (stale ? 'not reachable' : 'signed in')}{reset ? <span className='usage-reset'> · ↻ {reset}</span> : ''}
             </span>
           </span>
         )

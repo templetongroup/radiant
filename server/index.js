@@ -1111,7 +1111,11 @@ function normWindows (pairs) {
     const limit = w.limit ?? w.limit_tokens ?? w.max ?? w.quota
     let pct = null
     if (typeof w.used_percent === 'number') pct = w.used_percent
-    else if (typeof w.utilization === 'number') pct = w.utilization <= 1 ? w.utilization * 100 : w.utilization
+    // ⚠️ 1 IS AMBIGUOUS AND THE GUESS WAS WRONG. Treating <=1 as a fraction turns
+    // a genuine 1% into 100% — reporting someone as out of quota when they have
+    // barely started. Anthropic sends whole percentages (19.0, 90.0), so only
+    // treat a value below 1 as a fraction.
+    else if (typeof w.utilization === 'number') pct = w.utilization < 1 ? w.utilization * 100 : w.utilization
     else if (typeof w.percent_used === 'number') pct = w.percent_used
     else if (typeof used === 'number' && typeof limit === 'number' && limit > 0) pct = (used / limit) * 100
     let resetAt = w.resets_at || w.reset_at || w.resets || w.reset
