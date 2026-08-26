@@ -1505,14 +1505,26 @@ function DataFolderBlock () {
           saw his projects on one: "home dev and work are all on with sync but i
           only see project folder on home mbp." The setting was saved on all
           three and in effect on one. */}
-      {/* An empty Radiant on a Mac pointed at the right folder is almost always
-          this: iCloud has not fetched the files yet. Say so, with a number. */}
-      {info.waiting > 0 && (
-        <div className='sync-pending'>
-          <strong>iCloud is still downloading {info.waiting} {info.waiting === 1 ? 'file' : 'files'} to this Mac.</strong>{' '}
-          Projects and chats that have not arrived yet will not appear. Radiant has asked
-          iCloud to fetch them — leave the Mac awake and online for a minute. If the number
-          does not fall, open iCloud Drive in Finder and check the folder is downloading.
+      {/* ⚠️ THE LOUDEST THING ON THIS SCREEN, BECAUSE IT MEANS NOTHING IS
+          SYNCING. A folder at the iCloud path is not necessarily in iCloud: with
+          iCloud Drive off or on another Apple ID it is just a local directory,
+          and Radiant will write into it forever, sharing with nobody, while the
+          checkbox above claims otherwise. Tony's dev Mac did this — two other
+          Macs worked, that one stayed empty through reboots and reinstalls. */}
+      {info.cloud && info.cloud.exists && !info.cloud.ubiquitous && (
+        <div className='sync-broken'>
+          <strong>This folder is not in iCloud on this Mac.</strong> It exists, and Radiant is
+          writing to it, but macOS does not consider it an iCloud item — so nothing here is
+          reaching your other Macs and nothing from them is arriving. Usually iCloud Drive is
+          switched off on this Mac, or signed in with a different Apple ID. Check System
+          Settings → your name → iCloud → iCloud Drive, then quit and reopen Radiant.
+        </div>
+      )}
+      {info.cloud && info.cloud.ubiquitous && info.cloud.error && (
+        <div className='sync-broken'>
+          <strong>iCloud reported an error uploading this folder.</strong> Your setup is not
+          reaching your other Macs until that clears. Check that this Mac is online and has
+          iCloud storage available.
         </div>
       )}
       {info.pendingRestart && (
@@ -1650,10 +1662,10 @@ function DevicesPane () {
           ? <>This Mac is <strong>using the Radiant on another Mac</strong> — everything you see
               (models, agents, chats) comes from <code className='mono'>{server.base}</code>, not from here.</>
           : syncing
-            ? (folder?.waiting > 0
-                ? <>This Mac is <strong>sharing one setup with your other Macs</strong>, but
-                    iCloud has not finished downloading it — <strong>{folder.waiting} {folder.waiting === 1 ? 'file is' : 'files are'} still
-                    on the way</strong>, so some projects and chats are not here yet.</>
+            ? (folder?.cloud && folder.cloud.exists && !folder.cloud.ubiquitous
+                ? <>This Mac is <strong>writing to a folder that is not in iCloud</strong> —
+                    it looks like the right place, but macOS is not syncing it, so nothing is
+                    shared with your other Macs. See below.</>
                 : <>This Mac is <strong>sharing one setup with your other Macs</strong>, kept
                     in <code className='mono'>{folderLabel}</code>.</>)
             : folder?.pendingRestart

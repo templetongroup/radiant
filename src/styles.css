@@ -517,6 +517,12 @@ code, pre, .mono { font-family: var(--font-mono); }
   border-radius: 6px; padding: 1px 5px; max-width: 190px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+.sync-broken {
+  margin: 10px 0; padding: 10px 12px; border-radius: 10px;
+  background: color-mix(in srgb, var(--danger, #d9534f) 12%, transparent);
+  border: 1px solid var(--danger, #d9534f);
+  font-size: 12.5px; line-height: 1.5; color: var(--text);
+}
 .sync-pending {
   margin: 10px 0; padding: 10px 12px; border-radius: 10px;
   background: var(--bg-raised); border: 1px solid var(--accent);

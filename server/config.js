@@ -1,6 +1,6 @@
 import fs from 'fs'
 import path from 'path'
-import { spawn } from 'child_process'
+import { execFileSync } from 'child_process'
 import os from 'os'
 import crypto from 'crypto'
 import { fileURLToPath } from 'url'
@@ -51,12 +51,11 @@ export function dataDirStatus () {
   // missing folder one second after the user successfully chose it.
   let exists = false
   try { exists = Boolean(configured) && fs.existsSync(configured) } catch {}
-  // Ask iCloud for anything it has not fetched, and report how much is missing
-  // so the UI can explain an empty list instead of showing one.
-  const waiting = cloudPending(SESSIONS_DIR) + cloudPending(PROJECTS_DIR) + cloudPending(RADIANT_DIR)
-  if (waiting) requestCloudDownload(RADIANT_DIR)
+  // Is the folder we are syncing into actually in iCloud on THIS Mac? A folder
+  // sitting at the iCloud path with iCloud Drive off is a silent dead end.
+  const cloud = Boolean(configured) ? cloudStatus(RADIANT_DIR) : null
   return {
-    waiting,
+    cloud,
     active: RADIANT_DIR,
     configured,
     isDefault: RADIANT_DIR === defaultDataDir(),
@@ -264,33 +263,57 @@ export function saveConfig (cfg) {
   writeJsonAtomic(CONFIG_PATH, cfg)
 }
 
-// ---- iCloud files that have not arrived yet --------------------------------
+// ---- is this folder actually in iCloud? -------------------------------------
 //
-// ⚠️ AN UNDOWNLOADED FILE IS INVISIBLE, NOT MISSING. iCloud keeps a file it has
-// not fetched as `.<name>.icloud`, a placeholder holding no content. Every
-// listing here filters for names ending in .json, so a placeholder is skipped
-// in silence — the Mac shows no projects and no chats and says nothing about
-// why. Tony saw exactly that on a Mac pointed at the right folder: "dev mac is
-// updated. still dont see folders."
+// ⚠️ A FOLDER AT THE iCLOUD PATH IS NOT NECESSARILY IN iCLOUD. With iCloud Drive
+// off, or signed into a different Apple ID, CloudDocs can still exist as an
+// ordinary local directory. Radiant would create its hierarchy inside it and
+// write there forever, syncing to nobody, while the checkbox said "Keep my
+// setup in iCloud Drive". Tony's dev Mac did exactly that — the same setup
+// worked on two other Macs and that one stayed empty through reboots and
+// reinstalls, with nothing on screen suggesting anything was wrong.
 //
-// Count them so the app can say so, and ask iCloud to fetch them.
-export function cloudPending (dir) {
+// An earlier attempt counted `.icloud` placeholder files and shelled out to
+// `brctl download`. Both were wrong: modern placeholders are File Provider
+// entries rather than sidecar files, so the count is always zero on current
+// macOS, and brctl is a diagnostic tool that does not belong in a shipped app.
+// Foundation's URL resource values are the supported answer, reached through
+// the native helper we already ship.
+const HELPER = [
+  path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'native', 'radiant-control'),
+  path.join(process.resourcesPath || '', 'native', 'radiant-control')
+].find(p => { try { return fs.existsSync(p) } catch { return false } })
+
+function helperSays (cmd, target) {
+  if (!HELPER) return null
   try {
-    return fs.readdirSync(dir).filter(f => f.startsWith('.') && f.endsWith('.icloud')).length
-  } catch { return 0 }
+    const out = execFileSync(HELPER, [cmd, target], { encoding: 'utf8', timeout: 5000 }).trim()
+    return Object.fromEntries(out.split(' ').map(kv => {
+      const i = kv.indexOf('=')
+      return i < 0 ? [kv, true] : [kv.slice(0, i), kv.slice(i + 1)]
+    }))
+  } catch { return null }
 }
 
-let downloadAsked = 0
-export function requestCloudDownload (dir) {
-  // brctl is the supported way to pull a placeholder down. Best effort, never
-  // blocking, and rate-limited so a listing cannot spawn processes in a loop.
-  const now = Date.now()
-  if (now - downloadAsked < 15000) return
-  downloadAsked = now
-  try {
-    spawn('brctl', ['download', dir], { stdio: 'ignore', detached: true }).unref()
-  } catch { /* not an iCloud folder, or brctl unavailable */ }
+/**
+ * What iCloud thinks of a folder. null when we cannot tell — never guess, and
+ * never let "cannot tell" render as "broken".
+ */
+export function cloudStatus (dir) {
+  const r = helperSays('ubiquity', dir)
+  if (!r) return null
+  return {
+    exists: r.exists === 'true',
+    ubiquitous: r.ubiquitous === 'true',
+    uploaded: r.uploaded === 'true',
+    uploading: r.uploading === 'true',
+    excluded: r.excluded === 'true',
+    error: r.error === 'yes'
+  }
 }
+
+/** Ask iCloud to fetch an item. The supported call, not `brctl download`. */
+export function requestCloudDownload (dir) { helperSays('fetch', dir) }
 
 // ---- projects: one file each ------------------------------------------------
 //

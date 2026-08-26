@@ -115,6 +115,60 @@ case "key":
         up.flags = flags; up.post(tap: .cghidEventTap)
     }
 
+// ⚠️ A FOLDER AT THE iCLOUD PATH IS NOT NECESSARILY IN iCLOUD.
+//
+// If iCloud Drive is off, or signed into a different Apple ID, the CloudDocs
+// path can still exist as an ordinary local directory. Radiant would mkdir its
+// hierarchy inside it and write there happily forever, syncing to nobody, while
+// the checkbox said "Keep my setup in iCloud Drive". That is what happened to
+// Tony's dev Mac: the same setup worked on two other Macs and that one stayed
+// empty through reboots and reinstalls.
+//
+// Foundation is the only thing that can answer this. Counting `.icloud`
+// sidecars does not work on current macOS — modern placeholders are File
+// Provider entries — and brctl is a diagnostic tool, not something to ship.
+// Reports one line of key=value so the Node side can parse it without a JSON
+// dependency, and never exits non-zero for a plain "no": the caller needs the
+// answer, not an error.
+case "ubiquity":
+    guard args.count >= 3 else { print("usage: radiant-control ubiquity <path>"); exit(1) }
+    let u = URL(fileURLWithPath: args[2])
+    guard FileManager.default.fileExists(atPath: args[2]) else {
+        print("exists=false"); exit(0)
+    }
+    do {
+        let v = try u.resourceValues(forKeys: [
+            .isUbiquitousItemKey,
+            .ubiquitousItemIsUploadedKey,
+            .ubiquitousItemIsUploadingKey,
+            .ubiquitousItemUploadingErrorKey,
+            .ubiquitousItemDownloadingStatusKey,
+            .ubiquitousItemIsExcludedFromSyncKey
+        ])
+        let err = v.ubiquitousItemUploadingError
+        var status = "unknown"
+        if let ds = v.ubiquitousItemDownloadingStatus { status = ds.rawValue }
+        print([
+            "exists=true",
+            "ubiquitous=\(v.isUbiquitousItem ?? false)",
+            "uploaded=\(v.ubiquitousItemIsUploaded ?? false)",
+            "uploading=\(v.ubiquitousItemIsUploading ?? false)",
+            "excluded=\(v.ubiquitousItemIsExcludedFromSync ?? false)",
+            "download=\(status)",
+            "error=\(err == nil ? "none" : "yes")"
+        ].joined(separator: " "))
+    } catch {
+        print("exists=true ubiquitous=false uploaded=false uploading=false excluded=false download=unknown error=none")
+    }
+
+// Ask iCloud to fetch a placeholder. The supported call, not `brctl download`.
+case "fetch":
+    guard args.count >= 3 else { print("usage: radiant-control fetch <path>"); exit(1) }
+    do {
+        try FileManager.default.startDownloadingUbiquitousItem(at: URL(fileURLWithPath: args[2]))
+        print("requested")
+    } catch { print("failed: \(error.localizedDescription)") }
+
 default:
     print("unknown command: \(args[1])"); exit(1)
 }
