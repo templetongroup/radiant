@@ -1424,7 +1424,6 @@ function DataFolderBlock () {
 
   return (
     <div className='data-folder'>
-      <div className='set-label'>Sync across your Macs</div>
       <label className='set-check'>
         <input
           type='checkbox'
@@ -1436,10 +1435,8 @@ function DataFolderBlock () {
         {/* Nobody should have to know where iCloud Drive lives on disk. */}
       </label>
       <p className='set-hint'>
-        Your projects, chats, agents and preferences live in one folder. Keep it
-        somewhere your other Macs already see and your setup follows you — no
-        account, and nothing of yours stored anywhere else. Turn this on once per
-        Mac.
+        No account, and nothing of yours stored anywhere but your own cloud drive.
+        Turn this on once per Mac.
       </p>
 
       {!syncing && targets.length > 1 && (
@@ -1610,6 +1607,49 @@ function ChatTransfer () {
   )
 }
 
+// ⚠️ THIS SCREEN HAD THREE EQUAL BOXES AND NO MODEL. Two of them — "Let my
+// other Macs use this one" and "Use another Mac from this one" — are the same
+// arrangement seen from its two ends, presented as if they were separate
+// features. Tony, who wrote the app: "let my other macs use this one and use
+// another mac from this one sounds like the same exact thing... its my app, and
+// im utterly confused."
+//
+// There are TWO arrangements, not three. The second one has two ends, and a Mac
+// is at one end or the other. The pictures carry that distinction faster than
+// any wording did.
+function SyncDiagram () {
+  return (
+    <svg className='dev-dia' viewBox='0 0 120 74' aria-hidden focusable='false'>
+      <rect x='42' y='4' width='36' height='18' rx='5' className='dia-cloud' />
+      <text x='60' y='16' textAnchor='middle' className='dia-label'>folder</text>
+      {[14, 50, 86].map((x, i) => (
+        <g key={i}>
+          <path d={`M${x + 10} 48 L${x + 10} 34 L60 34 L60 24`} className='dia-line' />
+          <rect x={x} y='48' width='20' height='14' rx='2.5' className='dia-mac' />
+          <rect x={x + 5} y='62' width='10' height='2' rx='1' className='dia-mac' />
+        </g>
+      ))}
+    </svg>
+  )
+}
+
+function HostDiagram () {
+  return (
+    <svg className='dev-dia' viewBox='0 0 120 74' aria-hidden focusable='false'>
+      <rect x='8' y='26' width='34' height='24' rx='3' className='dia-mac dia-host' />
+      <rect x='17' y='50' width='16' height='2.5' rx='1' className='dia-mac dia-host' />
+      <text x='25' y='64' textAnchor='middle' className='dia-label'>does the work</text>
+      {[10, 44].map((y, i) => (
+        <g key={i}>
+          <path d={`M78 ${y + 9} L52 ${y + 9} L52 38 L44 38`} className='dia-line' />
+          <rect x='78' y={y} width='30' height='18' rx='2.5' className='dia-mac' />
+        </g>
+      ))}
+      <text x='93' y='38' textAnchor='middle' className='dia-label'>windows</text>
+    </svg>
+  )
+}
+
 function DevicesPane () {
   const [share, setShare] = useState(null)
   // The token is a credential; it starts hidden. See the note beside it.
@@ -1675,15 +1715,23 @@ function DevicesPane () {
       </div>
 
       <p className='hint'>
-        There are two ways to work across Macs, and they solve different problems.
-        <br /><b>Keep them in step</b> — each Mac runs its own Radiant, and they share one
-        setup through a cloud folder. Best when you use one Mac at a time.
-        <br /><b>Use one Mac from another</b> — one Mac does the work and the others are windows
-        onto it. Best when one Mac is always on, or the other is too slow to run models.
+        Radiant works across Macs in two ways. They solve different problems — pick the
+        one that matches how you actually work.
       </p>
 
-      <div className='set-block'>
-        <div className='set-block-title'>Keep my Macs in step</div>
+      <div className='dev-option'>
+        <div className='dev-option-head'>
+          <SyncDiagram />
+          <div>
+            <div className='dev-option-title'>1 · Share one setup across your Macs</div>
+            <p className='dev-option-sub'>
+              Every Mac runs its own Radiant, and they all keep their projects, chats,
+              agents and settings in one cloud folder. Sit down at any Mac and it has the
+              same things. <b>Use one Mac at a time</b> — two of them writing at once will
+              overwrite each other.
+            </p>
+          </div>
+        </div>
         {linked
           ? <p className='hint' style={{ marginTop: 2 }}>
               Not used while this Mac is borrowing another one's Radiant — your setup is
@@ -1707,13 +1755,27 @@ function DevicesPane () {
         Sharing itself is real and verified — another Mac connects to this one
         and uses its models, agents and sessions.
       */}
-      <div className='set-block' style={{ marginTop: 16 }}>
-        <div className='set-block-title'>Let my other Macs use this one</div>
-        <p className='hint' style={{ marginTop: 2 }}>
-          This Mac runs the models and stores the chats; your other Macs open a window
-          onto it and see exactly the same thing. Best on the Mac that stays awake.
-          You will get an address and a token to enter on the other Mac.
-        </p>
+      <div className='dev-option' style={{ marginTop: 18 }}>
+        <div className='dev-option-head'>
+          <HostDiagram />
+          <div>
+            <div className='dev-option-title'>2 · Run everything on one Mac, use it from the others</div>
+            <p className='dev-option-sub'>
+              One Mac does the work — it runs the models and stores the chats. The others
+              open a window onto it and see exactly the same screen. Good when one Mac
+              stays awake, or another is too slow for local models.
+              <br /><b>This is one arrangement with two ends.</b> Set the Mac that does the
+              work first, then tell each other Mac to point at it.
+            </p>
+          </div>
+        </div>
+
+        <div className='dev-role'>
+          <div className='dev-role-title'>This Mac does the work</div>
+          <p className='hint' style={{ marginTop: 2 }}>
+            Turn this on for the Mac that stays awake. You will get an address and a token
+            to type into your other Macs.
+          </p>
         <label className='agent-skill-chk'>
           <input type='checkbox' checked={Boolean(share?.desired)} onChange={toggleShare} /> Share with my other Macs
         </label>
@@ -1778,13 +1840,13 @@ function DevicesPane () {
         })()}
       </div>
 
-      <div className='set-block' style={{ marginTop: 16 }}>
-        <div className='set-block-title'>Use another Mac from this one</div>
-        <p className='hint' style={{ marginTop: 2 }}>
-          The other end of the same arrangement. Paste the address and token from the Mac
-          that is sharing, and this app will use that Mac's models, agents and chats
-          instead of its own. Nothing on this Mac is deleted — switch back any time.
-        </p>
+        <div className='dev-role'>
+          <div className='dev-role-title'>This Mac is a window onto another</div>
+          <p className='hint' style={{ marginTop: 2 }}>
+            The other end. Paste the address and token from the Mac above, and this app
+            shows that Mac's models, agents and chats instead of its own. Nothing here is
+            deleted — switch back any time.
+          </p>
         <label className='connect-field'>Server address
           <input className='text-input' placeholder='100.x.y.z:5834 (Tailscale) or host.local:5834' value={base} onChange={e => setBase(e.target.value)} />
         </label>
@@ -1799,6 +1861,7 @@ function DevicesPane () {
         {server.base
           ? <div className='v-meta' style={{ marginTop: 6 }}>Using <code className='mono'>{server.base}</code>. Press “Use this Mac's own server” to go back.</div>
           : <div className='v-meta' style={{ marginTop: 6 }}>Not connected — this Mac is using its own server.</div>}
+        </div>
       </div>
     </div>
   )

@@ -433,7 +433,16 @@ code, pre, .mono { font-family: var(--font-mono); }
    treatment; going bigger would shout in a 248px sidebar.
    This rule is shared with the Agents tab, which had the same inversion. */
 .bot-head-name { font-size: 13px; font-weight: 600; color: var(--text); flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; text-align: left; }
-.bot-head-count { font-size: 10px; color: var(--text-faint); font-family: var(--font-mono); }
+/* ⚠️ --text-faint IS FOR DECORATION, NOT INFORMATION. This is the number of
+   chats in a project — something the user reads — and it was rendered at the
+   dimmest step in the palette, at 10px, in a mono face. Tony: "the indicator
+   number of how many chats are in a project folder is too dim. barely
+   readable." A pill at --text-muted holds its own without shouting. */
+.bot-head-count {
+  font-size: 10.5px; color: var(--text-muted); font-family: var(--font-mono);
+  background: var(--bg-raised); border-radius: 999px;
+  padding: 1px 6px; line-height: 1.5; font-weight: 600;
+}
 /* The glyph is an SVG now, so no font metric can push it off centre; the flex
    centring below is exact because the child has real dimensions. */
 .bot-new { border: 1px solid var(--border); background: var(--bg-raised); color: var(--text-muted); width: 20px; height: 20px; border-radius: 6px; padding: 0; display: flex; align-items: center; justify-content: center; }
@@ -517,6 +526,27 @@ code, pre, .mono { font-family: var(--font-mono); }
   border-radius: 6px; padding: 1px 5px; max-width: 190px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+.dev-option {
+  border: 1px solid var(--border); border-radius: 14px;
+  background: var(--bg-panel); padding: 16px;
+}
+.dev-option-head { display: flex; gap: 14px; align-items: flex-start; }
+.dev-option-title { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+.dev-option-sub {
+  margin: 0; font-size: 12.5px; line-height: 1.55; color: var(--text-dim, inherit); opacity: .85;
+}
+.dev-dia { width: 118px; height: 74px; flex: 0 0 118px; }
+.dia-mac { fill: none; stroke: currentColor; stroke-width: 1.4; opacity: .55; }
+.dia-host { fill: color-mix(in srgb, var(--accent) 22%, transparent); stroke: var(--accent); opacity: 1; }
+.dia-cloud { fill: color-mix(in srgb, var(--accent) 18%, transparent); stroke: var(--accent); stroke-width: 1.4; }
+.dia-line { fill: none; stroke: currentColor; stroke-width: 1.1; opacity: .35; stroke-dasharray: 3 2.5; }
+.dia-label { font-size: 7px; fill: currentColor; opacity: .6; }
+/* The two ends of arrangement 2, joined by a rule so they read as one thing. */
+.dev-role {
+  margin-top: 14px; padding-left: 14px;
+  border-left: 2px solid color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.dev-role-title { font-weight: 600; font-size: 13px; }
 .sync-broken {
   margin: 10px 0; padding: 10px 12px; border-radius: 10px;
   background: color-mix(in srgb, var(--danger, #d9534f) 12%, transparent);

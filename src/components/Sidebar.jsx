@@ -106,8 +106,24 @@ export default function Sidebar ({ sessions, activeId, working, onOpen, onNew, o
   }
 
   const [view, setView] = useState('chats')
-  const [collapsed, setCollapsed] = useState({})
-  const toggleGroup = id => setCollapsed(c => ({ ...c, [id]: !c[id] }))
+  // ⚠️ SHELVES OPEN BY DEFAULT AND FORGOT WHAT YOU DID. Every project unfolded
+  // on launch, so a sidebar with a few projects opened as a wall of chats, and
+  // collapsing them was undone by the next restart. Tony: "have the folderss
+  // closed on app launch, not open. and remember the last state."
+  //
+  // Stored as the set of groups the user has OPENED, so anything unknown — a
+  // project made on another Mac, or a fresh install — starts closed.
+  const OPEN_KEY = 'radiant.openProjects'
+  const [open, setOpen] = useState(() => {
+    try { return new Set(JSON.parse(localStorage.getItem(OPEN_KEY)) || []) } catch { return new Set() }
+  })
+  const toggleGroup = id => setOpen(prev => {
+    const next = new Set(prev)
+    next.has(id) ? next.delete(id) : next.add(id)
+    try { localStorage.setItem(OPEN_KEY, JSON.stringify([...next])) } catch {}
+    return next
+  })
+  const collapsed = new Proxy({}, { get: (_t, id) => !open.has(String(id)) })
 
   const [version, setVersion] = useState('')
   // ⚠️ THIS WINDOW MAY NOT BE SHOWING THIS MAC. A stored server address in
