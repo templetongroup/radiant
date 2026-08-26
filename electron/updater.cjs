@@ -66,10 +66,42 @@ function autoUpdatesEnabled () {
   } catch { return true }
 }
 
+// ⚠️ A BUNDLE CAN BE INTERNALLY INCONSISTENT, AND THE USER CANNOT FIX THAT.
+//
+// electron-updater patches an update file-by-file from a blockmap by default.
+// Patch against a base that isn't quite what the blockmap expects and you get a
+// bundle with some new files and some old ones — Info.plist saying 0.6.130 over
+// an app.asar still holding 0.6.128. The app then reports one version and runs
+// another, and no amount of quitting and reopening changes it, because the copy
+// on disk is the broken thing.
+//
+// Six releases inside one hour made that far more likely, and it landed on Tony:
+// "its fucking ridiculous that an end user would have to run terminal commands
+// on their mac to fix an update bug in our software."
+//
+// Both numbers come from the same package.json at build time, so in a healthy
+// bundle they always agree. If they don't, the install is damaged: re-download
+// the whole release and reinstall it, without asking and without instructions.
+function innerVersion () {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(app.getAppPath(), 'package.json'), 'utf8')).version || null
+  } catch { return null }
+}
+
 function installUpdater ({ getWindow }) {
-  autoUpdater.autoDownload = false
+  // Full downloads only. A slightly larger download is a fair price for never
+  // assembling a half-patched app on someone's Mac.
+  autoUpdater.disableDifferentialDownload = true
+  // The About pane has always told users "updates download in the background and
+  // install when you restart". With autoDownload off that was simply untrue —
+  // nothing downloaded unless someone clicked through a dialog, which is how a
+  // Mac sat on 0.6.128 while 0.6.130 was out. Make the promise true instead.
+  autoUpdater.autoDownload = true
   autoUpdater.autoInstallOnAppQuit = true
   let latest = null
+  // set when we are repairing a damaged install: the download that follows
+  // installs itself rather than asking, because there is nothing to decide.
+  let repairing = false
   // one update conversation at a time — repeated checks used to stack dialogs
   let dialogOpen = false
   let promptedFor = null
@@ -80,6 +112,18 @@ function installUpdater ({ getWindow }) {
   const staleOnDisk = stagedVersion()
   if (staleOnDisk && cmpVersion(staleOnDisk, app.getVersion()) <= 0) {
     clearStaged(`${staleOnDisk} is already installed`)
+  }
+
+  // Repair a damaged bundle before anything else looks at versions.
+  const inner = innerVersion()
+  if (inner && cmpVersion(inner, app.getVersion()) !== 0) {
+    console.warn(`[radiant] damaged install: bundle says ${app.getVersion()}, code is ${inner} — repairing`)
+    repairing = true
+    clearStaged('bundle is inconsistent')
+    autoUpdater.checkForUpdates().catch(e => {
+      repairing = false
+      console.warn('[radiant] could not reach the update feed to repair:', e.message)
+    })
   }
 
   const send = (type, data) => {
@@ -127,7 +171,10 @@ function installUpdater ({ getWindow }) {
       const staged = stagedVersion()
       if (staged && staged !== v) clearStaged(`staged ${staged}, but ${v} is current`)
 
-      if (dialogOpen || (silent && promptedFor === v)) return
+      // autoDownload brings it down on its own; a silent check has nothing to
+      // ask about and must not interrupt with a dialog nobody needs to answer.
+      if (silent) return
+      if (dialogOpen || promptedFor === v) return
       dialogOpen = true
       let response
       try {
@@ -147,6 +194,7 @@ function installUpdater ({ getWindow }) {
 
   // when a download finishes from the menu path, offer to restart
   autoUpdater.on('update-downloaded', async info => {
+    if (repairing) { setImmediate(() => autoUpdater.quitAndInstall(false, true)); return }
     if (dialogOpen) return
     dialogOpen = true
     let response
