@@ -1697,7 +1697,10 @@ app.post('/api/sessions', (req, res) => {
     projectId: project ? project.id : null,
     // Precedence, most specific first: what the request asked for, then the
     // agent, then the project, then the global default.
-    provider: req.body.provider || (agent && agent.provider) || (project && project.provider) || null,
+    // ⚠️ A DEFAULT MODEL NEEDS A DEFAULT PROVIDER. defaultProvider was stored and
+    // never read, so a default model had nothing to serve it and fell back to
+    // whatever the provider resolution happened to land on.
+    provider: req.body.provider || (agent && agent.provider) || (project && project.provider) || config.settings.defaultProvider || null,
     model: req.body.model || (agent && agent.model) || (project && project.model) || config.settings.defaultModel,
     // A project's folder beats the global default — that is most of the point.
     cwd: req.body.cwd || (project && project.cwd) || config.settings.defaultCwd || os.homedir(),

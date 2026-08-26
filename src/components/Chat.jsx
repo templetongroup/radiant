@@ -764,17 +764,21 @@ export default function Chat ({ session, live, todos = [], stats, approval, ques
                     )}
                     {m.text}
                   </div>
-                  {onFork && !live && (
-                    <button className='rewind-btn branch-btn' title='Branch — copy this chat up to here into a new one, leaving this one alone'
-                      onClick={() => onFork(i)}>
-                      <Icon.branch size={12} /> branch
-                    </button>
-                  )}
-                  {onTruncate && !live && (
-                    <button className='rewind-btn' title='Rewind — edit this and retry (removes messages after it)' onClick={async () => {
-                      if (!window.confirm('Rewind to here? This removes the messages after this point so you can edit and retry.')) return
-                      await onTruncate(i); setDraft(m.text); setTimeout(() => textareaRef.current?.focus(), 0)
-                    }}>↺ edit &amp; retry</button>
+                  {(onFork || onTruncate) && !live && (
+                    <div className='msg-tools'>
+                      {onFork && (
+                        <button className='rewind-btn branch-btn' title='Branch — copy this chat up to here into a new one, leaving this one alone'
+                          onClick={() => onFork(i)}>
+                          <Icon.branch size={12} /> branch
+                        </button>
+                      )}
+                      {onTruncate && (
+                        <button className='rewind-btn' title='Rewind — edit this and retry (removes messages after it)' onClick={async () => {
+                          if (!window.confirm('Rewind to here? This removes the messages after this point so you can edit and retry.')) return
+                          await onTruncate(i); setDraft(m.text); setTimeout(() => textareaRef.current?.focus(), 0)
+                        }}>↺ edit &amp; retry</button>
+                      )}
+                    </div>
                   )}
                 </div>
               : <AssistantMessage key={i} parts={m.parts || []} model={m.model} agent={m.agentId ? agents.find(a => a.id === m.agentId) || sessionAgent : sessionAgent} onChoose={onWidgetChoice} />

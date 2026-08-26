@@ -363,7 +363,47 @@ function QuantizeBlock ({ systemRam, onDone }) {
   )
 }
 
-function ModelsPane ({ onModelsChanged }) {
+// ⚠️ A SETTING NOBODY CAN SET IS NOT A SETTING. settings.defaultModel decided
+// the model for every new chat and there was no control for it anywhere in the
+// app — it could only ever be null, so every chat started on whatever the
+// fallback resolved to. Tony: "we have no where to set a default model for new
+// chats." It is machine-local (see MACHINE_KEYS), because the model you want by
+// default depends on what is installed on the Mac you are sitting at.
+function DefaultModelBlock ({ config, onSettings }) {
+  const [models, setModels] = useState([])
+  useEffect(() => { api.getModels().then(r => setModels(r.models || r || [])).catch(() => {}) }, [])
+  const current = config?.settings?.defaultModel || ''
+  return (
+    <div className='set-block' style={{ marginBottom: 16 }}>
+      <div className='set-block-title'>Default model for new chats</div>
+      <p className='hint' style={{ marginTop: 2 }}>
+        What a new chat starts on when nothing else decides — an agent's own model, or a
+        project's, still wins. Set per Mac, so a Mac can default to the models it has
+        downloaded rather than ones it cannot run.
+      </p>
+      <select
+        className='text-input'
+        style={{ fontFamily: 'inherit', marginTop: 8 }}
+        value={current}
+        onChange={e => {
+          const m = models.find(x => x.id === e.target.value)
+          onSettings({ defaultModel: e.target.value || null, defaultProvider: m ? m.provider : null })
+        }}
+      >
+        <option value=''>No default — pick a model in each chat</option>
+        {models.map(m => <option key={m.provider + m.id} value={m.id}>{m.providerName} · {m.id}</option>)}
+      </select>
+      {current && !models.some(m => m.id === current) && (
+        <div className='set-hint' style={{ marginTop: 6 }}>
+          <strong>{current}</strong> is set here but is not available on this Mac right now —
+          new chats will fall back until it is, or until you pick another.
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ModelsPane ({ onModelsChanged, config, onSettings }) {
   const [system, setSystem] = useState(null)
   const [local, setLocal] = useState({ running: true, models: [] })
   const [q, setQ] = useState('')
@@ -436,6 +476,7 @@ function ModelsPane ({ onModelsChanged }) {
 
   return (
     <div className='set-section'>
+      <DefaultModelBlock config={config} onSettings={onSettings} />
       <h3>Local models</h3>
       {system && (
         <div className='spec-card'>
@@ -2079,7 +2120,7 @@ export default function Settings ({ config, initialTab = 'providers', initialAge
         <div className='modal-body'>
           {tab === 'guide' && <GuidePane />}
           {tab === 'providers' && <ProvidersPane config={config} onConfigChange={onConfigChange} />}
-          {tab === 'models' && <ModelsPane onModelsChanged={onModelsChanged} />}
+          {tab === 'models' && <ModelsPane onModelsChanged={onModelsChanged} config={config} onSettings={onSettings} />}
           {tab === 'agents' && <AgentsPane config={config} onConfigChange={onConfigChange} initialView={initialAgentView} />}
           {tab === 'skills' && <SkillsPane config={config} onConfigChange={onConfigChange} />}
           {tab === 'mcp' && <McpPane config={config} onConfigChange={onConfigChange} />}

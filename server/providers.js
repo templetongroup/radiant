@@ -529,6 +529,16 @@ export async function runTurn ({ provider, model, apiKey, getAccessToken, getAcc
   // loop-breaker: nudge (never block) when the model repeats an identical call
   let lastSig = null
   let repeatCount = 0
+  // ⚠️ THE REPEAT-BREAKER BELOW ONLY CATCHES IDENTICAL CALLS, AND ask_user IS
+  // NEVER IDENTICAL. Its signature includes the question text, so a model that
+  // keeps asking — each time slightly differently — resets repeatCount every
+  // round and the breaker never fires. It is also the one tool that makes no
+  // progress, so a run of them is pure churn: Tony's chat "seems to be stuck in
+  // ask user loop" with no way out but stopping the turn.
+  //
+  // Counted by tool name instead of by arguments, and escalating to a refusal:
+  // at some point the honest answer is that asking again is not an option.
+  let askStreak = 0
   const REPEAT_NUDGES = { 3: 'stop and re-read the last result — this exact call has produced the same output 3 times', 5: 'you are stuck in a loop (5 identical calls). Change your approach or explain what is blocking you', 8: 'STOP repeating this call (8 times). Do something different or tell the user you are blocked' }
   // per-session stats (folded into session.stats)
   const stats = session.stats || { turns: 0, inTokens: 0, outTokens: 0, llmMs: 0, toolMs: 0 }
@@ -612,8 +622,23 @@ export async function runTurn ({ provider, model, apiKey, getAccessToken, getAcc
           ? 'Decision card shown. The option the user clicks will arrive as their next message.'
           : 'Widget shown to the user.'
       } else if (call.name === 'ask_user' && requestUserChoice) {
-        const answer = await requestUserChoice(call.args?.question || 'Which option?', call.args?.options)
-        part.result = `The user answered: ${answer}`
+        askStreak += 1
+        if (askStreak >= 5) {
+          // Stop putting the question on screen at all. Left to itself the model
+          // will keep asking, and the user cannot get out of it except by
+          // killing the turn.
+          part.result = 'The question was NOT shown to the user. You have asked ' + askStreak +
+            ' questions in a row without doing any work, which is a loop. Do not call ask_user again this turn. ' +
+            'Choose the most reasonable option yourself, say which assumption you made, and carry on.'
+          emit({ type: 'notice', text: 'Too many questions in a row — asked the agent to proceed on its own.' })
+        } else {
+          const answer = await requestUserChoice(call.args?.question || 'Which option?', call.args?.options)
+          part.result = `The user answered: ${answer}`
+          if (askStreak >= 3) {
+            part.result += '\n\n[reminder: that is ' + askStreak + ' questions in a row with no work done between them. ' +
+              'Act on what you now know rather than asking again — state assumptions instead of confirming them.]'
+          }
+        }
       } else if (call.name === 'exit_plan_mode') {
         const choice = await (requestUserChoice
           ? requestUserChoice(`Approve this plan?\n\n${call.args?.plan || ''}`, ['Approve & build', 'Keep planning'])
@@ -637,6 +662,7 @@ export async function runTurn ({ provider, model, apiKey, getAccessToken, getAcc
         part.result = await runTool(call.name, call.args, cwd)
       }
       // loop-breaker: append an escalating reminder on identical consecutive calls
+      if (call.name !== 'ask_user') askStreak = 0
       const sig = call.name + ':' + JSON.stringify(call.args)
       repeatCount = sig === lastSig ? repeatCount + 1 : 1
       lastSig = sig

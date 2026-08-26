@@ -186,9 +186,25 @@ code, pre, .mono { font-family: var(--font-mono); }
 .recipe-field input:focus { border-color: var(--accent); }
 
 .msg-user { position: relative; }
-.rewind-btn { display: none; margin-top: 4px; margin-left: auto; background: none; border: none; color: var(--text-faint); font-size: 11px; cursor: pointer; padding: 2px 6px; border-radius: 6px; }
-.msg-user:hover .rewind-btn { display: block; }
+/* ⚠️ HOVER-ONLY MEANS UNDISCOVERABLE. These were display:none until the message
+   was hovered, so branch — added next to rewind — could not be found at all:
+   "where is the branch button?" They now sit faintly at rest and brighten on
+   hover, which is enough to be noticed without shouting on every message.
+   display:none also takes a control out of the tab order entirely, the same
+   mistake the shelf tools had; opacity keeps them reachable. */
+.msg-tools {
+  display: flex; justify-content: flex-end; gap: 2px; margin-top: 4px;
+  opacity: .45; transition: opacity .15s ease;
+}
+.msg-user:hover .msg-tools,
+.msg-user:has(:focus-visible) .msg-tools { opacity: 1; }
+.rewind-btn {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: none; border: none; color: var(--text-muted);
+  font-size: 11px; cursor: pointer; padding: 2px 6px; border-radius: 6px;
+}
 .rewind-btn:hover { color: var(--accent); background: var(--bg-hover); }
+.rewind-btn svg { display: block; }
 
 .memory-item { display: flex; align-items: flex-start; gap: 8px; padding: 7px 10px; border: 1px solid var(--border); border-radius: 9px; background: var(--bg-panel); margin-bottom: 6px; }
 .memory-text { flex: 1; font-size: 12.5px; color: var(--text); line-height: 1.4; }
