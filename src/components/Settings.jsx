@@ -1054,7 +1054,18 @@ function AppearancePane ({ config, onSettings }) {
             className={'theme-swatch' + (s.themeId === t.id ? ' selected' : '')}
             onClick={() => preview({ themeId: t.id, bgTint: t.tint })}
           >
-            <span className='dot' style={{ background: accentHex(t.hue, t.chroma) }} />
+            {/* ⚠️ SHOW THE THEME'S ACTUAL COLOUR. The dot was always derived from
+                hue and chroma, which is right for the themes that derive
+                everything — but Nous Classic pins its palette, so its swatch
+                rendered as a generic blue indistinguishable from Nord and
+                Tokyo Night, in a grid where you find a theme by its colour.
+                A pinned theme shows its real accent over its real ground. */}
+            <span
+              className='dot'
+              style={t.vars
+                ? { background: t.vars.dark['--accent'], boxShadow: `0 0 0 3px ${t.vars.dark['--bg']}` }
+                : { background: accentHex(t.hue, t.chroma) }}
+            />
             {t.name}
           </button>
         ))}
