@@ -448,11 +448,25 @@ code, pre, .mono { font-family: var(--font-mono); }
 .bot-head { position: relative; }
 .bot-head-actions {
   position: absolute; right: 8px; top: 4px;
-  display: none; gap: 2px; padding: 1px;
+  display: flex; gap: 2px; padding: 1px;
   background: var(--bg-hover); border-radius: 6px;
+  /* ⚠️ HIDDEN WITH opacity, NOT display:none. display:none takes an element
+     out of the tab order, so these buttons could never be reached by keyboard
+     at all — which also meant the :focus rule written to reveal them could
+     only ever fire from a MOUSE click on the header, the exact bug this pair
+     of rules had. Invisible but focusable is what was wanted. */
+  opacity: 0; pointer-events: none;
+  transition: opacity .12s ease;
 }
+/* ⚠️ :focus-visible, NOT :focus-within. Opening a project means clicking its
+   header, which focuses that button — and :focus-within then held the actions
+   open long after the pointer had gone. Tony: "when i open a project folder and
+   then move off, the tools on the right persist."
+   The intent was keyboard reach, and :focus-visible is exactly that intent:
+   the browser sets it for keyboard focus and withholds it for a mouse click.
+   :has() is needed because the focus lands on a child, not on .bot-head. */
 .bot-head:hover .bot-head-actions,
-.bot-head:focus-within .bot-head-actions { display: flex; }
+.bot-head:has(:focus-visible) .bot-head-actions { opacity: 1; pointer-events: auto; }
 .bot-group .session-item { margin-left: 8px; }
 /* An open project with nothing in it yet. Without this the shelf collapses to
    its header and reads as broken rather than empty. */
@@ -552,8 +566,12 @@ code, pre, .mono { font-family: var(--font-mono); }
 .session-title-text { font-size: 12px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .session-item.pinned .session-title-text::after { content: ' ★'; color: var(--accent); font-size: 10px; }
 .session-item .session-meta { display: block; font-size: 11px; color: var(--text-faint); margin-top: 1px; font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.session-actions { position: absolute; top: 6px; right: 6px; display: none; gap: 2px; background: var(--bg-hover); border-radius: 6px; padding: 1px; }
-.session-item:hover .session-actions { display: flex; }
+/* Same treatment as .bot-head-actions, and for the same reason: these were
+   display:none, so pin / export / rename / delete were unreachable without a
+   mouse. */
+.session-actions { position: absolute; top: 6px; right: 6px; display: flex; gap: 2px; background: var(--bg-hover); border-radius: 6px; padding: 1px; opacity: 0; pointer-events: none; transition: opacity .12s ease; }
+.session-item:hover .session-actions,
+.session-item:has(:focus-visible) .session-actions { opacity: 1; pointer-events: auto; }
 .session-actions button { border: none; background: none; color: var(--text-faint); font-size: 12px; padding: 2px 4px; border-radius: 4px; line-height: 1; }
 .session-actions button:hover { color: var(--text); background: var(--bg-raised); }
 
