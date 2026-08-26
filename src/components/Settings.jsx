@@ -1180,34 +1180,65 @@ function AgentPane ({ config, onSettings }) {
         />
       </div>
 
+      {/* ⚠️ THIS SCREEN SAID TWO CONTRADICTORY THINGS AT ONCE. The status rows
+          carried fixed descriptions, so Desktop control showed a green tick and
+          "needs macOS permissions granted to Radiant" side by side. And the one
+          control was a checkbox labelled "Full automation" with a line beneath
+          it describing the UNCHECKED state, so the label and the explanation
+          were about different things. Tony: "this screen is also cluttered and
+          confusing. poor layout and even poorer descriptions."
+
+          Now: what it is, what works on this Mac, then the single decision —
+          each stated once, and the status text follows the actual state. */}
       <h3 style={{ marginTop: 22 }}>Computer control</h3>
-      <p style={{ fontSize: 12.5, color: 'var(--text-muted)', marginTop: 0 }}>
-        Turn on the <strong>computer</strong> toggle in the chat bar to let the agent drive a browser and your desktop.
-        Use a vision-capable model (Claude, GPT-4o, or a local VL model) so it can see what it's doing.
+      <p className='hint' style={{ marginTop: 2 }}>
+        The agent can drive a browser and your desktop — clicking, typing and opening apps.
+        Switch it on for a chat with the <strong>computer</strong> button in the composer, and use a
+        model that can see: Claude, GPT-4o, or a local vision model.
       </p>
-      <label className='check-row'>
-        <input type='checkbox' checked={Boolean(s.fullAutomation)} onChange={e => onSettings({ fullAutomation: e.target.checked })} />
-        <span>Full automation <span className='desc'>— let agents click, type, and run apps <strong>without approving each step</strong></span></span>
-      </label>
-      <div className={'automation-note' + (s.fullAutomation ? ' warn' : '')}>
-        {s.fullAutomation
-          ? '⚠ On — computer actions run automatically. An agent can act on your Mac as you would, including actions that can\'t be undone. Use only with models and tasks you trust.'
-          : 'Basic (recommended) — every computer action pauses for your approval before it runs.'}
-      </div>
-      <div className='spec-card' style={{ marginTop: 4 }}>
-        <div className='comp-stat'>
+
+      <div className='set-block' style={{ marginTop: 14 }}>
+        <div className='set-block-title'>What works on this Mac</div>
+        <div className='comp-stat' style={{ marginTop: 8 }}>
           <span className={comp?.browser ? 'key-ok' : 'fit-badge fit-no'}>{comp?.browser ? '✓' : '—'} Browser control</span>
-          <span className='desc'>drives your system Chrome — ready to use</span>
+          <span className='desc'>drives your system Chrome. Nothing to set up.</span>
         </div>
-        <div className='comp-stat'>
+        <div className='comp-stat' style={{ marginTop: 4 }}>
           <span className={comp?.desktop ? 'key-ok' : 'fit-badge fit-no'}>{comp?.desktop ? '✓' : '—'} Desktop control</span>
-          <span className='desc'>needs macOS permissions granted to Radiant</span>
+          <span className='desc'>
+            {comp?.desktop
+              ? 'Screen Recording and Accessibility are granted — ready to use.'
+              : 'not available yet — macOS has not granted Radiant permission.'}
+          </span>
         </div>
-        <div className='spec-note' style={{ marginTop: 10 }}>
-          For desktop control, grant Radiant <strong>Screen Recording</strong> (to see the screen) and
-          <strong> Accessibility</strong> (to click and type) in System Settings → Privacy &amp; Security.
-          macOS prompts on first use. Browser control needs no permissions.
-        </div>
+        {!comp?.desktop && (
+          <div className='spec-note' style={{ marginTop: 10 }}>
+            Grant Radiant <strong>Screen Recording</strong> to see the screen and <strong>Accessibility</strong> to
+            click and type, in System Settings → Privacy &amp; Security. macOS asks the first time the agent
+            tries. Browser control needs neither.
+          </div>
+        )}
+      </div>
+
+      <div className='set-block' style={{ marginTop: 14 }}>
+        <div className='set-block-title'>How much it may do without asking</div>
+        <label className={'auto-choice' + (!s.fullAutomation ? ' is-on' : '')}>
+          <input type='radio' name='automation' checked={!s.fullAutomation} onChange={() => onSettings({ fullAutomation: false })} />
+          <span>
+            <strong>Ask me first</strong> <span className='desc'>— recommended</span>
+            <span className='auto-choice-sub'>Every computer action pauses and waits for you before it runs.</span>
+          </span>
+        </label>
+        <label className={'auto-choice' + (s.fullAutomation ? ' is-on is-warn' : '')}>
+          <input type='radio' name='automation' checked={Boolean(s.fullAutomation)} onChange={() => onSettings({ fullAutomation: true })} />
+          <span>
+            <strong>Full automation</strong>
+            <span className='auto-choice-sub'>
+              Clicks, types and opens apps without asking. The agent can do anything on this Mac that you
+              could, including things that cannot be undone. Use it only with models and tasks you trust.
+            </span>
+          </span>
+        </label>
       </div>
     </div>
   )
