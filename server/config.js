@@ -56,7 +56,7 @@ export function dataDirStatus () {
   let cloud = Boolean(configured) ? cloudStatus(RADIANT_DIR) : null
   // Only worth asking when the folder itself is not syncing: it turns "this is
   // broken" into "here is the switch to flip".
-  if (cloud && cloud.exists && !cloud.ubiquitous) cloud = { ...cloud, driveOn: icloudDriveOn() }
+  if (cloud && cloud.exists && !cloud.ubiquitous) cloud = { ...cloud, icloud: icloudAvailable() }
   return {
     cloud,
     active: RADIANT_DIR,
@@ -315,19 +315,19 @@ export function cloudStatus (dir) {
   }
 }
 
-// ⚠️ "SIGNED INTO iCLOUD" IS NOT "iCLOUD DRIVE IS ON". They are separate
-// switches, and a Mac can be signed in for Mail, Photos and Find My with Drive
-// switched off — at which point CloudDocs is an ordinary local directory and
-// anything written there syncs to nobody. Tony has six Macs on one iCloud
-// account and one of them behaves like this, so telling him "not in iCloud"
-// without saying WHICH of the two is wrong leaves him hunting.
+// ⚠️ ASK THE DOCUMENTED QUESTION, NOT A PROXY FOR IT. This used to test whether
+// the CloudDocs root was itself a ubiquitous item and report "iCloud Drive is
+// switched off" when it was not. That was wrong on Tony's dev Mac — System
+// Settings showed iCloud Drive → "Sync this Mac" ON while Radiant told him it
+// was off, sending him after a setting that was already correct.
 //
-// The CloudDocs root answers it: with Drive on it is itself a ubiquitous item.
-export function icloudDriveOn () {
-  const root = path.join(os.homedir(), 'Library', 'Mobile Documents', 'com~apple~CloudDocs')
-  const r = helperSays('ubiquity', root)
+// ubiquityIdentityToken is what Foundation provides for this: non-nil when
+// iCloud is signed in and available. Returns null when we cannot tell, and the
+// UI must then say nothing rather than guess.
+export function icloudAvailable () {
+  const r = helperSays('icloud', '')
   if (!r) return null
-  return r.exists === 'true' && r.ubiquitous === 'true'
+  return r.available === 'true'
 }
 
 /** Ask iCloud to fetch an item. The supported call, not `brctl download`. */

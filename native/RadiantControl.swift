@@ -161,6 +161,15 @@ case "ubiquity":
         print("exists=true ubiquitous=false uploaded=false uploading=false excluded=false download=unknown error=none")
     }
 
+// ⚠️ IS iCLOUD AVAILABLE AT ALL? Asking whether the CloudDocs *root* is a
+// ubiquitous item was a proxy, and it was wrong on Tony's dev Mac: System
+// Settings plainly showed iCloud Drive → "Sync this Mac" ON while Radiant
+// announced it was switched off. ubiquityIdentityToken is the documented answer
+// — non-nil when iCloud is signed in and available to this process.
+case "icloud":
+    let fm = FileManager.default
+    print("available=\(fm.ubiquityIdentityToken != nil)")
+
 // Ask iCloud to fetch a placeholder. The supported call, not `brctl download`.
 case "fetch":
     guard args.count >= 3 else { print("usage: radiant-control fetch <path>"); exit(1) }
