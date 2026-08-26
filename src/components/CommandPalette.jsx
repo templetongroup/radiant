@@ -17,7 +17,7 @@ export default function CommandPalette ({ sessions, agents, models, session, act
       { id: 'panel', group: 'Actions', label: 'Toggle activity & terminal panel', run: () => actions.toggleRight() },
       { id: 'mode', group: 'Actions', label: 'Cycle appearance (light / medium / dark)', run: () => actions.toggleMode() }
     ]
-    for (const a of agents) cmds.push({ id: 'agent-' + a.id, group: 'Start with agent', label: `${a.emoji || '🤖'}  ${a.name}`, run: () => actions.newSession(a.id) })
+    for (const a of agents) cmds.push({ id: 'agent-' + a.id, group: 'Start with agent', label: `${a.emoji || '\u00b7'}  ${a.name}`, run: () => actions.newSession(a.id) })
     if (session) for (const m of models) cmds.push({ id: 'model-' + m.provider + m.id, group: 'Switch model', label: `${m.providerName} · ${m.id}`, run: () => actions.pickModel(m) })
     for (const s of sessions) cmds.push({ id: 'sess-' + s.id, group: 'Sessions', label: s.title, hint: s.model, run: () => actions.openSession(s.id) })
     return cmds

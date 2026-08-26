@@ -358,6 +358,73 @@ export function icloudAvailable () {
 /** Ask iCloud to fetch an item. The supported call, not `brctl download`. */
 export function requestCloudDownload (dir) { helperSays('fetch', dir) }
 
+// ---- collections: one file per record ---------------------------------------
+//
+// ⚠️ ANYTHING TWO MACS BOTH EDIT NEEDS ITS OWN FILE. iCloud Drive has no merge:
+// the later write wins and the other Mac's work is gone. Projects were moved out
+// of config.json for this reason; agents (the largest at ~24 KB), skills and
+// recipes had exactly the same exposure and are moved here.
+//
+// Settings deliberately stays in config.json. It is one small object rather than
+// a list of records, so there is nothing to split it into — two Macs changing
+// preferences at once still race, but the loss is a theme, not a week of work.
+function makeCollection (name) {
+  const dir = () => path.join(RADIANT_DIR, name)
+  const file = id => path.join(dir(), encodeURIComponent(String(id)) + '.json')
+  const ensure = () => fs.mkdirSync(dir(), { recursive: true })
+  return {
+    list () {
+      try {
+        return fs.readdirSync(dir())
+          .filter(f => f.endsWith('.json'))
+          .map(f => { try { return JSON.parse(fs.readFileSync(path.join(dir(), f), 'utf8')) } catch { return null } })
+          .filter(Boolean)
+          .sort((a, b) => String(a.createdAt || a.name || '').localeCompare(String(b.createdAt || b.name || '')))
+      } catch { return [] }
+    },
+    get (id) {
+      if (!id) return null
+      try { return JSON.parse(fs.readFileSync(file(id), 'utf8')) } catch { return null }
+    },
+    save (item) {
+      if (!item?.id) throw new Error(`${name}: id required`)
+      ensure(); writeJsonAtomic(file(item.id), item); return item
+    },
+    remove (id) { try { fs.unlinkSync(file(id)) } catch {} },
+    // Copy out of config.json first, clear second: an interruption leaves
+    // duplicates rather than nothing.
+    //
+    // ⚠️ RUN THE SHARED-FILE WRITE ONCE, NOT EVERY LAUNCH. loadConfig always
+    // repopulates these keys from the built-in defaults, so a naive "is the key
+    // present" test fires on every start — and rewriting config.json on every
+    // start is exactly the shared write this change exists to remove. A marker
+    // records that the move already happened. Later launches still seed any
+    // newly shipped built-in into its own file; they just do not touch the
+    // shared file to do it.
+    migrate (cfg) {
+      const marker = path.join(RADIANT_DIR, `.${name}-moved`)
+      let first = false
+      try { first = !fs.existsSync(marker) } catch { first = false }
+      ensure()
+      for (const item of (Array.isArray(cfg?.[name]) ? cfg[name] : [])) {
+        if (!item?.id) continue
+        if (!this.get(item.id)) this.save(item)
+      }
+      if (cfg && name in cfg) delete cfg[name]
+      if (first) {
+        try { fs.writeFileSync(marker, new Date().toISOString()) } catch {}
+        saveConfig(cfg)
+        console.log(`[radiant] moved ${name} out of config.json into ${name}/`)
+      }
+      return first
+    }
+  }
+}
+
+export const agentsStore = makeCollection('agents')
+export const skillsStore = makeCollection('skills')
+export const recipesStore = makeCollection('recipes')
+
 // ---- projects: one file each ------------------------------------------------
 //
 // ⚠️ TWO MACS MUST NEVER WRITE THE SAME FILE. iCloud Drive has no merge — the
@@ -488,10 +555,13 @@ export function publicConfig (cfg) {
       // account roster (labels only — never any key or token material)
       accounts: (cfg.accounts?.[p.id] || []).map(a => ({ id: a.id, label: a.label, kind: a.oauth ? 'subscription' : 'key', active: a.id === cfg.activeAccount?.[p.id] }))
     })),
-    skills: cfg.skills || [],
+    // ⚠️ THE API SHAPE DOES NOT CHANGE WHEN THE STORAGE DOES. These live in one
+    // file each now, but the app still receives the same arrays it always did,
+    // so nothing in the UI had to be touched to move them off a shared blob.
+    skills: skillsStore.list(),
     skillSuggestions: cfg.skillSuggestions || [],
-    agents: cfg.agents || [],
-    recipes: cfg.recipes || [],
+    agents: agentsStore.list(),
+    recipes: recipesStore.list(),
     mcpServers: cfg.mcpServers || [],
     settings: cfg.settings
   }

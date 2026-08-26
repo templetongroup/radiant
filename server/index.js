@@ -11,7 +11,7 @@ import { fileURLToPath } from 'url'
 import { WebSocketServer } from 'ws'
 import pty from 'node-pty'
 import { execSync, spawn } from 'child_process'
-import { RADIANT_DIR, DIR_POINTER, defaultDataDir, dataDirStatus, loadConfig, saveConfig, publicConfig, listSessions, loadSession, saveSession, deleteSession, searchSessions, upsertCredential, activateAccount, removeAccount, SESSIONS_DIR, listProjects, getProject, saveProject, deleteProject, migrateProjects
+import { RADIANT_DIR, DIR_POINTER, defaultDataDir, dataDirStatus, loadConfig, saveConfig, publicConfig, listSessions, loadSession, saveSession, deleteSession, searchSessions, upsertCredential, activateAccount, removeAccount, SESSIONS_DIR, listProjects, getProject, saveProject, deleteProject, migrateProjects, agentsStore, skillsStore, recipesStore, cloudStatus
 } from './config.js'
 import { runTurn, listModels } from './providers.js'
 import { OAUTH_PROVIDERS, buildAuthUrl, completePaste, startLoopback, validAccessToken, startDevice, pollDevice } from './oauth.js'
@@ -51,6 +51,9 @@ let config = loadConfig()
 // Projects used to live in config.json. Move them to one file each before
 // anything reads them, so a second Mac cannot overwrite the whole list.
 migrateProjects(config)
+agentsStore.migrate(config)
+skillsStore.migrate(config)
+recipesStore.migrate(config)
 
 // ---- network sharing --------------------------------------------------------
 // Normally the server binds to localhost only. On an always-on "host" Mac you can
@@ -458,26 +461,25 @@ app.get('/api/files', (req, res) => {
 app.post('/api/agents', (req, res) => {
   const { name, emoji, icon, hue, persona, model, provider, skills, useTools, computerControl, plannerModel, plannerProvider, avatar, relay, source } = req.body
   if (!name) return res.status(400).json({ error: 'name required' })
-  config.agents = config.agents || []
-  config.agents.push({
+  const newAgent = {
     id: 'ag-' + crypto.randomBytes(4).toString('hex'),
     name, emoji: emoji || '🤖', icon: icon || null, hue: hue ?? null, persona: persona || '',
     model: model || null, provider: provider || null, skills: skills || [],
     useTools: useTools !== false, computerControl: Boolean(computerControl),
     plannerModel: plannerModel || null, plannerProvider: plannerProvider || null,
     avatar: avatar || null, relay: relay || null, source: source || null
-  })
-  saveConfig(config)
+  }
+  agentsStore.save(newAgent)
   res.json(publicConfig(config))
 })
 
 app.patch('/api/agents/:id', (req, res) => {
-  const a = (config.agents || []).find(x => x.id === req.params.id)
+  const a = agentsStore.get(req.params.id)
   if (!a) return res.status(404).json({ error: 'not found' })
   for (const k of ['name', 'emoji', 'icon', 'hue', 'persona', 'model', 'provider', 'skills', 'useTools', 'computerControl', 'plannerModel', 'plannerProvider', 'avatar', 'relay', 'source']) {
     if (k in req.body) a[k] = req.body[k]
   }
-  saveConfig(config)
+  agentsStore.save(a)
   res.json(publicConfig(config))
 })
 
@@ -617,6 +619,32 @@ app.post('/api/data-dir', (req, res) => {
   const mode = String(req.body?.mode || 'auto')   // auto | adopt | replace
   if (!dest) return res.status(400).json({ error: 'path required' })
   if (!path.isAbsolute(dest)) return res.status(400).json({ error: 'needs an absolute path' })
+
+  // ⚠️ DO NOT ADOPT AN iCLOUD FOLDER THAT iCLOUD IS NOT RUNNING. Radiant offered
+  // iCloud on every Mac without checking, on the reasoning that detection had
+  // been wrong before and should not gate the feature. The cost of that showed
+  // up on Tony's dev Mac: he ticked the box, Radiant wrote into a CloudDocs
+  // directory that macOS was not syncing, and it silently shared with nobody for
+  // a day. Warning after the fact is too late — refuse at the moment of choosing,
+  // while the user is still here to do something about it.
+  //
+  // Scoped deliberately to iCloud. Ubiquity is an iCloud concept: a Dropbox,
+  // Google Drive, or external-disk folder is correctly "not ubiquitous" and must
+  // still be allowed.
+  if (!reset) {
+    const cloudDocs = path.join(os.homedir(), 'Library', 'Mobile Documents', 'com~apple~CloudDocs')
+    if (dest === cloudDocs || dest.startsWith(cloudDocs + path.sep)) {
+      const root = cloudStatus(cloudDocs)
+      if (root && root.exists && !root.ubiquitous) {
+        return res.status(409).json({
+          error: 'iCloud Drive is not syncing on this Mac, so a folder inside it would share with nobody. ' +
+                 'Check System Settings → your name → iCloud → iCloud Drive and make sure your other iCloud files appear in Finder, then try again. ' +
+                 'You can also pick a Dropbox, Google Drive, or other synced folder instead.',
+          icloudDead: true
+        })
+      }
+    }
+  }
   // ⚠️ SAME FOLDER STILL NEEDS THE POINTER FIXED. Turning sync on and then off
   // again BEFORE restarting lands here: the active folder never changed, so an
   // early return skipped the pointer and sync stayed quietly on while the
@@ -799,10 +827,9 @@ app.delete('/api/projects/:id', (req, res) => {
 })
 
 app.delete('/api/agents/:id', (req, res) => {
-  const a = (config.agents || []).find(x => x.id === req.params.id)
+  const a = agentsStore.get(req.params.id)
   if (a && a.builtin) return res.status(400).json({ error: 'built-in agents cannot be deleted' })
-  config.agents = (config.agents || []).filter(x => x.id !== req.params.id)
-  saveConfig(config)
+  agentsStore.remove(req.params.id)
   res.json(publicConfig(config))
 })
 
@@ -1047,21 +1074,19 @@ app.post('/api/open', (req, res) => {
 app.post('/api/recipes', (req, res) => {
   const { name, desc, template, params } = req.body
   if (!name || !template) return res.status(400).json({ error: 'name and template required' })
-  config.recipes = config.recipes || []
-  config.recipes.push({ id: 'rec-' + crypto.randomBytes(4).toString('hex'), name, desc: desc || '', template, params: Array.isArray(params) ? params : [] })
+  recipesStore.save({ id: 'rec-' + crypto.randomBytes(4).toString('hex'), name, desc: desc || '', template, params: Array.isArray(params) ? params : [] })
   saveConfig(config)
   res.json(publicConfig(config))
 })
 app.patch('/api/recipes/:id', (req, res) => {
-  const r = (config.recipes || []).find(x => x.id === req.params.id)
+  const r = recipesStore.get(req.params.id)
   if (!r) return res.status(404).json({ error: 'not found' })
   for (const k of ['name', 'desc', 'template', 'params']) if (k in req.body) r[k] = req.body[k]
-  saveConfig(config)
+  recipesStore.save(r)
   res.json(publicConfig(config))
 })
 app.delete('/api/recipes/:id', (req, res) => {
-  config.recipes = (config.recipes || []).filter(x => x.id !== req.params.id)
-  saveConfig(config)
+  recipesStore.remove(req.params.id)
   res.json(publicConfig(config))
 })
 
@@ -1075,25 +1100,24 @@ app.post('/api/memory/clear', (req, res) => { clearFacts(); res.json({ facts: []
 app.post('/api/skills', (req, res) => {
   const { name, description, content } = req.body
   if (!name || !content) return res.status(400).json({ error: 'name and content required' })
-  config.skills = config.skills || []
-  config.skills.push({ id: 'sk-' + crypto.randomBytes(4).toString('hex'), name, description: description || '', content, enabled: true })
+  skillsStore.save({ id: 'sk-' + crypto.randomBytes(4).toString('hex'), name, description: description || '', content, enabled: true })
   saveConfig(config)
   res.json(publicConfig(config))
 })
 
 app.patch('/api/skills/:id', (req, res) => {
-  const sk = (config.skills || []).find(s => s.id === req.params.id)
+  const sk = skillsStore.get(req.params.id)
   if (!sk) return res.status(404).json({ error: 'not found' })
   for (const k of ['name', 'description', 'content', 'enabled']) {
     if (k in req.body) sk[k] = req.body[k]
   }
-  saveConfig(config)
+  skillsStore.save(sk)
   res.json(publicConfig(config))
 })
 
 app.delete('/api/skills/:id', (req, res) => {
   const id = req.params.id
-  config.skills = (config.skills || []).filter(s => s.id !== id)
+  skillsStore.remove(id)
   // seeded skills get re-merged on load; remember the deletion so they stay gone
   if (id.startsWith('seed-')) {
     config.removedSkills = config.removedSkills || []
@@ -1107,8 +1131,7 @@ app.delete('/api/skills/:id', (req, res) => {
 app.post('/api/skill-suggestions/:id/accept', (req, res) => {
   const sug = (config.skillSuggestions || []).find(s => s.id === req.params.id)
   if (!sug) return res.status(404).json({ error: 'not found' })
-  config.skills = config.skills || []
-  config.skills.push({ id: 'sk-' + crypto.randomBytes(4).toString('hex'), name: sug.name, description: sug.description || '', content: sug.content, enabled: true, fromSuggestion: true })
+  skillsStore.save({ id: 'sk-' + crypto.randomBytes(4).toString('hex'), name: sug.name, description: sug.description || '', content: sug.content, enabled: true, fromSuggestion: true })
   config.skillSuggestions = (config.skillSuggestions || []).filter(s => s.id !== sug.id)
   saveConfig(config)
   res.json(publicConfig(config))
@@ -1584,8 +1607,8 @@ app.post('/api/sessions', (req, res) => {
   // the request still wins, so "new chat with this agent" keeps working inside
   // a project that names a different one.
   const agentId = req.body.agentId || (project && project.agentId) || null
-  const agent = agentId ? (config.agents || []).find(a => a.id === agentId) : null
-  const participants = Array.isArray(req.body.participants) ? req.body.participants.filter(id => (config.agents || []).some(a => a.id === id)) : null
+  const agent = agentId ? agentsStore.get(agentId) : null
+  const participants = Array.isArray(req.body.participants) ? req.body.participants.filter(id => Boolean(agentsStore.get(id))) : null
   const isGroup = Boolean(participants && participants.length >= 2)
   const session = {
     id: crypto.randomUUID(),
@@ -1655,7 +1678,7 @@ app.post('/api/chat', async (req, res) => {
   if (activeTurns.has(sessionId)) return res.status(409).json({ error: 'a turn is already running' })
 
   // agent (persona + its skills) plus globally-enabled skills
-  const agent = session.agentId ? (config.agents || []).find(a => a.id === session.agentId) : null
+  const agent = session.agentId ? agentsStore.get(session.agentId) : null
 
   // Live relay: some agents bridge to a real external agent (e.g. Hermes) with its
   // own model, skills, and memory. They need no Radiant provider — stream the
@@ -1706,7 +1729,7 @@ app.post('/api/chat', async (req, res) => {
   if (provider.auth === 'key' && !apiKey && !hasOAuth) return res.status(400).json({ error: `No API key or subscription sign-in for ${provider.name}. Add one in Settings.` })
 
   // agent (persona + its skills, resolved above) plus globally-enabled skills
-  const allSkills = config.skills || []
+  const allSkills = skillsStore.list()
   const agentSkillIds = new Set(agent?.skills || [])
   const mergedSkills = allSkills.filter(s => s.enabled || agentSkillIds.has(s.id))
 
@@ -1772,7 +1795,7 @@ app.post('/api/chat', async (req, res) => {
   })
 
   // let this agent consult the OTHER agents (peers) via the ask_agent tool
-  const peers = (config.agents || []).filter(a => a.id !== session.agentId)
+  const peers = agentsStore.list().filter(a => a.id !== session.agentId)
   const peerAgents = peers.map(a => ({ name: a.name, blurb: (a.persona || '').split(/(?<=[.!?])\s/)[0].slice(0, 90) || 'general assistant' }))
   const askAgent = async (agentRef, question) => {
     const target = peers.find(a => a.id === agentRef || a.name.toLowerCase() === String(agentRef || '').toLowerCase())
@@ -1901,11 +1924,11 @@ app.post('/api/chat', async (req, res) => {
     const participants = (session.group && Array.isArray(session.participants)) ? session.participants : null
     if (participants && participants.length) {
       // group chat: each participant agent responds in turn, seeing the others' replies
-      const names = participants.map(id => (config.agents || []).find(a => a.id === id)?.name).filter(Boolean)
-      const groupNames = Object.fromEntries(participants.map(id => [id, (config.agents || []).find(a => a.id === id)?.name || 'Agent']))
+      const names = participants.map(id => agentsStore.get(id)?.name).filter(Boolean)
+      const groupNames = Object.fromEntries(participants.map(id => [id, agentsStore.get(id)?.name || 'Agent']))
       for (const pid of participants) {
         if (controller.signal.aborted) break
-        const ag = (config.agents || []).find(a => a.id === pid)
+        const ag = agentsStore.get(pid)
         if (!ag) continue
         emit({ type: 'agent_turn', agentId: pid, name: ag.name })
         const groupPersona = `${ag.persona || ''}\n\nThis is a group discussion between ${names.join(', ')}. You are ${ag.name}. The other participants' messages are shown to you tagged like "[Name]: …". Speak only as yourself, in the first person, briefly. Add something new — build on or respectfully challenge what the others said; do not repeat them or role-play the other participants.`
@@ -1986,7 +2009,7 @@ app.post('/api/chat', async (req, res) => {
           const asstText = (lastAsst?.parts || []).filter(p => p.type === 'text').map(p => p.text).join(' ')
           const toolNames = [...new Set((lastAsst?.parts || []).filter(p => p.type === 'tool' && p.name).map(p => p.name))].join(', ')
           const exchange = `User: ${(lastUser?.text || '').slice(0, 1800)}\n\nAssistant (tools used: ${toolNames || 'none'}): ${asstText.slice(0, 1800)}`
-          const tmp = { cwd: session.cwd, messages: [{ role: 'user', text: reflectionPrompt(exchange, config.skills || []) }] }
+          const tmp = { cwd: session.cwd, messages: [{ role: 'user', text: reflectionPrompt(exchange, skillsStore.list()) }] }
           let out = ''
           await runTurn({
             provider, model: session.model, apiKey,

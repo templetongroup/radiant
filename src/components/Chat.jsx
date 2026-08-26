@@ -360,7 +360,7 @@ function exportSessionMarkdown (session) {
       lines.push(`## Radiant${m.model ? ` (${m.model})` : ''}`, '')
       for (const p of m.parts || []) {
         if (p.type === 'text') lines.push(p.text, '')
-        else if (p.type === 'tool') lines.push(`> 🔧 \`${p.name}\` ${p.args?.command || p.args?.path || ''}`.trim(), '')
+        else if (p.type === 'tool') lines.push(`> **tool** \`${p.name}\` ${p.args?.command || p.args?.path || ''}`.trim(), '')
       }
     }
   }
@@ -654,7 +654,7 @@ export default function Chat ({ session, live, todos = [], stats, approval, ques
                     <div className='welcome-pick-actions'>
                       {agents.length >= 2 && (groupPicker
                         ? <GroupPicker agents={agents} onStart={ids => { setGroupPicker(false); onNewGroup(ids) }} onCancel={() => setGroupPicker(false)} />
-                        : <button className='group-chat-btn' onClick={() => setGroupPicker(true)}>👥 Start a group chat</button>)}
+                        : <button className='group-chat-btn' onClick={() => setGroupPicker(true)}><Icon.users size={13} /> Start a group chat</button>)}
                       {!groupPicker && onOpenLibrary && <button className='group-chat-btn' onClick={onOpenLibrary}>◎ Browse the agent library</button>}
                     </div>
                   </>}
@@ -694,7 +694,7 @@ export default function Chat ({ session, live, todos = [], stats, approval, ques
 
       {session.group && Array.isArray(session.participants) && session.participants.length > 0 && (
         <div className='group-roster' title='Agents in this group chat'>
-          <span className='group-roster-label'>👥 Group</span>
+          <span className='group-roster-label'><Icon.users size={13} /> Group</span>
           {session.participants.map(id => {
             const a = agents.find(x => x.id === id)
             if (!a) return null
@@ -720,7 +720,7 @@ export default function Chat ({ session, live, todos = [], stats, approval, ques
                       <div className='msg-attach'>
                         {m.attachments.map((a, j) => a.kind === 'image'
                           ? <img key={j} src={`data:${a.mime};base64,${a.dataB64}`} alt={a.name} />
-                          : <span key={j} className='msg-attach-file'>📄 {a.name}</span>)}
+                          : <span key={j} className='msg-attach-file'><Icon.file size={13} /> {a.name}</span>)}
                       </div>
                     )}
                     {m.text}
@@ -824,7 +824,7 @@ export default function Chat ({ session, live, todos = [], stats, approval, ques
                 <div key={i} className='attach-chip' title={a.name}>
                   {a.kind === 'image'
                     ? <img src={`data:${a.mime};base64,${a.dataB64}`} alt={a.name} />
-                    : <span className='attach-file'>📄</span>}
+                    : <span className='attach-file'><Icon.file size={13} /></span>}
                   <span className='attach-name'>{a.name}</span>
                   <button className='attach-x' onClick={() => setAttachments(list => list.filter((_, j) => j !== i))}>✕</button>
                 </div>
@@ -880,7 +880,7 @@ export default function Chat ({ session, live, todos = [], stats, approval, ques
                 onClick={onToggleTools}
                 data-tip={'Agent tools: read/write files and run\ncommands in the workspace folder.\nClick to turn ' + (toolsOn ? 'off' : 'on') + '.'}
               >
-                <span className='logo-mark' aria-hidden />
+                <Icon.wrench size={13} />
                 tools {toolsOn ? 'on' : 'off'}
               </button>
               <button
@@ -888,21 +888,21 @@ export default function Chat ({ session, live, todos = [], stats, approval, ques
                 onClick={onToggleComputer}
                 data-tip={'Computer control: let the model drive the\nbrowser & desktop (needs a vision model +\nmacOS permissions). Click to turn ' + (session.computerControl ? 'off' : 'on') + '.'}
               >
-                🖥 computer {session.computerControl ? 'on' : 'off'}
+                <Icon.monitor size={13} /> computer {session.computerControl ? 'on' : 'off'}
               </button>
               <button
                 className={'pill-toggle' + (session.planMode ? ' on' : '')}
                 onClick={onTogglePlan}
                 data-tip={'Plan mode: the agent researches and proposes a\nplan for your approval before changing anything.\nClick to turn ' + (session.planMode ? 'off' : 'on') + '.'}
               >
-                📋 plan {session.planMode ? 'on' : 'off'}
+                <Icon.clipboard size={13} /> plan {session.planMode ? 'on' : 'off'}
               </button>
               <button
                 className={'pill-toggle' + (approvalMode === 'off' ? ' warn' : approvalMode === 'auto' ? ' on' : '')}
                 onClick={onCycleApproval}
                 data-tip={'Permissions — what the agent may do without asking:\n• Ask each: confirm every command (safest)\n• Auto: run low-risk commands, ask for risky ones\n• Allow all: never ask (fastest, least safe)\nClick to cycle.'}
               >
-                {approvalMode === 'off' ? '🔓 allow all' : approvalMode === 'auto' ? '⚡ auto approve' : '✋ ask each'}
+                {approvalMode === 'off' ? <><Icon.unlock size={13} /> allow all</> : approvalMode === 'auto' ? <><Icon.zap size={13} /> auto approve</> : <><Icon.hand size={13} /> ask each</>}
               </button>
             </div>
             <div className='composer-actions'>

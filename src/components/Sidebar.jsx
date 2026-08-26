@@ -266,7 +266,7 @@ export default function Sidebar ({ sessions, activeId, working, onOpen, onNew, o
       {view === 'chats' && onNewProject && (
         editing?.kind === 'new-project'
           ? <div className='new-group-btn as-input'><InlineEdit placeholder='Project name…' /></div>
-          : <button className='new-group-btn' onClick={() => setEditing({ kind: 'new-project', value: '' })}>📁 New project</button>
+          : <button className='new-group-btn' onClick={() => setEditing({ kind: 'new-project', value: '' })}><Icon.folder size={13} /> New project</button>
       )}
       {view === 'bots' && agents.length >= 2 && onNewGroup && (
         <button className='new-group-btn' onClick={() => onNewGroup()}>👥 New group chat</button>
