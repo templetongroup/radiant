@@ -15,8 +15,12 @@ export const THEMES = [
   {
     id: 'everforest',
     name: 'Everforest',
-    hue: 150,
-    chroma: 0.09,
+    // ⚠️ hue/chroma MUST DESCRIBE THE PINNED ACCENT. They are not decoration:
+    // CSS falls back to oklch(... var(--ah, 258)) for anything without its own
+    // hue, so leaving these at the old derived green put agent borders and
+    // glows in a different family from the accent the theme actually uses.
+    hue: 125.8,
+    chroma: 0.091,
     tint: 3.2,
     vars: {
       dark: {
@@ -73,8 +77,8 @@ export const THEMES = [
   {
     id: 'nousclassic',
     name: 'Nous Classic',
-    hue: 250,
-    chroma: 0.16,
+    hue: 68.5,
+    chroma: 0.041,
     tint: 3.4,
     vars: {
       // ⚠️ THESE ARE THE COLOURS TONY ACTUALLY SEES, NOT THE EXPORT'S. The file
@@ -180,6 +184,20 @@ export function oklchToHex (L, C, H) {
 export function accentHex (hue, chroma) {
   return oklchToHex(0.62, chroma, hue)
 }
+
+// ⚠️ AN ITEM WITHOUT ITS OWN HUE MUST USE THE ACCENT ITSELF, NOT A COLOUR BUILT
+// FROM THE ACCENT'S HUE. Project folders, agent glyphs and avatars were drawn as
+// `oklch(0.7 0.16 var(--accent-h))`, which coincides with the accent only on
+// themes that derive everything. On a pinned palette the accent is an explicit
+// colour — cream, or Everforest's green — while --accent-h is just a number, so
+// the folders came out blue-violet next to a cream accent. Tony: "the project
+// folders aren't matching the highlight color like they do with the rest of the
+// themes."
+//
+// A per-item hue still wins; that is the point of letting an agent carry its own
+// colour. Only the fallback changes.
+export const glyphColor = (hue, L = 0.7, C = 0.16) =>
+  hue == null || hue === undefined ? 'var(--accent)' : `oklch(${L} ${C} ${hue})`
 
 export function applyTheme (settings) {
   const root = document.documentElement

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { verdict, FIT_LABEL, FITS_WELL, FITS_TIGHT, FITS_NO, COMFORTABLE } from '../fit.js'
 import { api, startDownload, getDownloads, cancelDownload, streamQuantize, getServer, setServer, testServer, saveToFile } from '../api.js'
-import { THEMES, MODES, FONTS, UI_SCALES, applyTheme, hexToOklch, accentHex } from '../theme.js'
+import { THEMES, MODES, FONTS, UI_SCALES, applyTheme, hexToOklch, accentHex, glyphColor } from '../theme.js'
 import { MOTIONS } from './MotionBackground.jsx'
 import { Icon } from './Icons.jsx'
 import { AGENT_ICONS, AGENT_ICON_IDS, AgentGlyph } from './AgentIcons.jsx'
@@ -622,7 +622,7 @@ function AgentEditor ({ agent, skills, models, onSave, onDelete, onClose, onDupl
   return (
     <div className='agent-editor'>
       <div className='agent-editor-head'>
-        <span className='agent-emoji-input' style={{ color: `oklch(0.65 0.15 ${a.hue ?? 'var(--accent-h)'})` }}><AgentGlyph agent={a} size={22} /></span>
+        <span className='agent-emoji-input' style={{ color: glyphColor(a.hue, 0.65, 0.15) }}><AgentGlyph agent={a} size={22} /></span>
         <input className='text-input' style={{ fontFamily: 'inherit', flex: 1 }} placeholder='Agent name' value={a.name} onChange={e => set({ name: e.target.value })} />
       </div>
       <div className='agent-field'>Icon
@@ -658,7 +658,7 @@ function AgentEditor ({ agent, skills, models, onSave, onDelete, onClose, onDupl
       <label className='agent-field'>Color
         <span className='agent-color-row'>
           <input type='range' min='0' max='360' className='hue-slider' value={a.hue ?? accentHue} onChange={e => set({ hue: Number(e.target.value) })} />
-          <span className='agent-color-dot' style={{ background: `oklch(0.7 0.16 ${a.hue ?? 'var(--accent-h)'})` }} />
+          <span className='agent-color-dot' style={{ background: glyphColor(a.hue, 0.7, 0.16) }} />
           {a.hue == null
             ? <span className='agent-color-note'>Accent</span>
             : <button type='button' className='agent-color-reset' onClick={() => set({ hue: null })}>Use accent</button>}
@@ -850,7 +850,7 @@ function AgentsPane ({ config, onConfigChange, initialView }) {
       <div className='agent-grid'>
         {regularAgents.map(a => (
           <button key={a.id} className='agent-card' style={{ '--ah': a.hue ?? 'var(--accent-h)' }} onClick={() => openEditor(a)}>
-            <span className='agent-avatar' style={{ color: `oklch(0.68 0.16 ${a.hue ?? 'var(--accent-h)'})` }}><AgentGlyph agent={a} size={20} /></span>
+            <span className='agent-avatar' style={{ color: glyphColor(a.hue, 0.68, 0.16) }}><AgentGlyph agent={a} size={20} /></span>
             <span className='agent-card-name'>{a.name}</span>
             <span className='agent-card-desc'>{(() => { const d = cleanDesc(a.persona); return d ? d.slice(0, 70) + (d.length > 70 ? '…' : '') : 'General assistant' })()}</span>
           </button>

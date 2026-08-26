@@ -1,6 +1,7 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import Markdown from './Markdown.jsx'
 import { Icon } from './Icons.jsx'
+import { glyphColor } from '../theme.js'
 import { AgentGlyph } from './AgentIcons.jsx'
 import { api } from '../api.js'
 
@@ -245,7 +246,7 @@ function AssistantMessage ({ parts, thinking, thinkingActive, thinkingSecs, stre
     <div className='msg msg-assistant'>
       <div className='who'>
         {agent
-          ? <><span className='who-agent-emoji' style={isImported(agent) ? undefined : { '--ah': agent.hue ?? 'var(--accent-h)', color: `oklch(0.7 0.16 ${agent.hue ?? 'var(--accent-h)'})` }}><AgentGlyph agent={agent} size={14} /></span><span className='who-word'>{agent.name}</span></>
+          ? <><span className='who-agent-emoji' style={isImported(agent) ? undefined : { '--ah': agent.hue ?? 'var(--accent-h)', color: glyphColor(agent.hue, 0.7, 0.16) }}><AgentGlyph agent={agent} size={14} /></span><span className='who-word'>{agent.name}</span></>
           : <><span className='logo-mark' aria-hidden /><span className='wordmark who-word'>Radiant</span></>}
         {model && <span className='who-model'>{model}</span>}
         {streaming && <span className='who-model'>· working</span>}
@@ -503,7 +504,7 @@ export function GroupPicker ({ agents, onStart, onCancel }) {
         {agents.map(a => (
           <label key={a.id} className={'group-pick' + (sel.includes(a.id) ? ' on' : '')} style={{ '--ah': a.hue ?? 'var(--accent-h)' }}>
             <input type='checkbox' checked={sel.includes(a.id)} onChange={() => toggle(a.id)} />
-            <span className='agent-avatar' style={{ color: `oklch(0.68 0.16 ${a.hue ?? 'var(--accent-h)'})` }}><AgentGlyph agent={a} size={16} /></span>
+            <span className='agent-avatar' style={{ color: glyphColor(a.hue, 0.68, 0.16) }}><AgentGlyph agent={a} size={16} /></span>
             {a.name}
           </label>
         ))}
@@ -668,7 +669,7 @@ export default function Chat ({ session, live, todos = [], stats, approval, ques
                     <div className='welcome-agents'>
                       {agents.filter(a => !isImported(a)).map(a => (
                         <button key={a.id} className='welcome-agent' style={{ '--ah': a.hue ?? 'var(--accent-h)' }} onClick={() => onNew(a.id)} title={a.persona || a.name}>
-                          <span className='agent-avatar' style={{ color: `oklch(0.68 0.16 ${a.hue ?? 'var(--accent-h)'})` }}><AgentGlyph agent={a} size={18} /></span>
+                          <span className='agent-avatar' style={{ color: glyphColor(a.hue, 0.68, 0.16) }}><AgentGlyph agent={a} size={18} /></span>
                           <span className='welcome-agent-text'>
                             <span className='welcome-agent-name'>{a.name}</span>
                             <span className='welcome-agent-desc'>{agentBlurb(a)}</span>
@@ -739,7 +740,7 @@ export default function Chat ({ session, live, todos = [], stats, approval, ques
             if (!a) return null
             return (
               <span key={id} className='group-roster-chip'>
-                <span className='group-roster-ico' style={{ color: `oklch(0.7 0.16 ${a.hue ?? 'var(--accent-h)'})` }}><AgentGlyph agent={a} size={13} /></span>
+                <span className='group-roster-ico' style={{ color: glyphColor(a.hue, 0.7, 0.16) }}><AgentGlyph agent={a} size={13} /></span>
                 {a.name}
               </span>
             )

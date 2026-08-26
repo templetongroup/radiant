@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { Icon } from './Icons.jsx'
+import { glyphColor } from '../theme.js'
 import { AgentGlyph } from './AgentIcons.jsx'
 import { isImported } from './Chat.jsx'
 import { api, saveToFile, getServer } from '../api.js'
@@ -222,7 +223,7 @@ export default function Sidebar ({ sessions, activeId, working, onOpen, onNew, o
         title={s.title}
       >
         <div className='session-title'>
-          {showAgent && ag && <span className='session-agent' style={isImported(ag) ? undefined : { color: `oklch(0.7 0.15 ${ag.hue ?? 'var(--accent-h)'})` }}><AgentGlyph agent={ag} size={13} /></span>}
+          {showAgent && ag && <span className='session-agent' style={isImported(ag) ? undefined : { color: glyphColor(ag.hue, 0.7, 0.15) }}><AgentGlyph agent={ag} size={13} /></span>}
           {editing?.kind === 'session' && editing.id === s.id
             ? <InlineEdit placeholder='Chat name…' />
             : <span className='session-title-text'>{s.title}</span>}
@@ -318,7 +319,7 @@ export default function Sidebar ({ sessions, activeId, working, onOpen, onNew, o
                   <div className='bot-head'>
                     <button className='bot-head-toggle' onClick={() => toggleGroup(project.id)} title={isCollapsed ? 'Show chats' : 'Hide chats'}>
                       <span className='bot-head-caret'>{rows.length ? (isCollapsed ? '▸' : '▾') : ''}</span>
-                      <span className='bot-head-icon' style={{ color: `oklch(0.7 0.16 ${project.hue ?? 'var(--accent-h)'})` }}><Icon.folder size={14} /></span>
+                      <span className='bot-head-icon' style={{ color: glyphColor(project.hue, 0.7, 0.16) }}><Icon.folder size={14} /></span>
                       {editing?.kind === 'project' && editing.id === project.id
                         ? <InlineEdit placeholder='Project name…' />
                         : <span className='bot-head-name'>{project.name}</span>}
@@ -388,7 +389,7 @@ export default function Sidebar ({ sessions, activeId, working, onOpen, onNew, o
                 <div className='bot-head'>
                   <button className='bot-head-toggle' onClick={() => toggleGroup(a.id)} title={isCollapsed ? 'Show sessions' : 'Hide sessions'}>
                     <span className='bot-head-caret'>{own.length ? (isCollapsed ? '▸' : '▾') : ''}</span>
-                    <span className='bot-head-icon' style={isImported(a) ? undefined : { color: `oklch(0.7 0.16 ${a.hue ?? 'var(--accent-h)'})` }}><AgentGlyph agent={a} size={16} /></span>
+                    <span className='bot-head-icon' style={isImported(a) ? undefined : { color: glyphColor(a.hue, 0.7, 0.16) }}><AgentGlyph agent={a} size={16} /></span>
                     <span className='bot-head-name'>{a.name}</span>
                     <span className='bot-head-count'>{own.length}</span>
                   </button>

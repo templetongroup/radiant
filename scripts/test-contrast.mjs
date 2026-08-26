@@ -40,7 +40,26 @@ for (const t of MOBILE.filter(t => t.vars)) {
   cases.push([`ios ${t.id}: separator-opaque on bg`, v['--rx-separator-opaque'], v['--rx-bg'], 1.4])
 }
 
-let bad = 0
+// ⚠️ A PINNED THEME'S DECLARED hue/chroma MUST DESCRIBE ITS PINNED ACCENT.
+// CSS falls back to oklch(... var(--ah, 258)) and JS to var(--accent) for items
+// with no colour of their own; if the declared numbers drift from the real
+// accent, project folders and agent glyphs land in a different colour family
+// from the accent beside them — which is exactly what shipped in 0.6.154.
+const { hexToOklch, glyphColor } = await import('../src/theme.js')
+let structural = 0
+for (const t of DESKTOP.filter(t => t.vars)) {
+  const o = hexToOklch(t.vars.dark['--accent'])
+  const ok = Math.abs(o.H - t.hue) < 1.5 && Math.abs(o.C - t.chroma) < 0.01
+  if (!ok) structural++
+  console.log(`  ${ok ? '✓' : '✗'} ${t.name}: declared hue/chroma matches its pinned accent (${o.H.toFixed(1)}, ${o.C.toFixed(3)})`)
+}
+{
+  const ok = glyphColor(null) === 'var(--accent)' && glyphColor(320).includes('320')
+  if (!ok) structural++
+  console.log(`  ${ok ? '✓' : '✗'} an item with no hue of its own uses the accent itself`)
+}
+
+let bad = structural
 for (const [name, fg, bg, min] of cases) {
   if (!hex(fg) || !hex(bg)) { console.log(`  ? ${name} — not a plain hex, skipped`); continue }
   const r = ratio(fg, bg)
@@ -48,5 +67,5 @@ for (const [name, fg, bg, min] of cases) {
   if (!pass) bad++
   console.log(`  ${pass ? '✓' : '✗'} ${name}: ${r.toFixed(2)}:1 (needs ${min})`)
 }
-console.log(`\n${cases.length - bad}/${cases.length} contrast checks passed`)
+console.log(`\n${cases.length - (bad - structural)}/${cases.length} contrast checks passed` + (structural ? `, ${structural} structural check(s) FAILED` : ', structural checks passed'))
 process.exit(bad ? 1 : 0)
