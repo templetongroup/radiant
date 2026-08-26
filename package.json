@@ -16,7 +16,8 @@
     "dist": "npm run build && npm run compile:helper && electron-builder --mac",
     "postinstall": "chmod +x node_modules/node-pty/prebuilds/darwin-*/spawn-helper 2>/dev/null || true",
     "release": "node scripts/release.mjs",
-    "test:smoke": "node scripts/test-smoke.mjs"
+    "test:smoke": "node scripts/test-smoke.mjs",
+    "test:api": "node scripts/test-api.mjs"
   },
   "build": {
     "appId": "com.tonyricciardi.radiant",

@@ -34,7 +34,12 @@ const assets = [
   stable
 ]
 
-// The window must actually render before anything is published.
+// ⚠️ NOTHING SHIPS ON SOMEBODY'S OPINION THAT IT WORKS. Around twenty releases
+// went out on 2026-08-26, many of them fixing a regression in the one before,
+// and each had been "verified" by looking at something adjacent to the part
+// that broke. These two gates run every time and a failure stops the release.
+console.log('[release] end-to-end API checks')
+execFileSync('node', ['scripts/test-api.mjs'], { stdio: 'inherit' })
 console.log('[release] smoke testing the built app')
 execFileSync('node', ['scripts/test-smoke.mjs'], { stdio: 'inherit' })
 
