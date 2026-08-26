@@ -1733,8 +1733,16 @@ app.post('/api/chat', async (req, res) => {
       if (p) { tProvider = p; tApiKey = config.keys[p.id]; tHasOAuth = Boolean(config.oauth[p.id]); tModel = target.model }
     }
     const tmp = { cwd: session.cwd, messages: [{ role: 'user', text: String(question) }] }
-    let answer = ''
-    try {
+
+    // ⚠️ A CONSULT IS A WHOLE EXTRA MODEL TURN, FIRED AT A PROVIDER ALREADY
+    // MID-TURN. A transient rate limit is therefore the LIKELIEST way for it to
+    // fail, and there was no retry at all — one 429 and the consult was simply
+    // gone. Two short backoffs cost nothing when things are fine and rescue the
+    // common case when they are not. Aborts are never retried: an abort means
+    // the user's connection dropped or they stopped the turn, and hammering the
+    // provider after that is wrong.
+    const attempt = async () => {
+      let answer = ''
       await runTurn({
         provider: tProvider, model: tModel, apiKey: tApiKey,
         getAccessToken: tHasOAuth ? () => validAccessToken(tProvider.id, config, saveConfig) : null,
@@ -1744,8 +1752,35 @@ app.post('/api/chat', async (req, res) => {
         emit: ev => { if (ev.type === 'text_delta') answer += ev.text },
         requestApproval: null, signal: controller.signal
       })
-    } catch (e) { return `(${target.name} couldn't respond: ${e.message})` }
-    return `${target.name} says:\n${answer.trim() || '(no answer)'}`
+      return answer
+    }
+    const rateLimited = e => /429|rate.?limit|too many requests|overloaded/i.test(e?.message || '')
+    let answer = ''
+    for (let tryNo = 1; ; tryNo++) {
+      try { answer = await attempt(); break } catch (e) {
+        if (controller.signal.aborted) {
+          // ⚠️ SAY SO IN THE TRANSCRIPT, NOT ONLY IN THE TOOL RESULT. The tool
+          // result is buried in a collapsed block, so whether the user ever
+          // learns a consult failed depended entirely on the model choosing to
+          // mention it. A different model would quietly carry on and the user
+          // would believe a specialist had reviewed the work.
+          emit({ type: 'notice', text: `The consult with ${target.name} was cut short when the connection dropped.` })
+          return `(${target.name} could not be reached: the turn was interrupted.)`
+        }
+        if (rateLimited(e) && tryNo <= 2) {
+          emit({ type: 'notice', text: `${target.name} is rate limited — retrying in ${tryNo * 3}s…` })
+          await new Promise(r => setTimeout(r, tryNo * 3000))
+          continue
+        }
+        emit({ type: 'notice', text: `Could not reach ${target.name}: ${e.message}` })
+        return `(${target.name} couldn't respond: ${e.message})`
+      }
+    }
+    if (!answer.trim()) {
+      emit({ type: 'notice', text: `${target.name} returned nothing.` })
+      return `(${target.name} gave no answer.)`
+    }
+    return `${target.name} says:\n${answer.trim()}`
   }
 
   // one-shot summarizer used by auto-compaction (runs on the session's model, no tools)
