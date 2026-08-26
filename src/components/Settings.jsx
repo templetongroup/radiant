@@ -1465,8 +1465,20 @@ function DataFolderBlock () {
           Mac and your work is intact. Reconnect it, or turn sync off.
         </p>
       )}
-      {info.pendingRestart && !msg && (
-        <p className='set-hint is-restart'>Quit and reopen Radiant to start using the shared folder.</p>
+      {/* ⚠️ A TICKED BOX THAT IS NOT IN EFFECT YET MUST SAY SO LOUDLY. The folder
+          is chosen when Radiant starts, so ticking this writes the choice but
+          changes nothing until the app is quit and reopened. That was a grey
+          line under a ticked checkbox, and "Where it is now" — still reading
+          ~/.radiant — was collapsed out of sight. Tony had it on three Macs and
+          saw his projects on one: "home dev and work are all on with sync but i
+          only see project folder on home mbp." The setting was saved on all
+          three and in effect on one. */}
+      {info.pendingRestart && (
+        <div className='sync-pending'>
+          <strong>Not in effect yet on this Mac.</strong> Radiant is still using its own
+          folder (<code className='mono'>{info.active.replace(/^\/Users\/[^/]+/, '~')}</code>).
+          Quit Radiant completely and reopen it — closing the window is not enough.
+        </div>
       )}
       {msg && <p className={'set-hint ' + (msg.kind === 'err' ? 'is-warn' : 'is-restart')}>{msg.text}</p>}
     </div>

@@ -512,6 +512,11 @@ code, pre, .mono { font-family: var(--font-mono); }
   font-size: 13px; line-height: 1.5;
 }
 .devices-now.is-linked { border-color: var(--accent-dim); }
+.sync-pending {
+  margin: 10px 0; padding: 10px 12px; border-radius: 10px;
+  background: var(--bg-raised); border: 1px solid var(--accent);
+  font-size: 12.5px; line-height: 1.5; color: var(--text);
+}
 .projects-error {
   margin: 6px 12px 8px; padding: 8px 10px; border-radius: 8px;
   background: var(--bg-raised); border: 1px solid var(--accent-dim);
