@@ -53,7 +53,10 @@ export function dataDirStatus () {
   try { exists = Boolean(configured) && fs.existsSync(configured) } catch {}
   // Is the folder we are syncing into actually in iCloud on THIS Mac? A folder
   // sitting at the iCloud path with iCloud Drive off is a silent dead end.
-  const cloud = Boolean(configured) ? cloudStatus(RADIANT_DIR) : null
+  let cloud = Boolean(configured) ? cloudStatus(RADIANT_DIR) : null
+  // Only worth asking when the folder itself is not syncing: it turns "this is
+  // broken" into "here is the switch to flip".
+  if (cloud && cloud.exists && !cloud.ubiquitous) cloud = { ...cloud, driveOn: icloudDriveOn() }
   return {
     cloud,
     active: RADIANT_DIR,
@@ -310,6 +313,21 @@ export function cloudStatus (dir) {
     excluded: r.excluded === 'true',
     error: r.error === 'yes'
   }
+}
+
+// ⚠️ "SIGNED INTO iCLOUD" IS NOT "iCLOUD DRIVE IS ON". They are separate
+// switches, and a Mac can be signed in for Mail, Photos and Find My with Drive
+// switched off — at which point CloudDocs is an ordinary local directory and
+// anything written there syncs to nobody. Tony has six Macs on one iCloud
+// account and one of them behaves like this, so telling him "not in iCloud"
+// without saying WHICH of the two is wrong leaves him hunting.
+//
+// The CloudDocs root answers it: with Drive on it is itself a ubiquitous item.
+export function icloudDriveOn () {
+  const root = path.join(os.homedir(), 'Library', 'Mobile Documents', 'com~apple~CloudDocs')
+  const r = helperSays('ubiquity', root)
+  if (!r) return null
+  return r.exists === 'true' && r.ubiquitous === 'true'
 }
 
 /** Ask iCloud to fetch an item. The supported call, not `brctl download`. */

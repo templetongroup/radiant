@@ -1510,11 +1510,24 @@ function DataFolderBlock () {
           Macs worked, that one stayed empty through reboots and reinstalls. */}
       {info.cloud && info.cloud.exists && !info.cloud.ubiquitous && (
         <div className='sync-broken'>
-          <strong>This folder is not in iCloud on this Mac.</strong> It exists, and Radiant is
-          writing to it, but macOS does not consider it an iCloud item — so nothing here is
-          reaching your other Macs and nothing from them is arriving. Usually iCloud Drive is
-          switched off on this Mac, or signed in with a different Apple ID. Check System
-          Settings → your name → iCloud → iCloud Drive, then quit and reopen Radiant.
+          <strong>Nothing here is syncing.</strong> Radiant is writing to this folder, but macOS
+          does not treat it as an iCloud item, so nothing reaches your other Macs and nothing
+          from them arrives.
+          {info.cloud.driveOn === false && (
+            <> <br /><br /><strong>iCloud Drive is switched off on this Mac.</strong> Being signed
+              in to iCloud is not the same switch. Turn it on in System Settings → your name →
+              iCloud → iCloud Drive, then quit and reopen Radiant.</>
+          )}
+          {info.cloud.driveOn === true && (
+            <> <br /><br /><strong>iCloud Drive itself is working on this Mac</strong> — it is this
+              particular folder that is not part of it, usually a plain folder left at that path
+              from before. Press “Choose another folder…” and pick your iCloud Drive again so
+              Radiant uses the real one.</>
+          )}
+          {info.cloud.driveOn === null && (
+            <> <br /><br />Check System Settings → your name → iCloud → iCloud Drive, then quit
+              and reopen Radiant.</>
+          )}
         </div>
       )}
       {info.cloud && info.cloud.ubiquitous && info.cloud.error && (
