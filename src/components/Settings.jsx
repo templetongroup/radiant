@@ -1495,6 +1495,16 @@ function DataFolderBlock () {
           saw his projects on one: "home dev and work are all on with sync but i
           only see project folder on home mbp." The setting was saved on all
           three and in effect on one. */}
+      {/* An empty Radiant on a Mac pointed at the right folder is almost always
+          this: iCloud has not fetched the files yet. Say so, with a number. */}
+      {info.waiting > 0 && (
+        <div className='sync-pending'>
+          <strong>iCloud is still downloading {info.waiting} {info.waiting === 1 ? 'file' : 'files'} to this Mac.</strong>{' '}
+          Projects and chats that have not arrived yet will not appear. Radiant has asked
+          iCloud to fetch them — leave the Mac awake and online for a minute. If the number
+          does not fall, open iCloud Drive in Finder and check the folder is downloading.
+        </div>
+      )}
       {info.pendingRestart && (
         <div className='sync-pending'>
           <strong>Not in effect yet on this Mac.</strong> Radiant is still using its own
@@ -1630,8 +1640,12 @@ function DevicesPane () {
           ? <>This Mac is <strong>using the Radiant on another Mac</strong> — everything you see
               (models, agents, chats) comes from <code className='mono'>{server.base}</code>, not from here.</>
           : syncing
-            ? <>This Mac is <strong>sharing one setup with your other Macs</strong>, kept
-                in <code className='mono'>{folderLabel}</code>.</>
+            ? (folder?.waiting > 0
+                ? <>This Mac is <strong>sharing one setup with your other Macs</strong>, but
+                    iCloud has not finished downloading it — <strong>{folder.waiting} {folder.waiting === 1 ? 'file is' : 'files are'} still
+                    on the way</strong>, so some projects and chats are not here yet.</>
+                : <>This Mac is <strong>sharing one setup with your other Macs</strong>, kept
+                    in <code className='mono'>{folderLabel}</code>.</>)
             : folder?.pendingRestart
               ? <>This Mac is <strong>still using its own setup</strong> — the shared folder you
                   picked takes effect after you quit Radiant completely and reopen it.</>

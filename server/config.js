@@ -1,5 +1,6 @@
 import fs from 'fs'
 import path from 'path'
+import { spawn } from 'child_process'
 import os from 'os'
 import crypto from 'crypto'
 import { fileURLToPath } from 'url'
@@ -50,7 +51,12 @@ export function dataDirStatus () {
   // missing folder one second after the user successfully chose it.
   let exists = false
   try { exists = Boolean(configured) && fs.existsSync(configured) } catch {}
+  // Ask iCloud for anything it has not fetched, and report how much is missing
+  // so the UI can explain an empty list instead of showing one.
+  const waiting = cloudPending(SESSIONS_DIR) + cloudPending(PROJECTS_DIR) + cloudPending(RADIANT_DIR)
+  if (waiting) requestCloudDownload(RADIANT_DIR)
   return {
+    waiting,
     active: RADIANT_DIR,
     configured,
     isDefault: RADIANT_DIR === defaultDataDir(),
@@ -256,6 +262,34 @@ export function saveConfig (cfg) {
     delete cfg.settings._iconTmp
   }
   writeJsonAtomic(CONFIG_PATH, cfg)
+}
+
+// ---- iCloud files that have not arrived yet --------------------------------
+//
+// ⚠️ AN UNDOWNLOADED FILE IS INVISIBLE, NOT MISSING. iCloud keeps a file it has
+// not fetched as `.<name>.icloud`, a placeholder holding no content. Every
+// listing here filters for names ending in .json, so a placeholder is skipped
+// in silence — the Mac shows no projects and no chats and says nothing about
+// why. Tony saw exactly that on a Mac pointed at the right folder: "dev mac is
+// updated. still dont see folders."
+//
+// Count them so the app can say so, and ask iCloud to fetch them.
+export function cloudPending (dir) {
+  try {
+    return fs.readdirSync(dir).filter(f => f.startsWith('.') && f.endsWith('.icloud')).length
+  } catch { return 0 }
+}
+
+let downloadAsked = 0
+export function requestCloudDownload (dir) {
+  // brctl is the supported way to pull a placeholder down. Best effort, never
+  // blocking, and rate-limited so a listing cannot spawn processes in a loop.
+  const now = Date.now()
+  if (now - downloadAsked < 15000) return
+  downloadAsked = now
+  try {
+    spawn('brctl', ['download', dir], { stdio: 'ignore', detached: true }).unref()
+  } catch { /* not an iCloud folder, or brctl unavailable */ }
 }
 
 // ---- projects: one file each ------------------------------------------------
