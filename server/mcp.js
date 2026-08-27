@@ -15,7 +15,16 @@ async function connect (server) {
     const client = new Client({ name: 'radiant', version: '1.0.0' }, { capabilities: {} })
     let transport
     if (server.transport === 'http' || server.url) {
-      transport = new StreamableHTTPClientTransport(new URL(server.url))
+      // ⚠️ HOSTED MCP SERVERS USUALLY WANT CREDENTIALS. This connected with no
+      // auth at all, so any protected server answered 401 and Radiant reported
+      // it as a bare failure. A pasted bearer token covers servers that issue
+      // one; servers demanding a full OAuth flow still cannot be reached, and
+      // connect() below says so in words rather than leaving the user guessing.
+      transport = new StreamableHTTPClientTransport(new URL(server.url), {
+        requestInit: server.token
+          ? { headers: { authorization: `Bearer ${server.token}` } }
+          : undefined
+      })
     } else {
       transport = new StdioClientTransport({
         command: server.command,
@@ -29,6 +38,17 @@ async function connect (server) {
     clients.set(server.id, entry)
     return entry
   } catch (e) {
+    // ⚠️ SAY WHAT A 401 MEANS. "HTTP 401" tells the user nothing they can act
+    // on; the server is asking them to sign in, and Radiant cannot do that flow
+    // yet, so the honest message names both facts.
+    const msg = String(e?.message || e)
+    if (/401|unauthor/i.test(msg)) {
+      const entry = { client: null, tools: [], error: server.token
+        ? 'That server rejected the token — check it is current and has the right scope.'
+        : 'That server needs you to sign in. Paste an access token if it issues one; Radiant cannot yet do a full OAuth sign-in for MCP servers.' }
+      clients.set(server.id, entry)
+      return entry
+    }
     const entry = { client: null, tools: [], error: e.message }
     clients.set(server.id, entry)
     return entry

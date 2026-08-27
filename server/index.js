@@ -412,14 +412,14 @@ app.get('/api/mcp/status', async (req, res) => {
 })
 
 app.post('/api/mcp', (req, res) => {
-  const { name, transport, command, args, env, url } = req.body
+  const { name, transport, command, args, env, url, token } = req.body
   if (!name || (!command && !url)) return res.status(400).json({ error: 'name and a command or url required' })
   config.mcpServers = config.mcpServers || []
   config.mcpServers.push({
     id: 'mcp-' + crypto.randomBytes(4).toString('hex'),
     name, transport: transport || (url ? 'http' : 'stdio'),
     command: command || null, args: Array.isArray(args) ? args : (args ? String(args).split(' ').filter(Boolean) : []),
-    env: env || {}, url: url || null, enabled: true
+    env: env || {}, url: url || null, token: token || null, enabled: true
   })
   saveConfig(config)
   res.json(publicConfig(config))

@@ -557,15 +557,26 @@ function McpPane ({ config, onConfigChange }) {
   const [adding, setAdding] = useState(false)
   const [name, setName] = useState('')
   const [command, setCommand] = useState('')
+  const [token, setToken] = useState('')
 
   const loadStatus = () => api.mcpStatus().then(r => setStatus(r.servers || [])).catch(() => {})
   useEffect(() => { loadStatus() }, [servers.length])
 
+  // ⚠️ A URL IS NOT A COMMAND. The server has supported remote MCP servers all
+  // along — /api/mcp accepts a url and mcp.js picks StreamableHTTPClientTransport
+  // for it — but this form only ever sent { command, args }, and the field was
+  // the only box on screen. So a hosted server's address went to spawn() and
+  // came back "spawn http://mcp.higgsfield.ai/mcp ENOENT": the app trying to run
+  // a web address as a local program. Tony hit it on his first MCP.
   const add = async () => {
-    if (!name.trim() || !command.trim()) return
-    const [cmd, ...args] = command.trim().split(/\s+/)
-    const cfg = await api.addMcp({ name: name.trim(), command: cmd, args })
-    setName(''); setCommand(''); setAdding(false)
+    const entry = command.trim()
+    if (!name.trim() || !entry) return
+    const isUrl = /^https?:\/\//i.test(entry)
+    const body = isUrl
+      ? { name: name.trim(), url: entry, transport: 'http', token: token.trim() || null }
+      : (() => { const [cmd, ...args] = entry.split(/\s+/); return { name: name.trim(), command: cmd, args } })()
+    const cfg = await api.addMcp(body)
+    setName(''); setCommand(''); setToken(''); setAdding(false)
     onConfigChange(cfg); setTimeout(loadStatus, 500)
   }
   const toggle = async (id, enabled) => { onConfigChange(await api.updateMcp(id, { enabled })); setTimeout(loadStatus, 500) }
@@ -577,7 +588,7 @@ function McpPane ({ config, onConfigChange }) {
       <h3>MCP servers</h3>
       <p style={{ fontSize: 12.5, color: 'var(--text-muted)', marginTop: 0 }}>
         Model Context Protocol servers give agents extra tools — databases, APIs, file systems, and more.
-        Add a server by its launch command; its tools become available to the agent (each call asks approval).
+        Add one by its launch command (<span className='mono'>npx some-mcp-server</span>) or by its address if it is hosted (<span className='mono'>https://…</span>). Its tools become available to the agent, and each call asks for approval.
       </p>
 
       {servers.map(s => {
@@ -600,7 +611,13 @@ function McpPane ({ config, onConfigChange }) {
       {adding
         ? <div className='skill-add'>
             <input className='text-input' style={{ fontFamily: 'inherit', marginBottom: 8 }} placeholder='Name (e.g. Filesystem)' value={name} onChange={e => setName(e.target.value)} />
-            <input className='text-input' style={{ marginBottom: 4 }} placeholder='Launch command (e.g. npx -y @modelcontextprotocol/server-filesystem ~/Projects)' value={command} onChange={e => setCommand(e.target.value)} />
+            <input className='text-input' style={{ marginBottom: 4 }} placeholder='Launch command or https:// address' value={command} onChange={e => setCommand(e.target.value)} />
+            {/* Only meaningful for a hosted server, so it appears only then. */}
+            {/^https?:\/\//i.test(command.trim()) && (
+              <input className='text-input' style={{ marginBottom: 4 }} type='password'
+                placeholder='Access token, if the server needs one (optional)'
+                value={token} onChange={e => setToken(e.target.value)} />
+            )}
             <div className='oauth-note'>Runs as a local process. Only add servers you trust.</div>
             <div className='row' style={{ marginTop: 8 }}>
               <button className='small-btn primary' onClick={add} disabled={!name.trim() || !command.trim()}>Add server</button>
