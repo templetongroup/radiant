@@ -67,6 +67,10 @@ try {
 }
 console.log('[release] theme contrast')
 execFileSync('node', ['scripts/test-contrast.mjs'], { stdio: 'inherit' })
+// ⚠️ THE PHONE'S MODEL LIST IS SHIPPED SIZES. If a repo moved or a size changed,
+// the picker offers a download that fails or a fit badge that lies.
+console.log('[release] phone catalogue vs Hugging Face')
+execFileSync('node', ['scripts/test-catalog-live.mjs'], { stdio: 'inherit' })
 console.log('[release] end-to-end API checks')
 execFileSync('node', ['scripts/test-api.mjs'], { stdio: 'inherit' })
 console.log('[release] smoke testing the built app')
