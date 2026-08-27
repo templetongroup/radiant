@@ -139,6 +139,22 @@ await check('machine-local settings stay out of the shared file', async () => {
   return 'split correctly'
 })
 
+await check('a chosen default model is actually used by new chats', async () => {
+  // ⚠️ THE POINT OF THIS TEST IS THE LAST ASSERTION. Saving worked, the API
+  // reported it back, the picker showed it — and new chats still opened with no
+  // model, because the value reached the client and never reached the code that
+  // reads it. A round-trip through the API is not proof that a setting does
+  // anything.
+  await api('PUT', '/api/settings', { defaultModel: 'test-model-x', defaultProvider: 'ollama' })
+  const served = (await api('GET', '/api/config')).json.settings
+  eq(served.defaultModel, 'test-model-x', 'setting not reported back')
+  const s = (await api('POST', '/api/sessions', { title: 'Uses the default' })).json
+  eq(s.model, 'test-model-x', 'new chat ignored the default model')
+  eq(s.provider, 'ollama', 'new chat ignored the default provider')
+  await api('PUT', '/api/settings', { defaultModel: null, defaultProvider: null })
+  return 'saved, served, and used'
+})
+
 await check('sessions create, list and fork without touching the original', async () => {
   const s = (await api('POST', '/api/sessions', { title: 'Original' })).json
   const full = { ...s, messages: [

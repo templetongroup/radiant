@@ -133,13 +133,13 @@ function argSummary (name, args) {
   return JSON.stringify(args)
 }
 
-function ToolChip ({ part }) {
+function ToolChip ({ part, compact = false }) {
   const [open, setOpen] = useState(false)
   return (
     <>
-      <button className={'tool-chip' + (part.denied ? ' denied' : '')} onClick={() => setOpen(o => !o)}>
-        <span className='tool-ico' aria-hidden>{TOOL_ICONS[part.name] || '·'}</span>
-        <span className='tool-name'>{part.name.replace('_', ' ')}</span>
+      <button className={'tool-chip' + (part.denied ? ' denied' : '') + (compact ? ' compact' : '')} onClick={() => setOpen(o => !o)}>
+        {!compact && <span className='tool-ico' aria-hidden>{TOOL_ICONS[part.name] || '·'}</span>}
+        {!compact && <span className='tool-name'>{part.name.replace('_', ' ')}</span>}
         <span className='tool-arg'>{argSummary(part.name, part.args)}</span>
         <span className={'tool-status' + (part.pending ? ' pending' : '')}>
           {part.pending ? '⋯' : part.denied ? '✕ denied' : '✓'}
@@ -152,6 +152,44 @@ function ToolChip ({ part }) {
         </div>
       )}
     </>
+  )
+}
+
+// ⚠️ ONE PILL PER TOOL CALL BURIES THE ANSWER. A stretch of work is normally a
+// run of commands, and each one rendered as its own full-width row repeating the
+// words "run command", with the command itself truncated — so the transcript
+// became a column of near-identical bars you cannot read, between the sentences
+// that actually say something. Tony: "it makes the chat very cluttered and hard
+// to follow."
+//
+// Consecutive calls now collapse into one line. What must survive collapsing is
+// anything that went wrong: a failure or a denial is named in the summary and
+// the group opens itself, because a hidden failure is worse than a cluttered
+// one. A single call still renders as a single chip.
+function ToolRun ({ parts }) {
+  const failed = parts.filter(p => p.denied || (p.result != null && /^Error/i.test(String(p.result))))
+  const pending = parts.some(p => p.pending)
+  const [open, setOpen] = useState(failed.length > 0)
+  const names = [...new Set(parts.map(p => p.name))]
+  const label = names.length === 1
+    ? `${parts.length} ${names[0].replace('_', ' ')}${parts.length === 1 ? '' : 's'}`
+    : `${parts.length} tool calls`
+  return (
+    <div className={'tool-run' + (open ? ' is-open' : '') + (failed.length ? ' has-fail' : '')}>
+      <button className='tool-run-head' onClick={() => setOpen(o => !o)}>
+        <span className='tool-run-caret' aria-hidden>{open ? '▾' : '▸'}</span>
+        <span className='tool-ico' aria-hidden>{TOOL_ICONS[names[0]] || '·'}</span>
+        <span className='tool-run-label'>{label}</span>
+        <span className={'tool-status' + (pending ? ' pending' : '')}>
+          {pending ? '⋯' : failed.length ? `✕ ${failed.length} failed` : '✓'}
+        </span>
+      </button>
+      {open && (
+        <div className='tool-run-body'>
+          {parts.map((p, i) => <ToolChip key={p.id || i} part={p} compact={names.length === 1} />)}
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -252,15 +290,33 @@ function AssistantMessage ({ parts, thinking, thinkingActive, thinkingSecs, stre
         {streaming && <span className='who-model'>· working</span>}
       </div>
       {thinking ? <ThinkingTrace thinking={thinking} active={Boolean(thinkingActive)} seconds={thinkingSecs} /> : null}
-      {parts.map((p, i) => {
-        if (p.type === 'text') return <Markdown key={i} text={p.text} />
-        if (p.type === 'tool') {
-          if (p.widget || p.name === 'show_widget') return <AgentWidget key={p.id || i} spec={p.widget || p.args} onChoose={onChoose} />
-          return (p.name === 'todo_write' || p.hidden) ? null : <ToolChip key={p.id || i} part={p} />
+      {(() => {
+        // Walk the parts, gathering consecutive tool chips so a run of them can
+        // be shown as one line. Anything that is not a chip — a sentence, a
+        // widget, a notice — ends the run, because that is where the agent
+        // actually said something and the grouping should not swallow it.
+        const out = []
+        let run = []
+        const flush = () => {
+          if (!run.length) return
+          out.push(run.length === 1
+            ? <ToolChip key={run[0].id || 'c' + out.length} part={run[0]} />
+            : <ToolRun key={'run' + out.length} parts={run} />)
+          run = []
         }
-        if (p.type === 'notice') return <div key={i} className='notice'>{p.text}</div>
-        return null
-      })}
+        parts.forEach((p, i) => {
+          if (p.type === 'tool' && !p.widget && p.name !== 'show_widget' && p.name !== 'todo_write' && !p.hidden) {
+            run.push(p)
+            return
+          }
+          flush()
+          if (p.type === 'text') out.push(<Markdown key={i} text={p.text} />)
+          else if (p.type === 'tool' && (p.widget || p.name === 'show_widget')) out.push(<AgentWidget key={p.id || i} spec={p.widget || p.args} onChoose={onChoose} />)
+          else if (p.type === 'notice') out.push(<div key={i} className='notice'>{p.text}</div>)
+        })
+        flush()
+        return out
+      })()}
       {!streaming && <Deliverables parts={parts} />}
       {waiting && (slowWait
         ? <div className='notice loading-note'>

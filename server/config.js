@@ -299,6 +299,14 @@ export function loadConfig () {
       for (const r of seeded) if (r.builtin && !have.has(r.id)) cfg.recipes.push(r)
     }
     cfg.settings = { ...cfg.settings, ...(saved.settings || {}) }
+  // ⚠️ MERGE MACHINE SETTINGS ON THE WAY IN, NOT ONLY ON THE WAY OUT. When these
+  // moved to their own file, publicConfig folded them back for the client and
+  // nothing folded them into the server's own config — so the app displayed the
+  // chosen default model correctly while session creation, which reads
+  // config.settings.defaultModel, saw undefined and every new chat opened with
+  // no model. Saved, reported, and completely unused. saveConfig still strips
+  // them, so they cannot leak into the shared file.
+  cfg.settings = { ...cfg.settings, ...loadMachineSettings() }
   } catch { /* first run */ }
   migrateAccounts(cfg)
   return cfg

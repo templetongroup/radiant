@@ -1127,22 +1127,31 @@ code, pre, .mono { font-family: var(--font-mono); }
 
 .activity-feed { position: absolute; inset: 0; overflow-y: auto; padding: 12px; }
 .activity-empty { color: var(--text-faint); font-size: 12.5px; text-align: center; margin-top: 40px; }
-.activity-item {
-  margin-bottom: 10px; border: 1px solid var(--border); border-radius: 10px;
-  background: var(--bg); box-shadow: var(--shadow-sm); overflow: hidden;
-}
+/* One continuous stream: a rule between entries, not a box around each, and no
+   scroller of its own — see the note in RightPanel.jsx. */
+.activity-item { padding: 10px 2px 12px; border-bottom: 1px solid var(--border); }
+.activity-item:last-child { border-bottom: 0; }
+.activity-item.failed .tool-name { color: var(--danger); }
 .activity-item .head {
-  display: flex; gap: 8px; align-items: center;
-  padding: 7px 10px; font-size: 12px;
+  display: flex; gap: 8px; align-items: center; padding: 0 0 5px; font-size: 12px;
 }
-.activity-item .head .tool-name { color: var(--text); font-weight: 500; }
+.activity-item .head .tool-name { color: var(--text); font-weight: 600; font-family: var(--font-mono); font-size: 11.5px; }
+.act-fail { font-size: 10.5px; color: var(--danger); }
 .activity-item .head .when { margin-left: auto; color: var(--text-faint); font-size: 10.5px; font-family: var(--font-mono); }
 .activity-item pre {
-  margin: 0; padding: 8px 10px; border-top: 1px solid var(--border);
-  font-size: 11px; color: var(--text-muted);
+  margin: 0; padding: 0;
+  font-size: 11px; line-height: 1.55; color: var(--text-muted);
   white-space: pre-wrap; word-break: break-word;
-  max-height: 200px; overflow-y: auto;
 }
+.activity-item pre.is-clamped {
+  -webkit-mask-image: linear-gradient(180deg, #000 65%, transparent 100%);
+  mask-image: linear-gradient(180deg, #000 65%, transparent 100%);
+}
+.act-more {
+  margin-top: 4px; padding: 2px 8px; border-radius: 6px; font-size: 11px;
+  border: 1px solid var(--border); background: var(--bg-raised); color: var(--text-muted);
+}
+.act-more:hover { border-color: var(--accent-dim); color: var(--accent); }
 
 .term-wrap { position: absolute; inset: 0; padding: 8px; }
 .term-wrap .xterm { height: 100%; }
@@ -1463,6 +1472,23 @@ input[type='range']::-webkit-slider-thumb {
    14px matches the label text, flex:none stops it distorting when the label is
    long, and the 1px nudge lines it up with the FIRST line rather than the
    middle of a wrapped one. */
+.tool-run { margin: 4px 0; }
+.tool-run-head {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 4px 10px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--bg-panel);
+  color: var(--text-muted); font-size: 12px; cursor: pointer; text-align: left;
+}
+.tool-run-head:hover { border-color: var(--accent-dim); color: var(--text); }
+.tool-run-caret { width: 10px; font-size: 9px; opacity: .7; }
+.tool-run-label { flex: 1; }
+.tool-run.has-fail .tool-run-head { border-color: var(--danger); color: var(--text); }
+.tool-run-body {
+  margin: 4px 0 6px 13px; padding-left: 10px;
+  border-left: 2px solid color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.tool-chip.compact { padding-top: 2px; padding-bottom: 2px; background: none; border-color: transparent; }
+.tool-chip.compact:hover { background: var(--bg-hover); border-color: var(--border); }
 .auto-choice {
   display: flex; align-items: flex-start; gap: 9px;
   padding: 9px 10px; margin-top: 8px; border-radius: 10px;

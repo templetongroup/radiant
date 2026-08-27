@@ -5,6 +5,45 @@ import { Icon } from './Icons.jsx'
 const MIN_W = 300
 const MAX_W = 720
 
+// ⚠️ ONE SCROLLBAR PER PANEL, NOT ONE PER ENTRY. Every activity row carried
+// `max-height: 200px; overflow-y: auto`, so reading the feed meant scrolling the
+// panel to a card and then scrolling again inside it, with each card a separate
+// bordered box. Tony: "having the commands in separate rolling boxes is also
+// poor design and hard to follow."
+//
+// Now it is one continuous stream. Long output is clamped with a fade and a
+// button that says how much is hidden, rather than trapped in a small window —
+// so the panel scrolls once and nothing is buried inside something else.
+const CLAMP_LINES = 12
+
+function ActivityItem ({ item }) {
+  const [open, setOpen] = useState(false)
+  const head = item.name === 'run_command' ? '$ ' + (item.args?.command || '') : JSON.stringify(item.args ?? {})
+  const body = item.denied ? '[denied by user]'
+    : item.result != null ? String(item.result).slice(0, 8000)
+    : '[running…]'
+  const text = head + '\n' + body
+  const lines = text.split('\n')
+  const long = lines.length > CLAMP_LINES
+  const shown = open || !long ? text : lines.slice(0, CLAMP_LINES).join('\n')
+  const failed = item.denied || (item.result != null && /^Error/i.test(String(item.result)))
+  return (
+    <div className={'activity-item' + (failed ? ' failed' : '')}>
+      <div className='head'>
+        <span className='tool-name'>{item.name}</span>
+        {failed && <span className='act-fail'>failed</span>}
+        <span className='when'>{new Date(item.at).toLocaleTimeString()}</span>
+      </div>
+      <pre className={long && !open ? 'is-clamped' : ''}>{shown}</pre>
+      {long && (
+        <button className='act-more' onClick={() => setOpen(o => !o)}>
+          {open ? 'Show less' : `Show all ${lines.length} lines`}
+        </button>
+      )}
+    </div>
+  )
+}
+
 export default function RightPanel ({ tab, onTab, activity, cwd, mode, onClose }) {
   const [width, setWidth] = useState(() => {
     const saved = Number(localStorage.getItem('radiant.rightWidth'))
@@ -50,16 +89,7 @@ export default function RightPanel ({ tab, onTab, activity, cwd, mode, onClose }
         {tab === 'activity' && (
           <div className='activity-feed'>
             {!activity.length && <div className='activity-empty'>Agent tool calls will appear here as they run.</div>}
-            {activity.map(item => (
-              <div key={item.id + item.at} className='activity-item'>
-                <div className='head'>
-                  <span className='tool-name'>{item.name}</span>
-                  <span className='when'>{new Date(item.at).toLocaleTimeString()}</span>
-                </div>
-                <pre>{item.name === 'run_command' ? '$ ' + (item.args?.command || '') : JSON.stringify(item.args)}
-{item.denied ? '\n[denied by user]' : item.result != null ? '\n' + String(item.result).slice(0, 4000) : '\n[running…]'}</pre>
-              </div>
-            ))}
+            {activity.map(item => <ActivityItem key={item.id + item.at} item={item} />)}
           </div>
         )}
         {tab === 'terminal' && <Terminal cwd={cwd} mode={mode} />}
