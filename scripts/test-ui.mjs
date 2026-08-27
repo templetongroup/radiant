@@ -71,6 +71,52 @@ ok('the reply appears in the transcript', /Local reply to/i.test(await body()))
 const sub = await page.locator('.rx-chat-title-2').first().innerText().catch(() => '')
 ok('the chat states where the answer comes from', sub.trim().length > 0)
 
+// ── ⚠️ THE STYLESHEET ACTUALLY REACHED THE PAGE ─────────────────────────
+// The chat's CSS is a template literal in MobileChat.jsx. An unescaped backtick
+// inside one of its comments — writing `/` in prose — closes the literal early,
+// the rest parses as division, and <style> renders NaN: every chat style gone,
+// silently, with no error. That happened on 2026-08-27 and the only symptom was
+// one unrelated assertion about scrolling.
+const styleLen = await page.evaluate(() =>
+  [...document.querySelectorAll('style')].reduce((n, el) => Math.max(n, (el.textContent || '').length), 0))
+ok('the chat stylesheet is present, not NaN', styleLen > 5000)
+
+// ── ⚠️ SLASH COMMANDS, WHICH THE PHONE SHIPPED WITHOUT ───────────────────
+// `/plain-english` worked on the Mac and did nothing here: the mobile composer
+// had no slash handling, so the command went to the model as literal text.
+// Tony: "the slash command is not working in ios". Driven, not read.
+await composer.fill('/')
+await page.waitForTimeout(200)
+const slashRows = page.locator('.rx-chat-slashrow')
+ok('typing / offers the skills', await slashRows.count() > 0)
+is('and offers the bundled ones by command',
+  await page.locator('.rx-chat-slashcmd').first().innerText(), '/plain-english')
+
+await composer.fill('/pl')
+await page.waitForTimeout(200)
+is('typing narrows the list to one', await slashRows.count(), 1)
+
+await slashRows.first().click({ force: true })
+await page.waitForTimeout(200)
+// ⚠️ THE COMMAND GOES IN THE BOX — the convention Hermes and Claude use, and
+// the one the Mac already followed. Attaching it silently is what broke before.
+is('picking one puts the command in the composer',
+  (await composer.inputValue()).trim(), '/plain-english')
+ok('and the list closes once it is chosen', await slashRows.count() === 0)
+
+// ⚠️ WAIT FOR THE TURN TO SETTLE. Mid-answer that same button is Stop, so
+// clicking it sends nothing and cancels instead.
+await page.waitForSelector('button[aria-label="Send"]', { timeout: 5000 }).catch(() => {})
+await composer.fill('/plain-english what is a pointer')
+const b4 = page.locator('button[aria-label="Send"]').first()
+if (await b4.count()) await b4.click({ force: true })
+await page.waitForTimeout(900)
+// The slug is stripped: the skill reaches the model in the prompt head, not as
+// a bare word at the top of the question.
+const sent = await body()
+ok('the sent message drops the command', /what is a pointer/.test(sent))
+ok('and does not show the raw slug back', !/\/plain-english what is a pointer/.test(sent))
+
 // ── ⚠️ THE SCROLL BUG TONY HIT ───────────────────────────────────────────
 // Send enough that the transcript overflows, then scroll up WHILE tokens are
 // still arriving and check the app leaves you where you put yourself.

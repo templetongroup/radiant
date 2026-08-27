@@ -1175,6 +1175,43 @@ const CSS = `
   to   { transform: translate(-50%, 0); opacity: 1 }
 }
 
+/* ── the slash list ──
+   ⚠️ ABSOLUTE, ABOVE THE COMPOSER, AND ABOVE IT IN THE STACK. In normal flow
+   this sat at the same height as the composer, which is position:absolute at
+   z-index 3 — so the rows were visible but every tap landed in the text field
+   instead. It rides on the same bottom offset as the jump button, which is
+   already correct for the keyboard. */
+.rx-chat-slash {
+  position: absolute; z-index: 4; left: 14px; right: 14px;
+  bottom: calc(var(--rx-chat-composerh, 64px) + var(--rx-kb) + 8px);
+  max-height: 42dvh; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  background: var(--rx-mat);
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
+  backdrop-filter: blur(30px) saturate(180%);
+  border: 0.5px solid var(--rx-separator);
+  border-radius: var(--rx-r-card, 12px);
+  animation: rx-chat-slashin var(--rx-dur-pop, 316ms) var(--rx-pop) both;
+}
+@keyframes rx-chat-slashin {
+  from { transform: translateY(12px); opacity: 0 }
+  to   { transform: translateY(0); opacity: 1 }
+}
+.rx-chat-slashrow {
+  display: flex; align-items: baseline; gap: 10px;
+  padding: 11px 14px; min-height: 44px; box-sizing: border-box;
+  border-bottom: 0.5px solid var(--rx-separator);
+}
+.rx-chat-slashrow:last-child { border-bottom: none; }
+.rx-chat-slashrow.is-pressed { background: var(--rx-fill-2); }
+.rx-chat-slashcmd {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: calc(15px * var(--rx-dt)); color: var(--rx-tint); flex-shrink: 0;
+}
+.rx-chat-slashname {
+  font-size: calc(15px * var(--rx-dt)); color: var(--rx-label-2);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
 /* ── composer ── */
 .rx-chat-composer {
   position: absolute; left: 0; right: 0; bottom: 0; z-index: 3;

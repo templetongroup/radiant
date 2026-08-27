@@ -54,5 +54,9 @@ Short on purpose. Every line is something that already cost Tony time.
 17. **The phone is the other half of the app.** A convention that ships on the
     Mac is not shipped until iPhone has it. `/plain-english` worked on one and
     was silently absent on the other.
-18. **A skill is read, never run.** Nothing installable may contain an
+18. **No backtick in the phone's CSS comments.** `MobileChat`'s stylesheet is a
+    template literal; writing a slash command in prose closed it, the rest
+    parsed as division, and `<style>` rendered NaN — every chat style gone with
+    no error. `test-ui` now checks the stylesheet arrived.
+19. **A skill is read, never run.** Nothing installable may contain an
     executable file, and the refusal names the file.
