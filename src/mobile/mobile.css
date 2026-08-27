@@ -2412,10 +2412,15 @@
    anywhere in ios to add skills." Same bug, same fix, as the slash list. */
 .is-native .rx-chat-skillbar {
   position: absolute; z-index: 4; left: 14px; right: 14px;
+  /* ⚠️ THE KEYBOARD IS COUNTED ONCE, IN `bottom`. This also carried the
+     composer's translate3d(-kb), so with the keyboard up the bar rose by TWO
+     keyboard heights and floated in the middle of the transcript. The composer
+     sits at bottom:0 and moves by transform; anything anchored ABOVE it adds
+     --rx-kb to its offset and must not transform as well — which is exactly
+     what .rx-chat-jump and .rx-chat-slash already do. */
   bottom: calc(var(--rx-chat-composerh, 64px) + var(--rx-kb) + 6px);
   display: flex; padding: 0;
-  transform: translate3d(0, calc(-1 * var(--rx-kb)), 0);
-  transition: transform var(--rx-kb-dur, 250ms) var(--rx-down);
+  transition: bottom var(--rx-kb-dur, 250ms) var(--rx-down);
 }
 .is-native .rx-chat-skillbar[hidden] { display: none; }
 .is-native .rx-chat-skillpick {
@@ -2435,6 +2440,18 @@
   border: 1px solid var(--rx-separator); text-align: center;
 }
 .is-native .rx-skill-edit { margin: 0 16px 14px; padding: 12px; border-radius: 12px; background: var(--rx-cell); }
+/* Importing a skill: a row per route, and the Mac's own list once connected. */
+.is-native .rx-skill-save.is-off { opacity: 0.35; }
+.is-native .rx-mac-row {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 11px 2px; border-bottom: 0.5px solid var(--rx-separator);
+}
+.is-native .rx-mac-row:last-of-type { border-bottom: none; }
+.is-native .rx-mac-row.is-off { opacity: 0.45; }
+.is-native .rx-mac-row.is-pressed { background: var(--rx-fill-2); }
+.is-native .rx-mac-take { flex-shrink: 0; align-self: center; color: var(--rx-tint); font-size: 15px; }
+.is-native .rx-mac-row.is-off .rx-mac-take { color: var(--rx-label-2); }
+
 .is-native .rx-skill-name, .is-native .rx-skill-body {
   width: 100%; box-sizing: border-box; margin-bottom: 8px;
   padding: 10px 12px; border-radius: 10px;

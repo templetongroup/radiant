@@ -1174,11 +1174,26 @@ function SkillsPane ({ config, onConfigChange }) {
         <div className='skill-drop-hint'>Markdown (.md) files with optional <span className='mono'>name:</span> / <span className='mono'>description:</span> frontmatter</div>
       </div>
 
+      {/* ⚠️ THE THREE WAYS TO ADD A SKILL BELONG TOGETHER. "New skill" used to
+          sit at the very bottom, under the whole list, so the ways in were
+          split by everything already added. Tony: "the new skill button should
+          be next to the uploads skill button instead of the bottom." */}
       <div className='skill-upload'>
+        <button className='small-btn primary' onClick={() => setAdding(a => !a)}>+ New skill</button>
         <button className='small-btn' onClick={uploadFolder}>Upload a skill folder…</button>
         <span className='skill-upload-hint'>A folder with a <span className='mono'>SKILL.md</span> inside, plus any notes or references it refers to. Anything runnable is refused.</span>
       </div>
       {upload && <div className={'skill-upload-msg' + (upload.kind === 'err' ? ' is-err' : '')}>{upload.text}</div>}
+      {adding && (
+        <div className='skill-add'>
+          <input className='text-input' style={{ fontFamily: 'inherit', marginBottom: 8 }} placeholder='Skill name (e.g. House style)' value={name} onChange={e => setName(e.target.value)} />
+          <textarea className='text-input' style={{ fontFamily: 'inherit', minHeight: 90, resize: 'vertical' }} placeholder='Instructions the agent should follow…' value={content} onChange={e => setContent(e.target.value)} />
+          <div className='row' style={{ marginTop: 8 }}>
+            <button className='small-btn primary' onClick={add} disabled={!name.trim() || !content.trim()}>Add skill</button>
+            <button className='small-btn' onClick={() => setAdding(false)}>Cancel</button>
+          </div>
+        </div>
+      )}
 
       {skills.length > 0 && <div className='skill-list-head'>On for all agents</div>}
       {skills.map(sk => (
@@ -1195,16 +1210,6 @@ function SkillsPane ({ config, onConfigChange }) {
       ))}
       {!skills.length && <div className='activity-empty' style={{ marginTop: 8 }}>No skills yet.</div>}
 
-      {adding
-        ? <div className='skill-add'>
-            <input className='text-input' style={{ fontFamily: 'inherit', marginBottom: 8 }} placeholder='Skill name (e.g. House style)' value={name} onChange={e => setName(e.target.value)} />
-            <textarea className='text-input' style={{ fontFamily: 'inherit', minHeight: 90, resize: 'vertical' }} placeholder='Instructions the agent should follow…' value={content} onChange={e => setContent(e.target.value)} />
-            <div className='row' style={{ marginTop: 8 }}>
-              <button className='small-btn primary' onClick={add} disabled={!name.trim() || !content.trim()}>Add skill</button>
-              <button className='small-btn' onClick={() => setAdding(false)}>Cancel</button>
-            </div>
-          </div>
-        : <button className='small-btn' style={{ marginTop: 12 }} onClick={() => setAdding(true)}>+ New skill</button>}
     </div>
   )
 }
@@ -2237,6 +2242,7 @@ const GUIDE = [
       ['Skill library', 'Settings → Skills → Skill library holds 270 ready-made skills that ship with Radiant, grouped and searchable — languages and frameworks, design, data, security, research and more. Search it, read the whole skill before you add it, and added skills start switched off.'],
       ['Upload a skill folder', 'A skill can be a folder — a SKILL.md with notes and references beside it. Upload one in Settings → Skills. Radiant refuses any folder containing a runnable file, and names it: a skill is read, never executed.'],
       ['Pin the models you use', 'In a chat, open the model picker and click the star beside a model. Pinned models sit in their own group at the top. Pins are per-Mac — a model this Mac cannot run is not worth pinning on it.'],
+      ['Get a skill onto your iPhone', 'Settings → Skills on the phone. Write one, paste a SKILL.md straight in, import a .md from Files or iCloud Drive, or pull short ones across from your Mac (its address and token are on the Mac at Settings → Devices). Anything longer than 900 characters is refused rather than cut in half.'],
       ['Use a skill for one message', 'Type / in the composer, pick a skill, and the command goes in the box. It applies to that message only. Works the same on iPhone — and on iPhone the Skill button above the composer opens the same list, with “Edit skills…” at the bottom to write your own.'],
       ['Skills that build themselves', 'When an agent notices a repeatable workflow it suggests a reusable skill; review the full description and Add or Reject it in Settings → Skills.']
     ]

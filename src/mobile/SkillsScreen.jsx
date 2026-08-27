@@ -13,7 +13,8 @@
  */
 import React, { useCallback, useEffect, useState } from 'react'
 import usePress from './usePress.js'
-import { listSkills, saveSkill, deleteSkill, onSkillsChanged, MAX_SKILL_CHARS } from './skills.js'
+import { listSkills, saveSkill, deleteSkill, onSkillsChanged, MAX_SKILL_CHARS,
+  parseSkillMarkdown, fetchMacSkills, readMac, saveMac } from './skills.js'
 
 function Editor ({ skill, onDone, onCancel }) {
   const [name, setName] = useState(skill?.name || '')
@@ -74,14 +75,181 @@ function SkillRow ({ skill, onEdit, onDelete }) {
   )
 }
 
+/**
+ * Paste a SKILL.md straight in.
+ *
+ * The smallest of the three imports and the one that always works: no file
+ * system, no network, no permissions. Parses the frontmatter so a real
+ * SKILL.md keeps its name instead of arriving as one wall of text.
+ */
+function PasteImport ({ onDone, onCancel }) {
+  const [text, setText] = useState('')
+  const parsed = text.trim() ? parseSkillMarkdown(text) : null
+  const canSave = Boolean(parsed?.name && parsed?.body && !parsed.tooLong)
+  const save = usePress(() => {
+    if (!canSave) return
+    saveSkill({ name: parsed.name, body: parsed.body })
+    onDone?.()
+  }, { label: 'Add skill' })
+  const cancel = usePress(() => onCancel?.(), { label: 'Cancel' })
+
+  return (
+    <div className="rx-skill-edit">
+      <textarea
+        className="rx-skill-body"
+        placeholder={'Paste a skill here — a SKILL.md, or just the instructions.'}
+        value={text}
+        rows={8}
+        onChange={e => setText(e.target.value)}
+      />
+      {parsed && (
+        <div className={'rx-skill-count' + (parsed.tooLong ? ' is-tight' : '')}>
+          {/* ⚠️ REFUSE, DO NOT TRIM. A skill cut in half still looks like a
+              skill and quietly stops working. */}
+          {parsed.tooLong
+            ? `${parsed.length} characters — ${parsed.length - MAX_SKILL_CHARS} too many. Shorten it before adding.`
+            : `“${parsed.name || 'Untitled'}” · ${parsed.length} characters`}
+        </div>
+      )}
+      <div className="rx-skill-actions">
+        <span className={'rx-skill-cancel' + cancel.className} {...cancel.handlers}>Cancel</span>
+        <span className={'rx-skill-save' + save.className + (canSave ? '' : ' is-off')} {...save.handlers}>Add</span>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Bring skills over from the Mac.
+ *
+ * ⚠️ MOST OF THEM CANNOT COME. A Mac library skill's text is one line pointing
+ * at a folder this device does not have, so it is listed and disabled with the
+ * reason rather than imported as an instruction aimed at nothing.
+ */
+function MacImport ({ onDone, onCancel }) {
+  const [mac, setMac] = useState(readMac)
+  const [rows, setRows] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+  const [taken, setTaken] = useState([])
+
+  const connect = usePress(async () => {
+    setBusy(true); setErr(''); setRows(null)
+    try {
+      const list = await fetchMacSkills(mac.base, mac.token)
+      saveMac(mac)
+      setRows(list)
+      if (!list.length) setErr('That Mac has no skills yet.')
+    } catch (e) {
+      const m = String(e.message || e)
+      setErr(m === 'bad_address' ? 'That does not look like an address. Try 100.x.y.z:5834.'
+        : m === 'unauthorized' ? 'The Mac refused that token. Copy it again from Settings → Devices on the Mac.'
+        : 'Could not reach that Mac. Check both are on Tailscale and Radiant is open on the Mac.')
+    }
+    setBusy(false)
+  }, { label: 'Connect' })
+
+  const cancel = usePress(() => onCancel?.(), { label: 'Cancel' })
+  const done = usePress(() => onDone?.(), { label: 'Done' })
+
+  const take = (r) => {
+    saveSkill({ name: r.name, body: r.body })
+    setTaken(t => [...t, r.id])
+  }
+
+  return (
+    <div className="rx-skill-edit">
+      {!rows && <>
+        <input
+          className="rx-skill-name"
+          placeholder="Your Mac — 100.x.y.z:5834"
+          value={mac.base}
+          autoCapitalize="off"
+          autoCorrect="off"
+          onChange={e => setMac(m => ({ ...m, base: e.target.value }))}
+        />
+        <input
+          className="rx-skill-name"
+          placeholder="Sharing token"
+          value={mac.token}
+          autoCapitalize="off"
+          autoCorrect="off"
+          onChange={e => setMac(m => ({ ...m, token: e.target.value }))}
+        />
+        <div className="rx-skill-count">
+          Both on the Mac at Settings → Devices, where sharing is turned on.
+        </div>
+      </>}
+
+      {err && <div className="rx-skill-count is-tight">{err}</div>}
+
+      {rows && rows.map(r => {
+        const already = taken.includes(r.id)
+        return (
+          <MacRow key={r.id} row={r} already={already} onTake={() => take(r)} />
+        )
+      })}
+
+      <div className="rx-skill-actions">
+        <span className={'rx-skill-cancel' + cancel.className} {...cancel.handlers}>Cancel</span>
+        {rows
+          ? <span className={'rx-skill-save' + done.className} {...done.handlers}>Done</span>
+          : <span className={'rx-skill-save' + connect.className} {...connect.handlers}>{busy ? 'Connecting…' : 'Connect'}</span>}
+      </div>
+    </div>
+  )
+}
+
+function MacRow ({ row, already, onTake }) {
+  const press = usePress(() => { if (!row.reason && !already) onTake() }, { label: `Add ${row.name}` })
+  return (
+    <div className={'rx-mac-row' + (row.reason ? ' is-off' : '') + press.className} {...(row.reason ? {} : press.handlers)}>
+      <div className="rx-row-text">
+        <div className="rx-headline">{row.name}</div>
+        <div className="rx-row-blurb">{row.reason || row.body}</div>
+      </div>
+      <span className="rx-mac-take">{row.reason ? '—' : already ? '✓' : 'Add'}</span>
+    </div>
+  )
+}
+
 export default function SkillsScreen () {
   const [skills, setSkills] = useState(() => listSkills())
-  const [editing, setEditing] = useState(null)   // skill object, or 'new', or null
+  const [editing, setEditing] = useState(null)   // skill object, or 'new' | 'paste' | 'mac', or null
+  const [note, setNote] = useState('')
+  const fileRef = React.useRef(null)
 
   const refresh = useCallback(() => setSkills(listSkills()), [])
   useEffect(() => onSkillsChanged(refresh), [refresh])
 
-  const add = usePress(() => setEditing('new'), { label: 'New skill' })
+  const add = usePress(() => { setNote(''); setEditing('new') }, { label: 'New skill' })
+  const paste = usePress(() => { setNote(''); setEditing('paste') }, { label: 'Paste a skill' })
+  const fromMac = usePress(() => { setNote(''); setEditing('mac') }, { label: 'Import from your Mac' })
+
+  /**
+   * ⚠️ A PLAIN FILE INPUT, ON PURPOSE. In the app's web view this opens iOS's
+   * own document picker, which already browses Files and iCloud Drive — no
+   * native code, no extra permission, and it works in a browser too so the
+   * harness can drive it. Receiving a .md from another app's share sheet is a
+   * separate thing and is NOT what this does.
+   */
+  const onFile = async (e) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    try {
+      const parsed = parseSkillMarkdown(await file.text(), file.name)
+      if (!parsed.body) { setNote('That file had nothing in it.'); return }
+      if (parsed.tooLong) {
+        setNote(`“${parsed.name}” is ${parsed.length} characters — ${parsed.length - MAX_SKILL_CHARS} too many for the phone. Shorten it and try again.`)
+        return
+      }
+      saveSkill({ name: parsed.name, body: parsed.body })
+      setNote(`Added “${parsed.name}”.`)
+      refresh()
+    } catch { setNote('That file could not be read.') }
+  }
+  const fromFile = usePress(() => fileRef.current?.click(), { label: 'Import from a file' })
 
   return (
     <>
@@ -90,9 +258,26 @@ export default function SkillsScreen () {
         composer when you want it — nothing here changes your other chats.
       </p>
 
-      {editing === 'new'
-        ? <Editor onDone={() => { setEditing(null); refresh() }} onCancel={() => setEditing(null)} />
-        : <div className={'rx-skill-add' + add.className} {...add.handlers}>New skill</div>}
+      {editing === 'new' && <Editor onDone={() => { setEditing(null); refresh() }} onCancel={() => setEditing(null)} />}
+      {editing === 'paste' && <PasteImport onDone={() => { setEditing(null); refresh() }} onCancel={() => setEditing(null)} />}
+      {editing === 'mac' && <MacImport onDone={() => { setEditing(null); refresh() }} onCancel={() => setEditing(null)} />}
+
+      {!editing && <>
+        <div className={'rx-skill-add' + add.className} {...add.handlers}>New skill</div>
+        <div className="rx-group">
+          <div className={'rx-row rx-pressable' + paste.className} {...paste.handlers}>
+            <div className="rx-row-text"><div className="rx-headline">Paste a skill</div></div>
+          </div>
+          <div className={'rx-row rx-pressable' + fromFile.className} {...fromFile.handlers}>
+            <div className="rx-row-text"><div className="rx-headline">Import from a file</div></div>
+          </div>
+          <div className={'rx-row rx-pressable' + fromMac.className} {...fromMac.handlers}>
+            <div className="rx-row-text"><div className="rx-headline">Import from your Mac</div></div>
+          </div>
+        </div>
+        <input ref={fileRef} type="file" accept=".md,.markdown,.txt,text/markdown,text/plain" hidden onChange={onFile} />
+      </>}
+      {note && <p className="rx-screen-intro">{note}</p>}
 
       <div className="rx-group">
         {skills.length === 0 && (

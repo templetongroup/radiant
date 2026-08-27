@@ -407,6 +407,72 @@ await page.waitForTimeout(600)
   await p3.close()
 }
 
+// ── ⚠️ GETTING A SKILL ONTO THE PHONE WITHOUT TYPING IT ──────────────────
+// Tony asked for an upload option and got one on the Mac only; the phone could
+// still only be typed into. Three routes now: paste, a file, and the Mac. All
+// three refuse a body over the budget rather than trimming it, because a skill
+// cut in half still looks like a skill and quietly stops working.
+{
+  const p4 = await browser.newPage({ viewport: { width: 393, height: 852 }, deviceScaleFactor: 3 })
+  await p4.goto(BASE, { waitUntil: 'networkidle' })
+  await p4.waitForTimeout(600)
+  // ⚠️ ROWS, NOT TEXT. `text="Skills"` matches the section HEADING as well as
+  // the row, and the heading goes nowhere — the first attempt at this test sat
+  // on the Settings screen thinking it had navigated.
+  const row = async (label) => {
+    const el = p4.locator('.rx-row.rx-pressable').filter({ has: p4.locator('.rx-headline', { hasText: new RegExp(`^${label}$`) }) }).first()
+    if (!(await el.count())) return false
+    await el.click({ force: true }); await p4.waitForTimeout(400); return true
+  }
+  const go = async (label) => {
+    const el = p4.locator(`text=${JSON.stringify(label)}`).first()
+    if (!(await el.count())) return false
+    await el.click({ force: true }); await p4.waitForTimeout(350); return true
+  }
+  await p4.locator('[aria-label="Settings"]').first().click({ force: true })
+  await p4.waitForTimeout(500)
+  ok('Settings has a Skills row', await row('Skills'))
+  const screen = await p4.locator('body').innerText()
+  ok('the phone offers all three ways in', /Paste a skill/.test(screen) && /Import from a file/.test(screen) && /Import from your Mac/.test(screen))
+
+  // paste a real SKILL.md
+  ok('Paste a skill opens', await row('Paste a skill'))
+  const box = p4.locator('textarea').first()
+  await box.fill(['---', 'name: House style', 'description: how we write', '---', '', '# House style', '', 'Use US English. Never British spelling.'].join('\n'))
+  await p4.waitForTimeout(300)
+  const preview = await p4.locator('.rx-skill-count').first().innerText().catch(() => '')
+  ok('it reads the name out of the frontmatter', /House style/.test(preview))
+  await p4.locator('text="Add"').first().click({ force: true })
+  await p4.waitForTimeout(400)
+  const after = await p4.locator('body').innerText()
+  ok('and the pasted skill is in the library', /House style/.test(after) && /Never British spelling/.test(after))
+
+  // ⚠️ TOO LONG MUST BE REFUSED, NOT TRIMMED.
+  await row('Paste a skill')
+  await p4.locator('textarea').first().fill('x'.repeat(1200))
+  await p4.waitForTimeout(300)
+  const warn = await p4.locator('.rx-skill-count').first().innerText().catch(() => '')
+  ok('an oversized skill says how much too long it is', /too many/.test(warn))
+  const addBtn = p4.locator('.rx-skill-save').first()
+  ok('and Add is visibly unavailable', (await addBtn.getAttribute('class') || '').includes('is-off'))
+  await p4.locator('text="Cancel"').first().click({ force: true })
+  await p4.waitForTimeout(300)
+
+  // the Mac route asks for an address before it claims anything
+  await row('Import from your Mac')
+  // ⚠️ PLACEHOLDERS ARE NOT innerText. Reading the body text here quietly
+  // asserted nothing about the two fields that matter.
+  const holders = await p4.locator('.rx-skill-edit input').evaluateAll(els => els.map(e => e.placeholder))
+  ok('the Mac route asks where the Mac is', holders.some(h => /100\.x\.y\.z:5834/.test(h)) && holders.some(h => /token/i.test(h)))
+  const hint = await p4.locator('body').innerText()
+  ok('and says where to find both', /Settings . Devices/.test(hint))
+  await p4.locator('text="Connect"').first().click({ force: true })
+  await p4.waitForTimeout(1200)
+  const macErr = await p4.locator('body').innerText()
+  ok('and says so plainly when there is no address', /does not look like an address/.test(macErr))
+  await p4.close()
+}
+
 console.log(results.join('\n'))
 console.log(`${pass}/${pass + fail} passed  ·  the app was RUN, not read`)
 await browser.close()

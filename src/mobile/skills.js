@@ -161,3 +161,78 @@ export function parseSlash (body, rows = listSkills()) {
   return { text: rest || `Use the ${skill.name} skill.`, skill }
 }
 
+/**
+ * Read a SKILL.md (or any markdown) into a phone skill.
+ *
+ * ⚠️ NEVER SILENTLY TRUNCATE. A skill cut in half still looks like a skill and
+ * quietly stops working, which is worse than refusing it. `tooLong` is reported
+ * and the caller has to decide; nothing here shortens anything.
+ */
+export function parseSkillMarkdown (text, filename = '') {
+  const raw = String(text || '')
+  const fm = /^---\s*\n([\s\S]*?)\n---\s*\n?/.exec(raw)
+  const meta = fm ? fm[1] : ''
+  const field = k => {
+    const m = new RegExp('^' + k + ':\\s*(.+)$', 'm').exec(meta)
+    return m ? m[1].trim().replace(/^["'>]+|["']+$/g, '').trim() : ''
+  }
+  let body = (fm ? raw.slice(fm[0].length) : raw).trim()
+  // A leading "# Title" is the document's name, not an instruction.
+  const h1 = /^#\s+(.+)\s*\n+/.exec(body)
+  const heading = h1 ? h1[1].trim() : ''
+  if (h1) body = body.slice(h1[0].length).trim()
+
+  const name = (field('name') || heading ||
+    filename.replace(/\.(md|markdown|txt)$/i, '').replace(/[-_]/g, ' ')).slice(0, 60).trim()
+  return { name, body, tooLong: body.length > MAX_SKILL_CHARS, length: body.length }
+}
+
+// ── the Mac ──────────────────────────────────────────────────────────────────
+
+const MAC_KEY = 'radiant.phone.mac'
+
+export const readMac = () => {
+  try { return JSON.parse(localStorage.getItem(MAC_KEY) || 'null') || { base: '', token: '' } }
+  catch { return { base: '', token: '' } }
+}
+export const saveMac = (mac) => {
+  try { localStorage.setItem(MAC_KEY, JSON.stringify(mac)) } catch { /* private mode */ }
+}
+
+/** `100.1.2.3:5834`, `host.local:5834` or a full URL all become one origin. */
+export function macOrigin (input) {
+  let v = String(input || '').trim().replace(/\/+$/, '')
+  if (!v) return ''
+  if (!/^https?:\/\//i.test(v)) v = 'http://' + v
+  try { return new URL(v).origin } catch { return '' }
+}
+
+/**
+ * Fetch the Mac's skills.
+ *
+ * ⚠️ MOST MAC SKILLS CANNOT WORK HERE, AND THE HONEST ANSWER IS TO SAY SO. A
+ * library skill's text is one line — "read SKILL.md in this skill's folder" —
+ * and the phone has no folder and no way to read one. Those come back flagged
+ * `reason`, shown and disabled, rather than imported as an instruction that
+ * points at nothing.
+ */
+export async function fetchMacSkills (base, token) {
+  const origin = macOrigin(base)
+  if (!origin) throw new Error('bad_address')
+  const res = await fetch(origin + '/api/config', {
+    headers: token ? { 'x-radiant-token': token } : {},
+    cache: 'no-store'
+  })
+  if (res.status === 401 || res.status === 403) throw new Error('unauthorized')
+  if (!res.ok) throw new Error('http_' + res.status)
+  const cfg = await res.json()
+  return (cfg.skills || []).map(sk => {
+    const body = String(sk.content || '').trim()
+    const reason = sk.dir ? 'needs a folder — Mac only'
+      : !body ? 'empty'
+      : body.length > MAX_SKILL_CHARS ? `too long for the phone (${body.length} characters)`
+      : null
+    return { id: sk.id, name: sk.name || 'Untitled', body, reason }
+  })
+}
+

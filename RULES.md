@@ -55,12 +55,15 @@ Short on purpose. Every line is something that already cost Tony time.
     absolute at z-index 3; anything in normal flow near the bottom is drawn but
     untappable. It killed the slash list and the Skill button, and both looked
     perfect in a screenshot. `test-ui` asserts elementFromPoint now.
-18. **The phone is the other half of the app.** A convention that ships on the
+18. **Count the keyboard once.** The composer sits at `bottom: 0` and moves by
+    transform. Anything above it adds `--rx-kb` to `bottom` and must NOT also
+    transform, or it rises by two keyboard heights and lands mid-transcript.
+19. **The phone is the other half of the app.** A convention that ships on the
     Mac is not shipped until iPhone has it. `/plain-english` worked on one and
     was silently absent on the other.
-19. **No backtick in the phone's CSS comments.** `MobileChat`'s stylesheet is a
+20. **No backtick in the phone's CSS comments.** `MobileChat`'s stylesheet is a
     template literal; writing a slash command in prose closed it, the rest
     parsed as division, and `<style>` rendered NaN — every chat style gone with
     no error. `test-ui` now checks the stylesheet arrived.
-20. **A skill is read, never run.** Nothing installable may contain an
+21. **A skill is read, never run.** Nothing installable may contain an
     executable file, and the refusal names the file.
