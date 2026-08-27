@@ -49,10 +49,22 @@ export default function ChatScreen ({ nav, model, onModelInfo, chatId, downloade
 
   const [initial] = useState(() => loadChat(id)?.messages || [])
   const [nonce, setNonce] = useState(0)
+  // The skill this conversation is using, restored with the conversation.
+  const [skillId, setSkillId] = useState(() => loadChat(id)?.skillId || null)
 
   const onMessagesChange = useCallback((messages) => {
-    saveChat({ id, messages, modelId: model?.id || null, modelName: model?.name || null })
-  }, [id, model])
+    saveChat({ id, messages, modelId: model?.id || null, modelName: model?.name || null, skillId })
+  }, [id, model, skillId])
+
+  // Changing the skill has to persist even before the next message is sent,
+  // or picking one and leaving would lose it.
+  const onSkillChange = useCallback((next) => {
+    setSkillId(next)
+    const cur = loadChat(id)
+    if (cur?.messages?.length) {
+      saveChat({ id, messages: cur.messages, modelId: cur.modelId, modelName: cur.modelName, skillId: next })
+    }
+  }, [id])
 
   const onDeleteConversation = useCallback(() => {
     deleteChat(id)
@@ -82,6 +94,8 @@ export default function ChatScreen ({ nav, model, onModelInfo, chatId, downloade
       initialMessages={nonce === 0 ? initial : []}
       onMessagesChange={onMessagesChange}
       onDeleteConversation={onDeleteConversation}
+      skillId={skillId}
+      onSkillChange={onSkillChange}
     />
   )
 }

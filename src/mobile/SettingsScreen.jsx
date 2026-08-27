@@ -73,7 +73,7 @@ function Swatch ({ theme, selected, onPick }) {
 }
 
 export default function SettingsScreen ({
-  appearance, onAppearance, local = {}, models = [], onReadMe, onProviders,
+  appearance, onAppearance, local = {}, models = [], onReadMe, onProviders, onSkills,
   onGetModels, version
 }) {
   const [busy, setBusy] = useState(false)
@@ -193,6 +193,15 @@ export default function SettingsScreen ({
       {downloaded.length === 0 && (
         <p className="rx-section-footer">Nothing downloaded yet.</p>
       )}
+
+      <h2 className="rx-section-header">Skills</h2>
+      <div className="rx-group">
+        <Row label="Skills" onTap={onSkills} />
+      </div>
+      <p className="rx-section-footer">
+        Short instructions you can apply to a message — how to answer, not what to do.
+        Pick one from the composer when you want it.
+      </p>
 
       <h2 className="rx-section-header">Providers</h2>
       <div className="rx-group">

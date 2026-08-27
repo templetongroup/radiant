@@ -1,3 +1,4 @@
+import { listSkills, getSkill } from './skills.js'
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import Gauge from './Gauge.jsx'
 import * as haptics from './haptics.js'
@@ -32,19 +33,27 @@ const PROMPT_CHARS = 4000
 // The native side has no conversation memory, so multi-turn is a string we
 // rebuild on every send. Last six turns, hard-capped, ending on the bare
 // "Assistant:" the model is meant to complete.
-export function buildPrompt (messages, next) {
+export function buildPrompt (messages, next, skill) {
+  // ⚠️ A SKILL COSTS PROMPT BUDGET AND MUST BE PAID FOR, NOT ADDED ON TOP.
+  // PROMPT_CHARS is the whole budget the phone has; appending instructions
+  // without reserving room for them would push the cap over silently and the
+  // conversation would be trimmed to pay for it. The skill is reserved first,
+  // the transcript gets what is left, and the instructions sit at the front
+  // where a small model is most likely to still be following them.
+  const head = skill?.body ? `Instructions: ${String(skill.body).trim()}\n\n` : ''
+  const budget = PROMPT_CHARS - head.length
   const turns = [...messages, { role: 'user', text: next }].slice(-PROMPT_TURNS)
   // A window that opens on a reply reads as a fragment; open on the question
   // that prompted it, or on nothing.
   while (turns.length > 1 && turns[0].role === 'assistant') turns.shift()
   const blocks = turns.map(m => (m.role === 'user' ? 'User: ' : 'Assistant: ') + m.text)
   const tail = '\n\nAssistant:'
-  const fits = () => blocks.join('\n\n').length + tail.length <= PROMPT_CHARS
+  const fits = () => blocks.join('\n\n').length + tail.length <= budget
   while (blocks.length > 1 && !fits()) blocks.shift()
   // One turn on its own can still blow the cap. Keep its END: the question the
   // user just asked matters more than how the paragraph started.
-  if (!fits()) blocks[0] = blocks[0].slice(-(PROMPT_CHARS - tail.length))
-  return blocks.join('\n\n') + tail
+  if (!fits()) blocks[0] = blocks[0].slice(-(budget - tail.length))
+  return head + blocks.join('\n\n') + tail
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -320,8 +329,7 @@ export default function MobileChat ({
   onSwitchModel,
   initialMessages = [],
   onMessagesChange,
-  onDeleteConversation
-}) {
+  onDeleteConversation, skillId = null, onSkillChange}) {
   const [messages, setMessages] = useState(initialMessages)
   const [draft, setDraft] = useState('')
   const [live, setLive] = useState(null) // { marker, error } for the turn being generated
@@ -329,6 +337,8 @@ export default function MobileChat ({
   const [showJump, setShowJump] = useState(false)
   const [menu, setMenu] = useState(false)
   const [pickModel, setPickModel] = useState(false)
+  const [pickSkill, setPickSkill] = useState(false)
+  const skill = getSkill(skillId)
   const [rate, setRate] = useState(null) // tok/s, or null when we cannot say honestly
 
   const rootRef = useRef(null)
@@ -608,7 +618,7 @@ export default function MobileChat ({
     if (!lm) return
 
     haptics.impact?.('LIGHT')
-    const prompt = buildPrompt(messages, body)
+    const prompt = buildPrompt(messages, body, skill)
     const stamp = Date.now()
     setMessages(prev => [...prev, { id: 'u' + stamp, role: 'user', text: body }])
     setDraft('')
@@ -825,6 +835,20 @@ export default function MobileChat ({
           </button>
         )}
 
+        {/* ⚠️ AN ACTIVE SKILL HAS TO BE VISIBLE. It changes every reply in this
+            conversation, and a setting you cannot see is one you cannot trust
+            or undo. The button says the skill's name when one is on, and the
+            same tap is how you clear it. */}
+        <div className='rx-chat-skillbar'>
+          <span
+            className={'rx-chat-skillpick' + (skillId ? ' is-on' : '')}
+            role='button'
+            tabIndex={0}
+            onClick={() => setPickSkill(true)}
+          >
+            {skill ? skill.name : 'Skill'}
+          </span>
+        </div>
         <div className='rx-chat-composer' ref={composerRef}>
           <textarea
             ref={taRef}
@@ -853,6 +877,27 @@ export default function MobileChat ({
             {generating ? <StopSquare /> : <ArrowUp />}
           </button>
         </div>
+
+        {pickSkill && (
+          <div className='rx-chat-menulayer' onTouchStart={() => setPickSkill(false)} onClick={() => setPickSkill(false)}>
+            <div className='rx-chat-menu rx-chat-models' role='menu' onTouchStart={e => e.stopPropagation()} onClick={e => e.stopPropagation()}>
+              <MenuRow
+                label='No skill'
+                glyph={!skillId ? <TickGlyph /> : <span style={{ width: 16 }} />}
+                onPick={() => { setPickSkill(false); onSkillChange?.(null) }}
+              />
+              {listSkills().length > 0 && <div className='rx-chat-menusep' />}
+              {listSkills().map(sk => (
+                <MenuRow
+                  key={sk.id}
+                  label={sk.name}
+                  glyph={sk.id === skillId ? <TickGlyph /> : <span style={{ width: 16 }} />}
+                  onPick={() => { setPickSkill(false); onSkillChange?.(sk.id) }}
+                />
+              ))}
+            </div>
+          </div>
+        )}
 
         {pickModel && (
           <div className='rx-chat-menulayer' onTouchStart={() => setPickModel(false)} onClick={() => setPickModel(false)}>

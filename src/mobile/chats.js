@@ -73,7 +73,7 @@ function titleFrom (messages) {
   return t.length > 60 ? t.slice(0, 57).trimEnd() + '…' : t
 }
 
-export function saveChat ({ id, messages, modelId, modelName }) {
+export function saveChat ({ id, messages, modelId, modelName, skillId }) {
   if (!id || !Array.isArray(messages) || !messages.length) return
   const rows = read().filter(c => c.id !== id)
   rows.unshift({
@@ -81,6 +81,11 @@ export function saveChat ({ id, messages, modelId, modelName }) {
     title: titleFrom(messages),
     modelId: modelId || null,
     modelName: modelName || null,
+    // ⚠️ THE CHOSEN SKILL BELONGS TO THE CHAT, NOT THE SCREEN. Held only in
+    // React state it would vanish on leaving the conversation, silently, and
+    // the next reply would come back in a different voice with nothing to
+    // explain why.
+    skillId: skillId || null,
     updatedAt: Date.now(),
     messages: messages.slice(-MAX_TURNS)
   })

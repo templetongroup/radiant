@@ -50,6 +50,7 @@ import HomeScreen from './HomeScreen.jsx'
 import { listChats, newChatId } from './chats.js'
 import ReadMeScreen from './ReadMeScreen.jsx'
 import ProvidersScreen from './ProvidersScreen.jsx'
+import SkillsScreen from './SkillsScreen.jsx'
 import { loadAppearance, applyAppearance } from './theme.js'
 import * as useLocalModelsMod from './useLocalModels.js'
 import * as hapticsMod from './haptics.js'
@@ -360,7 +361,8 @@ const SCREENS = {
   chat: { title: '', large: false, scroll: false, bg: 'plain', bare: true },
   settings: { title: 'Settings', large: true, scroll: true, bg: 'grouped' },
   readme: { title: 'Read me', large: false, scroll: true, bg: 'grouped' },
-  providers: { title: 'Providers', large: false, scroll: true, bg: 'grouped' }
+  providers: { title: 'Providers', large: false, scroll: true, bg: 'grouped' },
+  skills: { title: 'Skills', large: false, scroll: true, bg: 'grouped' }
 }
 
 const BG = {
@@ -1138,6 +1140,8 @@ export default function MobileShell () {
         )
       case 'readme':
         return <ReadMeScreen {...common} />
+      case 'skills':
+        return <SkillsScreen {...common} />
       case 'providers':
         return <ProvidersScreen {...common} onStartChat={() => openChat(null, { fresh: true })} />
       case 'settings':
@@ -1148,6 +1152,7 @@ export default function MobileShell () {
             onAppearance={setAppearance}
             onReadMe={() => push('readme', {})}
             onProviders={() => push('providers', {})}
+            onSkills={() => push('skills', {})}
             onGetModels={() => push('models', {})}
             version={typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : null}
           />
