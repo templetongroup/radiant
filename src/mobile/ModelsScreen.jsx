@@ -189,7 +189,7 @@ function InstalledRow ({ model, active, onOpen, onInfo }) {
   )
 }
 
-function ModelRow ({ model, state, progress, unavailable, shortBy, fit, onTap, onAccessory }) {
+function ModelRow ({ model, state, progress, unavailable, shortBy, fit, failure, onTap, onAccessory }) {
   // ⚠️ THE VERDICT LABELS, IT DOES NOT FORBID — see the same note in
   // ModelPicker. Memory is an estimate and downloading is a disk operation;
   // only disk space blocks a download.
@@ -276,8 +276,15 @@ function ModelRow ({ model, state, progress, unavailable, shortBy, fit, onTap, o
           )}
         </div>
         <div className="rx-row-blurb">
+          {/* ⚠️ THE REASON WAS ALREADY HERE AND THROWN AWAY. The native layer sends
+              error.localizedDescription, useLocalModels stores it, and the
+              VoiceOver announcer reads it out — so a screen-reader user heard
+              why the download failed and everyone else got one fixed sentence
+              with nothing to act on. Out of space, offline and the server
+              refusing all looked identical. Tony hit it on Gemma 4 E4B: "i see
+              a red arrow and it says That download did not finish." */}
           {state === 'failed'
-            ? 'That download did not finish. Tap to try again.'
+            ? `${failure ? failure.replace(/\.$/, '') + '. ' : ''}Tap to try again.`
             : unavailable
               ? <span className="rx-warm">Needs {fmtGB(shortBy / GB)} more room</span>
               : tooBig
@@ -449,6 +456,7 @@ export default function ModelsScreen ({
                         model={m}
                         state={stateOf(m)}
                         progress={progress[m.id]}
+                        failure={failures[m.id]}
                         unavailable={blocked}
                         shortBy={shortBy(m)}
                         fit={fit}
