@@ -101,6 +101,17 @@ ipcMain.on('rad:open-settings', async (e, tab) => {
   settingsWin.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: 'deny' } })
   settingsWin.loadURL(`http://127.0.0.1:${port}/#${hash}`)
 })
+// ⚠️ TWO WINDOWS, TWO COPIES OF THE CONFIG. Settings is a separate renderer
+// process, so a change made there was invisible to the main window until the
+// Settings window CLOSED — the only moment anything refetched. Leave Settings
+// open, which is normal, and every new chat kept using the old default model
+// while the picker showed the new one. Relay the change immediately instead.
+ipcMain.on('rad:config-changed', e => {
+  for (const w of [win, settingsWin]) {
+    if (w && !w.isDestroyed() && w.webContents !== e.sender) w.webContents.send('rad:config-changed')
+  }
+})
+
 ipcMain.on('rad:close-settings', () => { if (settingsWin && !settingsWin.isDestroyed()) settingsWin.close() })
 
 async function ensureServer () {

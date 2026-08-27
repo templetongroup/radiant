@@ -143,6 +143,15 @@ function DesktopApp () {
     else setSettingsOpen(true)
   }
 
+  // A change made in the other window, the moment it happens rather than when
+  // that window closes.
+  useEffect(() => {
+    if (!window.radiantNative?.onConfigChanged) return
+    return window.radiantNative.onConfigChanged(() => {
+      api.getConfig().then(cfg => { setConfig(cfg); applyTheme(cfg.settings) }).catch(() => {})
+    })
+  }, [])
+
   // when the separate settings window closes, pull in any changes it made
   useEffect(() => {
     if (!window.radiantNative?.onSettingsClosed) return
@@ -170,10 +179,23 @@ function DesktopApp () {
     const agentId = opts.agentId || null
     const agent = agentId ? (config.agents || []).find(a => a.id === agentId) : null
     const body = { ...(agentId ? { agentId } : {}), ...(opts.projectId ? { projectId: opts.projectId } : {}) }
-    // if the agent has no fixed model, seed with the first available model
+    // ⚠️ SENDING A MODEL OVERRIDES THE ONE THE USER CHOSE. The server picks a
+    // model in order — request, then agent, then project, then the configured
+    // default — and this always put models[0] in the request, so it won every
+    // time and Settings → Models did nothing. Tony: "when i click new session
+    // its still defaulting to claude fable 5", which was simply the first model
+    // in the list.
+    //
+    // With a default set, send nothing and let the server apply its own order;
+    // that is what makes an agent's or a project's model still win over the
+    // global default. Seeding only survives as the fallback for someone who has
+    // never chosen one, which is the case it was written for.
     if (!(agent && agent.model)) {
-      const best = models[0]
-      if (best) { body.provider = best.provider; body.model = best.id }
+      const preferred = config.settings?.defaultModel
+      if (!preferred) {
+        const best = models[0]
+        if (best) { body.provider = best.provider; body.model = best.id }
+      }
     }
     const s = await api.createSession(body)
     setSession(s)
@@ -188,8 +210,11 @@ function DesktopApp () {
 
   const newGroup = async (participantIds) => {
     const body = { participants: participantIds }
-    const best = models[0]
-    if (best) { body.provider = best.provider; body.model = best.id }
+    // Same rule as newSession: do not out-vote the configured default.
+    if (!config.settings?.defaultModel) {
+      const best = models[0]
+      if (best) { body.provider = best.provider; body.model = best.id }
+    }
     const s = await api.createSession(body)
     setSession(s); setTodos([]); setQuestion(null); setStats(null); setLive(null); setApproval(null); setError(null); setNavOpen(false)
     refreshSessions()

@@ -3,6 +3,14 @@ const { contextBridge, ipcRenderer } = require('electron')
 contextBridge.exposeInMainWorld('radiantNative', {
   setMode: mode => ipcRenderer.send('radiant:set-mode', mode),
   setBackground: color => ipcRenderer.send('radiant:set-bg', color),
+  // Settings runs in its own window with its own copy of the config. Whoever
+  // changes something says so; every other window refetches.
+  notifyConfigChanged: () => ipcRenderer.send('rad:config-changed'),
+  onConfigChanged: cb => {
+    const h = () => cb()
+    ipcRenderer.on('rad:config-changed', h)
+    return () => ipcRenderer.removeListener('rad:config-changed', h)
+  },
   openSettings: tab => ipcRenderer.send('rad:open-settings', tab),
   pickFolder: current => ipcRenderer.invoke('rad:pick-folder', current),
   saveFile: payload => ipcRenderer.invoke('rad:save-file', payload),

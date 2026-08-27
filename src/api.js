@@ -267,7 +267,17 @@ async function json (method, path, body) {
 
 export const api = {
   getConfig: () => json('GET', '/api/config'),
-  saveSettings: s => json('PUT', '/api/settings', s),
+  // ⚠️ ANNOUNCE HERE, NOT AT THE CALL SITES. Settings runs in its own Electron
+  // window with its own copy of the config, so a change there is invisible to
+  // the main window until something refetches. There are TWO save handlers —
+  // App.jsx and SettingsWindow.jsx — and putting the announcement in one of
+  // them fixed nothing, because the Settings window uses the other. One place
+  // that every caller already goes through cannot be half-wired.
+  saveSettings: async patch => {
+    const cfg = await json('PUT', '/api/settings', patch)
+    try { window.radiantNative?.notifyConfigChanged?.() } catch {}
+    return cfg
+  },
   setKey: (providerId, key, opts) => json('POST', `/api/providers/${providerId}/key`, { key, ...(opts || {}) }),
   addProvider: p => json('POST', '/api/providers', p),
   removeProvider: id => json('DELETE', `/api/providers/${id}`),
