@@ -1106,6 +1106,8 @@ code, pre, .mono { font-family: var(--font-mono); }
   background: var(--bg-raised); border: 1px solid var(--border);
   border-radius: 12px; box-shadow: var(--shadow-menu); overflow: hidden; z-index: 40;
 }
+.slash-group { padding: 8px 12px 3px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-faint); }
+.slash-group:first-child { padding-top: 6px; }
 .slash-item {
   display: flex; align-items: baseline; gap: 10px; width: 100%; text-align: left;
   padding: 8px 12px; border: none; background: transparent; color: var(--text);

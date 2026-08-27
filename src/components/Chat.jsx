@@ -983,12 +983,22 @@ export default function Chat ({ session, live, todos = [], stats, approval, ques
           )}
           {slashMatches.length > 0 && (
             <div className='slash-menu'>
-              {slashMatches.map(c => (
-                <button key={c.kind + c.cmd} className={'slash-item' + (c.kind === 'skill' ? ' is-skill' : '')} onMouseDown={e => { e.preventDefault(); applySlash(c) }}>
-                  <span className='slash-cmd'>{c.cmd}</span>
-                  {c.kind === 'skill' && <span className='slash-kind'>skill{c.enabled ? '' : ' · off elsewhere'}</span>}
-                  <span className='slash-desc'>{c.desc}</span>
-                </button>
+              {/* ⚠️ TWO SORTED RUNS LOOK LIKE ONE UNSORTED LIST. Skills and
+                  built-in commands are each alphabetical, but rendered flat the
+                  list ran a→w and then started again at c, which reads as no
+                  order at all. Tony: "stil not alphabetical." The headings make
+                  the reset visibly deliberate. */}
+              {slashMatches.map((c, i) => (
+                <React.Fragment key={c.kind + c.cmd}>
+                  {(i === 0 || slashMatches[i - 1].kind !== c.kind) && (
+                    <div className='slash-group'>{c.kind === 'skill' ? 'Skills' : 'Commands'}</div>
+                  )}
+                  <button className={'slash-item' + (c.kind === 'skill' ? ' is-skill' : '')} onMouseDown={e => { e.preventDefault(); applySlash(c) }}>
+                    <span className='slash-cmd'>{c.cmd}</span>
+                    {c.kind === 'skill' && <span className='slash-kind'>skill{c.enabled ? '' : ' · off elsewhere'}</span>}
+                    <span className='slash-desc'>{c.desc}</span>
+                  </button>
+                </React.Fragment>
               ))}
             </div>
           )}
