@@ -631,12 +631,13 @@ export default function Chat ({ session, live, todos = [], stats, approval, ques
   const slashPrompts = slashQuery ? SLASH_COMMANDS.filter(c => c.cmd.startsWith(slashQuery)).map(c => ({ ...c, kind: 'prompt' })) : []
   const slashMatches = [...slashSkills, ...slashPrompts]
   const applySlash = c => {
-    if (c.kind === 'skill') {
-      setDraft('')
-      onAddSkill?.(c.id)
-    } else {
-      setDraft(c.prompt)
-    }
+    // ⚠️ THE COMMAND GOES IN THE BOX. Hermes and Claude Code both work this way,
+    // and Radiant's own /explain and /review already did — so silently attaching
+    // the skill to the whole chat instead broke the one convention the user
+    // already knew. Tony: "I assumed that when I picked it from the list, it
+    // would insert it into the chat, and then I can send it to the agent."
+    // Now it reads as a command you can see, edit and send.
+    setDraft(c.kind === 'skill' ? c.cmd + ' ' : c.prompt)
     setTimeout(() => textareaRef.current?.focus(), 0)
   }
 
@@ -675,15 +676,29 @@ export default function Chat ({ session, live, todos = [], stats, approval, ques
       text = text ? `${ctx}\n\n${text}` : `${ctx}\n\nRebuild this element in my project (match the styles above).`
       if (designCapture.screenshot) atts = [...atts, { kind: 'image', mime: designCapture.screenshot.mime, dataB64: designCapture.screenshot.dataB64, name: 'design-capture.png' }].slice(0, 8)
     }
+    // ⚠️ RESOLVE THE COMMAND AT SEND, NOT AT PICK. A leading /slug is how the
+    // user says which skill this message uses. It is stripped from what the
+    // model reads — the skill's instructions arrive properly, in the briefing,
+    // rather than as a bare word at the top of the request.
+    let turnSkills = []
+    const lead = /^\/([\w-]+)\s*/.exec(text)
+    if (lead) {
+      const hit = skills.find(sk => slug(sk.name) === lead[1])
+      if (hit) {
+        turnSkills = [hit.id]
+        text = text.slice(lead[0].length).trim()
+        if (!text) text = `Use the ${hit.name} skill.`
+      }
+    }
     if ((!text && !atts.length) || !session) return
     // mid-turn: park the message instead of blocking; it sends when the turn settles
     if (streaming) {
-      setQueued(q => [...q, { text, attachments: atts }])
+      setQueued(q => [...q, { text, attachments: atts, skillIds: turnSkills }])
       setDraft(''); setAttachments([]); setDesignCapture(null)
       return
     }
     setDraft('')
-    onSend({ text, attachments: atts })
+    onSend({ text, attachments: atts, skillIds: turnSkills })
     setAttachments([]); setDesignCapture(null)
   }
 

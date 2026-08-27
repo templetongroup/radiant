@@ -282,6 +282,7 @@ function DesktopApp () {
     // content is { text, attachments } from the composer
     const text = typeof content === 'string' ? content : content.text
     const attachments = (typeof content === 'object' && content.attachments) || []
+    const skillIds = (typeof content === 'object' && content.skillIds) || []
     let target = session
     if (!target.provider || !target.model) {
       setError('Pick a model first (top right).')
@@ -360,7 +361,7 @@ function DesktopApp () {
           default: break
         }
         setLive({ ...liveMsg, parts: [...liveMsg.parts] })
-      })
+      }, skillIds)
     } catch (e) {
       setError(e.message)
     }

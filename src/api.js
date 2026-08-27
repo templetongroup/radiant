@@ -420,11 +420,11 @@ export async function cancelDownload (model) {
 }
 
 // POST /api/chat streams SSE back on the response body.
-export async function streamChat (sessionId, content, onEvent) {
+export async function streamChat (sessionId, content, onEvent, skillIds) {
   const res = await fetch(apiUrl('/api/chat'), {
     method: 'POST',
     headers: authHeaders({ 'content-type': 'application/json' }),
-    body: JSON.stringify({ sessionId, content })
+    body: JSON.stringify({ sessionId, content, ...(skillIds?.length ? { skillIds } : {}) })
   })
   if (!res.ok) {
     let msg = `${res.status}`

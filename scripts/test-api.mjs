@@ -155,6 +155,20 @@ await check('a chosen default model is actually used by new chats', async () => 
   return 'saved, served, and used'
 })
 
+await check('a message can name the skill it uses', async () => {
+  // The slash convention: /skill-name at the head of a message applies that
+  // skill to THAT message. The server has to accept it per-turn, not only
+  // per-session, or the command in the box means nothing.
+  const src = readFileSync('server/index.js', 'utf8')
+  ok(/skillIds: turnSkillIds/.test(src), '/api/chat does not read skillIds from the request')
+  ok(/\.\.\.\(Array\.isArray\(turnSkillIds\) \? turnSkillIds : \[\]\)/.test(src),
+     'per-turn skills are not merged into the turn')
+  const client = readFileSync('src/components/Chat.jsx', 'utf8')
+  ok(/setDraft\(c\.kind === 'skill' \? c\.cmd/.test(client), 'picking a skill does not put the command in the box')
+  ok(/const lead = \/\^\\\/\(\[/.test(client) || /lead = \//.test(client), 'the leading command is not parsed at send')
+  return 'per-turn, parsed at send'
+})
+
 await check('a skill added to one chat reaches that chat only', async () => {
   const sk = (await api('POST', '/api/skills', { name: 'Chat only skill', content: 'do the chat thing' })).json
   const made = (await api('GET', '/api/config')).json.skills.find(x => x.name === 'Chat only skill')

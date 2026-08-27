@@ -1784,7 +1784,13 @@ app.post('/api/sessions/:id/truncate', (req, res) => {
 // ---------- chat (SSE) ----------
 app.post('/api/chat', async (req, res) => {
   config = loadConfig() // see the latest keys/oauth before the turn
-  const { sessionId, content } = req.body
+  // ⚠️ A SLASH SKILL APPLIES TO THE MESSAGE THAT CARRIES IT. Hermes and Claude
+  // Code both work this way: the command goes into the box, and sending it is
+  // what invokes the skill. Radiant attached the skill to the whole chat
+  // instead, silently, which is why Tony could not tell whether anything had
+  // happened. skillIds here is per-turn; session.skillIds still exists for a
+  // skill deliberately pinned to a conversation.
+  const { sessionId, content, skillIds: turnSkillIds } = req.body
   const session = loadSession(sessionId)
   if (!session) return res.status(404).json({ error: 'session not found' })
   if (activeTurns.has(sessionId)) return res.status(409).json({ error: 'a turn is already running' })
@@ -1845,7 +1851,10 @@ app.post('/api/chat', async (req, res) => {
   const agentSkillIds = new Set(agent?.skills || [])
   // Three sources now: on for everything, carried by the agent, or added to this
   // chat with a slash command.
-  const chatSkillIds = new Set(Array.isArray(session.skillIds) ? session.skillIds : [])
+  const chatSkillIds = new Set([
+    ...(Array.isArray(session.skillIds) ? session.skillIds : []),
+    ...(Array.isArray(turnSkillIds) ? turnSkillIds : [])
+  ])
   const mergedSkills = allSkills.filter(s => s.enabled || agentSkillIds.has(s.id) || chatSkillIds.has(s.id))
 
   // MCP tools from enabled servers, bridged into the tool set
