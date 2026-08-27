@@ -340,7 +340,7 @@ export default function MobileChat ({
   onSwitchModel,
   initialMessages = [],
   onMessagesChange,
-  onDeleteConversation, skillId = null, onSkillChange}) {
+  onDeleteConversation, skillId = null, onSkillChange, onManageSkills}) {
   const [messages, setMessages] = useState(initialMessages)
   const [draft, setDraft] = useState('')
   const [live, setLive] = useState(null) // { marker, error } for the turn being generated
@@ -371,6 +371,7 @@ export default function MobileChat ({
   const scrollRef = useRef(null)
   const sentinelRef = useRef(null)
   const composerRef = useRef(null)
+  const skillbarRef = useRef(null)
   const taRef = useRef(null)
   const liveNode = useRef(null)
   const bufRef = useRef('')
@@ -427,13 +428,19 @@ export default function MobileChat ({
     const measure = () => {
       const n = navRef.current?.offsetHeight || 0
       const c = composerRef.current?.offsetHeight || 0
+      // The skill bar rides above the composer, so it is chrome too — its
+      // height has to reach the scroller's padding or the last message sits
+      // underneath it.
+      const b = skillbarRef.current?.offsetHeight || 0
       root.style.setProperty('--rx-chat-navh', n + 'px')
       root.style.setProperty('--rx-chat-composerh', c + 'px')
+      root.style.setProperty('--rx-chat-barh', b + 'px')
       setNavH(n)
     }
     const ro = new ResizeObserver(measure)
     if (navRef.current) ro.observe(navRef.current)
     if (composerRef.current) ro.observe(composerRef.current)
+    if (skillbarRef.current) ro.observe(skillbarRef.current)
     measure()
     return () => ro.disconnect()
   }, [])
@@ -872,7 +879,7 @@ export default function MobileChat ({
             conversation, and a setting you cannot see is one you cannot trust
             or undo. The button says the skill's name when one is on, and the
             same tap is how you clear it. */}
-        <div className='rx-chat-skillbar'>
+        <div className='rx-chat-skillbar' ref={skillbarRef} hidden={slashList.length > 0}>
           <span
             className={'rx-chat-skillpick' + (skillId ? ' is-on' : '')}
             role='button'
@@ -946,6 +953,14 @@ export default function MobileChat ({
                   onPick={() => { setPickSkill(false); onSkillChange?.(sk.id) }}
                 />
               ))}
+              {onManageSkills && <>
+                <div className='rx-chat-menusep' />
+                <MenuRow
+                  label='Edit skills…'
+                  glyph={<span style={{ width: 16 }} />}
+                  onPick={() => { setPickSkill(false); onManageSkills() }}
+                />
+              </>}
             </div>
           </div>
         )}
@@ -1076,7 +1091,7 @@ const CSS = `
   scrollbar-width: none;
   display: flex; flex-direction: column;
   padding: calc(var(--rx-chat-navh, 96px) + 8px) 16px
-           calc(var(--rx-chat-composerh, 64px) + var(--rx-kb) + 16px);
+           calc(var(--rx-chat-composerh, 64px) + var(--rx-chat-barh, 0px) + var(--rx-kb) + 16px);
 }
 .rx-chat-scroll::-webkit-scrollbar { display: none; }
 .rx-chat-sentinel { height: 1px; flex: none; margin-bottom: -1px; }

@@ -793,13 +793,23 @@ code, pre, .mono { font-family: var(--font-mono); }
 .model-group-label .mg-caret { font-size: 8px; width: 10px; }
 .model-group-label .mg-name { flex: 1; text-align: left; }
 .model-group-label .mg-count { text-transform: none; letter-spacing: 0; font-weight: 500; color: var(--text-faint); background: var(--bg-hover); border-radius: 999px; padding: 0 6px; font-size: 10px; }
+.model-group-label.is-static { cursor: default; }
+.model-group-label.is-static:hover { color: var(--text-faint); }
 .model-option {
-  display: block; width: 100%; text-align: left;
+  display: flex; align-items: center; gap: 8px; width: 100%; text-align: left;
   padding: 6px 10px; border: none; border-radius: 7px;
   background: transparent; color: var(--text);
   font-family: var(--font-mono); font-size: 12px;
-  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
 }
+.model-option .mo-name { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.model-option .mo-provider { font-family: var(--font-sans, inherit); font-size: 10.5px; color: var(--text-faint); flex-shrink: 0; }
+/* ⚠️ THE STAR IS A SECOND CONTROL INSIDE A BUTTON. It only appears on hover or
+   when set, so a long list is not a wall of outlines — but it is always there
+   for the keyboard and always hit-testable, never display:none. */
+.model-option .mo-pin { flex-shrink: 0; width: 16px; text-align: center; color: var(--text-faint); opacity: 0; font-size: 12px; }
+.model-option:hover .mo-pin, .model-option .mo-pin.is-on { opacity: 1; }
+.model-option .mo-pin.is-on { color: var(--accent); }
+.model-option .mo-pin:hover { color: var(--accent-hot); }
 .model-option:hover { background: var(--bg-hover); }
 .model-option.selected { background: var(--accent-wash); color: var(--accent-hot); }
 .model-menu .empty { padding: 16px; color: var(--text-muted); font-size: 12.5px; }

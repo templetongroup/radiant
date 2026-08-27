@@ -363,6 +363,50 @@ await page.waitForTimeout(600)
   await p2.close()
 }
 
+// ── ⚠️ THE SKILLS LIBRARY HAS TO BE REACHABLE FROM THE COMPOSER ─────────
+// Two bugs in one report. The Skill button sat in normal flow underneath the
+// composer (position:absolute, z-index 3), so every tap landed in the text
+// field and the picker had never once opened on a phone. And the library was
+// only ever under Settings → Skills. Tony: "i dont see anywhere in ios to add
+// skills." Runs on its own page because it navigates away from the chat.
+{
+  const p3 = await browser.newPage({ viewport: { width: 393, height: 852 }, deviceScaleFactor: 3 })
+  await p3.goto(BASE, { waitUntil: 'networkidle' })
+  await p3.waitForTimeout(600)
+  await p3.locator('text="New chat"').first().click({ force: true })
+  await p3.waitForTimeout(500)
+
+  const btn = p3.locator('.rx-chat-skillpick').first()
+  ok('the composer has a skill button', await btn.count() > 0)
+  // ⚠️ THE TAP HAS TO REACH IT. Asserting the topmost element at the button's
+  // own centre is the check that would have caught this the first time.
+  const reachable = await p3.evaluate(() => {
+    const el = document.querySelector('.rx-chat-skillpick')
+    const r = el.getBoundingClientRect()
+    return el.contains(document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2))
+  })
+  ok('and nothing is covering it', reachable)
+
+  await btn.click({ force: true })
+  await p3.waitForTimeout(400)
+  const menuText = await p3.locator('.rx-chat-menu').first().innerText().catch(() => '')
+  ok('tapping it opens the picker', /Plain English/.test(menuText))
+  ok('which offers a way to edit them', /Edit skills/.test(menuText))
+
+  // ⚠️ DON'T LET A BROKEN LAYOUT KILL THE RUN. When the button was covered this
+  // timed out after 30s and the process died, which reports as a crash rather
+  // than as the named assertion that actually failed.
+  let landed = false
+  try {
+    await p3.locator('text="Edit skills…"').first().click({ force: true, timeout: 4000 })
+    await p3.waitForTimeout(600)
+    const screen = await p3.locator('body').innerText()
+    landed = /New skill/.test(screen) && /Plain English/.test(screen)
+  } catch { landed = false }
+  ok('and that lands on the skills library', landed)
+  await p3.close()
+}
+
 console.log(results.join('\n'))
 console.log(`${pass}/${pass + fail} passed  ·  the app was RUN, not read`)
 await browser.close()

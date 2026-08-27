@@ -51,12 +51,16 @@ Short on purpose. Every line is something that already cost Tony time.
 15. **Anything two Macs both edit needs its own file.** iCloud Drive has no
     merge; the later write wins and the other Mac's work is gone.
 16. **Nothing temporary belongs in a file that syncs.**
-17. **The phone is the other half of the app.** A convention that ships on the
+17. **On the phone, check that a tap can REACH the control.** The composer is
+    absolute at z-index 3; anything in normal flow near the bottom is drawn but
+    untappable. It killed the slash list and the Skill button, and both looked
+    perfect in a screenshot. `test-ui` asserts elementFromPoint now.
+18. **The phone is the other half of the app.** A convention that ships on the
     Mac is not shipped until iPhone has it. `/plain-english` worked on one and
     was silently absent on the other.
-18. **No backtick in the phone's CSS comments.** `MobileChat`'s stylesheet is a
+19. **No backtick in the phone's CSS comments.** `MobileChat`'s stylesheet is a
     template literal; writing a slash command in prose closed it, the rest
     parsed as division, and `<style>` rendered NaN — every chat style gone with
     no error. `test-ui` now checks the stylesheet arrived.
-19. **A skill is read, never run.** Nothing installable may contain an
+20. **A skill is read, never run.** Nothing installable may contain an
     executable file, and the refusal names the file.

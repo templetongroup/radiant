@@ -2405,7 +2405,19 @@
 
 /* Skills: the chosen one rides above the composer, because it changes every
    reply and a hidden setting is one nobody can undo. */
-.is-native .rx-chat-skillbar { display: flex; padding: 0 14px 6px; }
+/* ⚠️ ABOVE THE COMPOSER, AND ABOVE IT IN THE STACK. In normal flow this bar
+   sat at the same height as the composer, which is position:absolute at
+   z-index 3 — so the Skill button was drawn but every tap landed in the text
+   field, and the picker had never once opened on a phone. Tony: "i dont see
+   anywhere in ios to add skills." Same bug, same fix, as the slash list. */
+.is-native .rx-chat-skillbar {
+  position: absolute; z-index: 4; left: 14px; right: 14px;
+  bottom: calc(var(--rx-chat-composerh, 64px) + var(--rx-kb) + 6px);
+  display: flex; padding: 0;
+  transform: translate3d(0, calc(-1 * var(--rx-kb)), 0);
+  transition: transform var(--rx-kb-dur, 250ms) var(--rx-down);
+}
+.is-native .rx-chat-skillbar[hidden] { display: none; }
 .is-native .rx-chat-skillpick {
   display: inline-flex; align-items: center; gap: 5px;
   padding: 3px 11px; border-radius: 999px;

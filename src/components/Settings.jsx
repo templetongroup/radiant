@@ -2236,7 +2236,8 @@ const GUIDE = [
       ['If a Mac shows no projects', 'Settings → Devices → “Where it is now”. If Radiant says nothing there is syncing, press “Fix this folder” — it stands up a folder iCloud will actually sync, copies your setup in, and keeps the old one alongside.'],
       ['Skill library', 'Settings → Skills → Skill library holds 270 ready-made skills that ship with Radiant, grouped and searchable — languages and frameworks, design, data, security, research and more. Search it, read the whole skill before you add it, and added skills start switched off.'],
       ['Upload a skill folder', 'A skill can be a folder — a SKILL.md with notes and references beside it. Upload one in Settings → Skills. Radiant refuses any folder containing a runnable file, and names it: a skill is read, never executed.'],
-      ['Use a skill for one message', 'Type / in the composer, pick a skill, and the command goes in the box. It applies to that message only. Works the same on iPhone.'],
+      ['Pin the models you use', 'In a chat, open the model picker and click the star beside a model. Pinned models sit in their own group at the top. Pins are per-Mac — a model this Mac cannot run is not worth pinning on it.'],
+      ['Use a skill for one message', 'Type / in the composer, pick a skill, and the command goes in the box. It applies to that message only. Works the same on iPhone — and on iPhone the Skill button above the composer opens the same list, with “Edit skills…” at the bottom to write your own.'],
       ['Skills that build themselves', 'When an agent notices a repeatable workflow it suggests a reusable skill; review the full description and Add or Reject it in Settings → Skills.']
     ]
   },

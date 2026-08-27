@@ -96,6 +96,12 @@ export default function ChatScreen ({ nav, model, onModelInfo, chatId, downloade
       onDeleteConversation={onDeleteConversation}
       skillId={skillId}
       onSkillChange={onSkillChange}
+      // ⚠️ A LIBRARY YOU CANNOT REACH FROM WHERE YOU USE IT. Skills lived only
+      // under Settings → Skills, three taps from the composer that applies
+      // them, and Tony went looking and reported the phone had no way to add
+      // one at all. The picker is where you find out you want a different
+      // skill, so the way to write one belongs in the picker.
+      onManageSkills={() => nav.push('skills', {})}
     />
   )
 }

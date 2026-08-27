@@ -328,11 +328,38 @@ function AssistantMessage ({ parts, thinking, thinkingActive, thinkingSecs, stre
   )
 }
 
+/**
+ * ⚠️ PINS ARE PER-MAC, AND DELIBERATELY NOT SYNCED. Which models you reach for
+ * depends on what this Mac can actually run — a 27B local model pinned on the
+ * desktop is noise on the laptop that cannot load it. Same reasoning as
+ * rule 15, and localStorage keeps it out of the synced config entirely
+ * (rule 16), the same way the activity panel remembers itself.
+ */
+const PINS_KEY = 'radiant.pinnedModels'
+const pinId = m => `${m.provider}::${m.id}`
+const readPins = () => {
+  try {
+    const raw = JSON.parse(localStorage.getItem(PINS_KEY) || '[]')
+    return Array.isArray(raw) ? raw.filter(x => typeof x === 'string') : []
+  } catch { return [] }
+}
+
 function ModelPicker ({ session, models, onPick, onRefresh }) {
   const [open, setOpen] = useState(false)
   const [q, setQ] = useState('')
   const [collapsed, setCollapsed] = useState({}) // providerName -> explicit collapse override
+  const [pins, setPins] = useState(readPins)
   const ref = useRef(null)
+
+  const togglePin = (m, e) => {
+    e.stopPropagation()   // pinning is not picking
+    const id = pinId(m)
+    setPins(prev => {
+      const next = prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+      try { localStorage.setItem(PINS_KEY, JSON.stringify(next)) } catch { /* private mode */ }
+      return next
+    })
+  }
 
   useEffect(() => {
     const close = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
@@ -346,6 +373,10 @@ function ModelPicker ({ session, models, onPick, onRefresh }) {
   const current = models.find(m => m.id === session?.model && m.provider === session?.provider)
   const currentProvider = current?.providerName || session?.provider
   const searching = q.trim().length > 0
+  // Pins keep the order they were added in, and a pin for a model this Mac can
+  // no longer see simply does not render — it is not an error, and the pin
+  // stays put in case the provider comes back.
+  const pinned = pins.map(id => filtered.find(m => pinId(m) === id)).filter(Boolean)
   // collapsed by default except the current provider; search expands everything
   const isCollapsed = g => !searching && (g in collapsed ? collapsed[g] : g !== currentProvider)
   const toggleGroup = g => setCollapsed(c => ({ ...c, [g]: !(g in c ? c[g] : g !== currentProvider) }))
@@ -365,6 +396,25 @@ function ModelPicker ({ session, models, onPick, onRefresh }) {
         <div className='model-menu'>
           <input autoFocus placeholder='Search models…' value={q} onChange={e => setQ(e.target.value)} />
           <div className='model-groups'>
+            {pinned.length > 0 && (
+              <div>
+                <div className='model-group-label is-static'>
+                  <span className='mg-name'>Pinned</span>
+                  <span className='mg-count'>{pinned.length}</span>
+                </div>
+                {pinned.map(m => (
+                  <button
+                    key={'pin' + pinId(m)}
+                    className={'model-option' + (m.id === session?.model && m.provider === session?.provider ? ' selected' : '')}
+                    onClick={() => { onPick(m); setOpen(false) }}
+                  >
+                    <span className='mo-name'>{m.id}</span>
+                    <span className='mo-provider'>{m.providerName}</span>
+                    <span className='mo-pin is-on' role='button' title='Unpin' onClick={e => togglePin(m, e)}>★</span>
+                  </button>
+                ))}
+              </div>
+            )}
             {Object.entries(groups).map(([g, ms]) => {
               const col = isCollapsed(g)
               return (
@@ -380,7 +430,13 @@ function ModelPicker ({ session, models, onPick, onRefresh }) {
                       className={'model-option' + (m.id === session?.model && m.provider === session?.provider ? ' selected' : '')}
                       onClick={() => { onPick(m); setOpen(false) }}
                     >
-                      {m.id}
+                      <span className='mo-name'>{m.id}</span>
+                      <span
+                        className={'mo-pin' + (pins.includes(pinId(m)) ? ' is-on' : '')}
+                        role='button'
+                        title={pins.includes(pinId(m)) ? 'Unpin' : 'Pin to the top'}
+                        onClick={e => togglePin(m, e)}
+                      >{pins.includes(pinId(m)) ? '★' : '☆'}</span>
                     </button>
                   ))}
                 </div>
