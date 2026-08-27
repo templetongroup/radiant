@@ -1,0 +1,294 @@
+[
+  {
+    "dir": "verification-loop",
+    "title": "Verify before claiming done",
+    "category": "Craft",
+    "blurb": "Build, typecheck, lint, test and scan \u2014 in that order \u2014 before saying a change works.",
+    "files": [],
+    "bytes": 2625,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "tdd-workflow",
+    "title": "Test-driven workflow",
+    "category": "Craft",
+    "blurb": "Write the failing test first, then the code that passes it.",
+    "files": [],
+    "bytes": 21462,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "coding-standards",
+    "title": "Coding standards",
+    "category": "Craft",
+    "blurb": "Naming, structure, comments and error handling that stay consistent across a codebase.",
+    "files": [],
+    "bytes": 12866,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "error-handling",
+    "title": "Error handling",
+    "category": "Craft",
+    "blurb": "Fail loudly in the right place, and never swallow an error you cannot explain.",
+    "files": [],
+    "bytes": 10984,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "codebase-onboarding",
+    "title": "Learn an unfamiliar codebase",
+    "category": "Craft",
+    "blurb": "Map an unknown repo \u2014 entry points, architecture, conventions \u2014 before changing it.",
+    "files": [],
+    "bytes": 8235,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "repo-scan",
+    "title": "Scan a repository",
+    "category": "Craft",
+    "blurb": "A fast structured read of what a repo is, what it uses and where the risk sits.",
+    "files": [],
+    "bytes": 7242,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "git-workflow",
+    "title": "Git workflow",
+    "category": "Craft",
+    "blurb": "Branching, commit hygiene, rebasing and recovering from a bad history.",
+    "files": [],
+    "bytes": 15191,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "github-ops",
+    "title": "GitHub operations",
+    "category": "Craft",
+    "blurb": "Pull requests, reviews, releases and issues driven from the command line.",
+    "files": [],
+    "bytes": 4639,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "security-review",
+    "title": "Security review",
+    "category": "Safety",
+    "blurb": "Secrets, input validation, auth, and the injection classes \u2014 with the fix for each.",
+    "files": [
+      "cloud-infrastructure-security.md"
+    ],
+    "bytes": 12493,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "production-audit",
+    "title": "Production readiness audit",
+    "category": "Safety",
+    "blurb": "What has to be true before something faces real users.",
+    "files": [],
+    "bytes": 7727,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "e2e-testing",
+    "title": "End-to-end testing",
+    "category": "Safety",
+    "blurb": "Test the path a person actually takes, not the function underneath it.",
+    "files": [],
+    "bytes": 8170,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "browser-qa",
+    "title": "Browser QA",
+    "category": "Safety",
+    "blurb": "Drive the running app in a browser and check what really renders.",
+    "files": [],
+    "bytes": 3727,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "react-patterns",
+    "title": "React patterns",
+    "category": "Stack",
+    "blurb": "Hooks discipline, state shape, and composition that does not fight the framework.",
+    "files": [],
+    "bytes": 11466,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "react-performance",
+    "title": "React performance",
+    "category": "Stack",
+    "blurb": "Find the re-render that is costing you, and fix the cause rather than memoizing around it.",
+    "files": [],
+    "bytes": 18184,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "react-testing",
+    "title": "React testing",
+    "category": "Stack",
+    "blurb": "Test components the way a user meets them.",
+    "files": [],
+    "bytes": 13168,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "swiftui-patterns",
+    "title": "SwiftUI patterns",
+    "category": "Stack",
+    "blurb": "State, layout and navigation patterns for SwiftUI.",
+    "files": [],
+    "bytes": 7039,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "swift-concurrency-6-2",
+    "title": "Swift concurrency",
+    "category": "Stack",
+    "blurb": "Actors, async/await and sendability under Swift 6 strict checking.",
+    "files": [],
+    "bytes": 8117,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "mcp-server-patterns",
+    "title": "MCP server patterns",
+    "category": "Stack",
+    "blurb": "Building and debugging Model Context Protocol servers.",
+    "files": [],
+    "bytes": 4192,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "frontend-patterns",
+    "title": "Frontend patterns",
+    "category": "Stack",
+    "blurb": "Structure, data flow and state for browser UI.",
+    "files": [],
+    "bytes": 15432,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "frontend-a11y",
+    "title": "Accessibility",
+    "category": "Design",
+    "blurb": "Keyboard, focus, contrast and screen readers \u2014 checked, not assumed.",
+    "files": [],
+    "bytes": 12724,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "design-system",
+    "title": "Design system",
+    "category": "Design",
+    "blurb": "Tokens, scale and the rules that keep an interface coherent.",
+    "files": [],
+    "bytes": 2610,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "frontend-design-direction",
+    "title": "Design direction",
+    "category": "Design",
+    "blurb": "Choosing a visual direction and holding it across screens.",
+    "files": [],
+    "bytes": 4360,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "make-interfaces-feel-better",
+    "title": "Make it feel better",
+    "category": "Design",
+    "blurb": "The small details \u2014 timing, weight, spacing \u2014 that separate good from fine.",
+    "files": [],
+    "bytes": 4795,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "motion-ui",
+    "title": "Motion",
+    "category": "Design",
+    "blurb": "Animation that carries meaning instead of decorating.",
+    "files": [],
+    "bytes": 13867,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "liquid-glass-design",
+    "title": "Liquid Glass",
+    "category": "Design",
+    "blurb": "Apple\u2019s current design language, and how to build for it.",
+    "files": [],
+    "bytes": 9119,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "article-writing",
+    "title": "Article writing",
+    "category": "Writing",
+    "blurb": "Structure and edit a piece of writing so it holds a reader.",
+    "files": [],
+    "bytes": 2926,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "deep-research",
+    "title": "Deep research",
+    "category": "Writing",
+    "blurb": "Research a question properly \u2014 sources, contradictions, and what is still unknown.",
+    "files": [],
+    "bytes": 4798,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "documentation-lookup",
+    "title": "Documentation lookup",
+    "category": "Writing",
+    "blurb": "Find and read the real docs instead of recalling an old version of them.",
+    "files": [],
+    "bytes": 4912,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "seo",
+    "title": "SEO",
+    "category": "Writing",
+    "blurb": "What actually moves search visibility, and what is folklore.",
+    "files": [],
+    "bytes": 4320,
+    "origin": "ECC",
+    "license": "MIT"
+  }
+]

@@ -1,7 +1,7 @@
 import os from 'os'
 import path from 'path'
 import crypto from 'crypto'
-import { SKILLS_ROOT } from './config.js'
+import { resolveSkillDir } from './config.js'
 import { fetchRetry, isTransient } from './util.js'
 import { TOOL_DEFS, runTool } from './tools.js'
 import { COMPUTER_TOOL_DEFS, COMPUTER_TOOL_NAMES, COMPUTER_SAFE, runComputerTool } from './computer-tools.js'
@@ -18,7 +18,7 @@ function systemPrompt (cwd, useTools, model, computerControl, skills, persona, p
     ? '\n\nPLAN MODE IS ON. Do NOT edit files, create files, or run mutating commands yet. Research the codebase (read/list/grep only), think through the approach, then present a concrete step-by-step plan by calling the exit_plan_mode tool with your plan in markdown. Only after the user approves the plan will you be able to make changes.'
     : ''
   const skillText = (skills && skills.length)
-    ? `\n\nActive skills (follow these):\n${skills.map(s => `• ${s.name}: ${s.content}${s.dir ? `\n  Skill folder: ${path.join(SKILLS_ROOT, s.dir)}` : ''}`).join('\n')}`
+    ? `\n\nActive skills (follow these):\n${skills.map(s => `• ${s.name}: ${s.content}${s.dir && resolveSkillDir(s.dir) ? `\n  Skill folder: ${resolveSkillDir(s.dir)}` : ''}`).join('\n')}`
     : ''
   return `You are a coding agent running inside Radiant, a local coding harness on the user's ${os.type() === 'Darwin' ? 'Mac' : os.type()} (${os.platform()} ${os.release()}). Radiant is the app, not you: you are the model "${model}". If asked what model you are, answer with your actual model name and maker.${personaText}
 Workspace directory: ${cwd}

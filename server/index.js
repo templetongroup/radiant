@@ -11,7 +11,7 @@ import { fileURLToPath } from 'url'
 import { WebSocketServer } from 'ws'
 import pty from 'node-pty'
 import { execSync, spawn } from 'child_process'
-import { RADIANT_DIR, DIR_POINTER, defaultDataDir, dataDirStatus, loadConfig, saveConfig, publicConfig, listSessions, loadSession, saveSession, deleteSession, searchSessions, upsertCredential, activateAccount, removeAccount, SESSIONS_DIR, listProjects, getProject, saveProject, deleteProject, migrateProjects, agentsStore, skillsStore, recipesStore, cloudStatus, MACHINE_KEYS, saveMachineSettings
+import { RADIANT_DIR, DIR_POINTER, defaultDataDir, dataDirStatus, loadConfig, saveConfig, publicConfig, listSessions, loadSession, saveSession, deleteSession, searchSessions, upsertCredential, activateAccount, removeAccount, SESSIONS_DIR, listProjects, getProject, saveProject, deleteProject, migrateProjects, agentsStore, skillsStore, recipesStore, cloudStatus, MACHINE_KEYS, saveMachineSettings, skillLibrary, inspectSkillFolder, resolveSkillDir, USER_SKILLS_ROOT
 } from './config.js'
 import { runTurn, listModels } from './providers.js'
 import { OAUTH_PROVIDERS, buildAuthUrl, completePaste, startLoopback, validAccessToken, startDevice, pollDevice } from './oauth.js'
@@ -1204,6 +1204,89 @@ app.delete('/api/skills/:id', (req, res) => {
     config.removedSkills = config.removedSkills || []
     if (!config.removedSkills.includes(id)) config.removedSkills.push(id)
   }
+  saveConfig(config)
+  res.json(publicConfig(config))
+})
+
+// ---------- skill library ----------
+//
+// A shelf of ready-made skills that ship inside the app. Nothing here is active
+// until it is added, and the whole text is readable first — see the preview
+// route. Origin ECC (github.com/affaan-m/ecc), MIT, curated down to the ones
+// that fit a Mac coding harness.
+
+const librarySummary = () => skillLibrary((config.skills || []).map(s => s.dir).filter(Boolean))
+
+app.get('/api/skill-library', (req, res) => res.json({ skills: librarySummary() }))
+
+// Full text, so the user reads a skill before it can influence a single reply.
+app.get('/api/skill-library/:dir', (req, res) => {
+  const abs = resolveSkillDir(req.params.dir)
+  if (!abs) return res.status(404).json({ error: 'not found' })
+  const row = librarySummary().find(r => r.dir === req.params.dir) || { dir: req.params.dir }
+  res.json({ ...row, ...inspectSkillFolder(abs) })
+})
+
+app.post('/api/skill-library/:dir', (req, res) => {
+  const dir = req.params.dir
+  const abs = resolveSkillDir(dir)
+  if (!abs) return res.status(404).json({ error: 'not found' })
+  if ((config.skills || []).some(s => s.dir === dir)) return res.json(publicConfig(config))
+  const row = librarySummary().find(r => r.dir === dir)
+  // The same refusal as an imported folder. The bundled set has no executable
+  // files, and this is what keeps that true rather than assumed.
+  const { executables } = inspectSkillFolder(abs)
+  if (executables.length) return res.status(400).json({ error: 'executable_files', files: executables.map(f => f.name) })
+  skillsStore.save({
+    id: 'sk-' + crypto.randomBytes(4).toString('hex'),
+    name: row?.title || dir,
+    description: row?.blurb || '',
+    dir,
+    content: `When the user's task matches this skill, read SKILL.md in this skill's folder and follow it. For other tasks, ignore this skill.`,
+    enabled: false,
+    origin: row?.origin || null
+  })
+  saveConfig(config)
+  res.json(publicConfig(config))
+})
+
+// Import a skill folder from disk. Refuses anything runnable, by name, so the
+// answer is never "something in there looked wrong".
+app.post('/api/skills/import-folder', (req, res) => {
+  const src = String(req.body?.path || '')
+  if (!src || !path.isAbsolute(src)) return res.status(400).json({ error: 'absolute path required' })
+  let st
+  try { st = fs.statSync(src) } catch { return res.status(400).json({ error: 'not_found' }) }
+  if (!st.isDirectory()) return res.status(400).json({ error: 'not_a_folder' })
+  const found = inspectSkillFolder(src)
+  if (!found.doc) return res.status(400).json({ error: 'no_skill_md' })
+  if (found.executables.length) return res.status(400).json({ error: 'executable_files', files: found.executables.map(f => f.name) })
+  const base = path.basename(src).toLowerCase().replace(/[^a-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 64)
+  if (!base || !/^[a-z0-9][a-z0-9._-]*$/.test(base)) return res.status(400).json({ error: 'bad_name' })
+  let dir = base
+  for (let n = 2; resolveSkillDir(dir) && n < 100; n++) dir = `${base}-${n}`
+  const dest = path.join(USER_SKILLS_ROOT, dir)
+  try {
+    fs.mkdirSync(USER_SKILLS_ROOT, { recursive: true })
+    // Copy only what was inspected — never the whole tree, or a file that
+    // passed no check would ride in beside the ones that did.
+    fs.mkdirSync(dest, { recursive: true })
+    fs.copyFileSync(path.join(src, 'SKILL.md'), path.join(dest, 'SKILL.md'))
+    for (const f of found.files) {
+      if (f.dir) continue
+      fs.copyFileSync(path.join(src, f.name), path.join(dest, f.name))
+    }
+  } catch (e) { return res.status(500).json({ error: 'copy_failed', detail: String(e.message || e) }) }
+  const meta = /^---\n([\s\S]*?)\n---/.exec(found.doc)
+  const field = k => (meta && new RegExp('^' + k + ':\\s*(.+)$', 'm').exec(meta[1]) || [])[1]?.trim().replace(/^["']|["']$/g, '') || ''
+  skillsStore.save({
+    id: 'sk-' + crypto.randomBytes(4).toString('hex'),
+    name: field('name') || base.replace(/[-_]/g, ' '),
+    description: field('description').slice(0, 300),
+    dir,
+    content: `When the user's task matches this skill, read SKILL.md in this skill's folder and follow it. For other tasks, ignore this skill.`,
+    enabled: false
+  })
   saveConfig(config)
   res.json(publicConfig(config))
 })

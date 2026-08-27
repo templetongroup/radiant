@@ -1,4 +1,4 @@
-import { listSkills, getSkill } from './skills.js'
+import { listSkills, getSkill, slashMatches as matchSlash, parseSlash } from './skills.js'
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import Gauge from './Gauge.jsx'
 import * as haptics from './haptics.js'
@@ -305,6 +305,17 @@ function Suggestion ({ text, onPick }) {
   )
 }
 
+/** One row in the slash list. usePress so it reacts on touch, like MenuRow. */
+function SlashRow ({ cmd, name, onPick }) {
+  const { pressed, handlers } = usePress(onPick, { haptic: 'LIGHT' })
+  return (
+    <div className={'rx-chat-slashrow' + (pressed ? ' is-pressed' : '')} role='option' {...handlers}>
+      <span className='rx-chat-slashcmd'>{cmd}</span>
+      <span className='rx-chat-slashname'>{name}</span>
+    </div>
+  )
+}
+
 function MenuRow ({ label, glyph, destructive, onPick }) {
   const { pressed, handlers } = usePress(onPick, { haptic: 'LIGHT' })
   return (
@@ -339,6 +350,20 @@ export default function MobileChat ({
   const [pickModel, setPickModel] = useState(false)
   const [pickSkill, setPickSkill] = useState(false)
   const skill = getSkill(skillId)
+
+  /**
+   * Slash commands, same convention as the Mac and as Hermes and Claude Code:
+   * type `/`, pick from the list, the COMMAND goes in the box, and it resolves
+   * when you send.
+   *
+   * ⚠️ THIS IS NOT THE SKILL BUTTON. The button beside the composer sets a
+   * skill for the whole conversation; a slash applies one to a single message
+   * and leaves the conversation alone. Both exist because both are useful, and
+   * the phone shipped with only the first — which is why `/plain-english` did
+   * nothing here while it worked on the Mac. The parsing lives in skills.js so
+   * it can be tested without a phone.
+   */
+  const slashList = matchSlash(draft).slice(0, 6)
   const [rate, setRate] = useState(null) // tok/s, or null when we cannot say honestly
 
   const rootRef = useRef(null)
@@ -612,13 +637,21 @@ export default function MobileChat ({
   }, [stick])
 
   const send = useCallback(text => {
-    const body = (text ?? draft).trim()
+    let body = (text ?? draft).trim()
     if (!body || run.current || !model) return
     const lm = plugins().LocalModels
     if (!lm) return
 
+    // ⚠️ RESOLVE THE COMMAND AT SEND, NOT AT PICK — same as the Mac. The `/slug`
+    // is stripped from what the model reads, because the skill's instructions
+    // reach it properly at the head of the prompt rather than as a bare word.
+    // A slash beats the conversation's sticky skill for this one message only.
+    const parsed = parseSlash(body)
+    const turnSkill = parsed.skill
+    body = parsed.text
+
     haptics.impact?.('LIGHT')
-    const prompt = buildPrompt(messages, body, skill)
+    const prompt = buildPrompt(messages, body, turnSkill || skill)
     const stamp = Date.now()
     setMessages(prev => [...prev, { id: 'u' + stamp, role: 'user', text: body }])
     setDraft('')
@@ -849,6 +882,24 @@ export default function MobileChat ({
             {skill ? skill.name : 'Skill'}
           </span>
         </div>
+        {/* The list a `/` brings up. Sits directly above the composer so the
+            thumb travels the shortest distance from the keyboard, and taps on
+            touchstart because a menu that waits for click feels broken here. */}
+        {slashList.length > 0 && (
+          <div className='rx-chat-slash' role='listbox'>
+            {slashList.map(c => (
+              <SlashRow
+                key={c.id}
+                cmd={c.cmd}
+                name={c.name}
+                onPick={() => {
+                  setDraft(c.cmd + ' ')
+                  requestAnimationFrame(() => taRef.current?.focus())
+                }}
+              />
+            ))}
+          </div>
+        )}
         <div className='rx-chat-composer' ref={composerRef}>
           <textarea
             ref={taRef}

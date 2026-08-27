@@ -41,10 +41,10 @@ ipcMain.on('radiant:set-bg', (e, color) => {
 // nothing visible happens, and the box springs back because the promise never
 // resolves. Tony, on a third Mac: "i cant click the ccheckbox. nothing checks
 // on."
-ipcMain.handle('rad:pick-folder', async (e, current) => {
+ipcMain.handle('rad:pick-folder', async (e, current, title) => {
   const parent = BrowserWindow.fromWebContents(e.sender) || win || undefined
   const res = await dialog.showOpenDialog(parent, {
-    title: 'Choose workspace folder',
+    title: title || 'Choose workspace folder',
     properties: ['openDirectory', 'createDirectory'],
     defaultPath: current || undefined
   })

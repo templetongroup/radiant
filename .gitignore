@@ -7,3 +7,6 @@ build/icon.iconset/
 # iOS build products — the Xcode project itself IS tracked
 apps/ios/ios/App/App/public/
 apps/ios/ios/DerivedData/
+
+# local dev conveniences
+.claude/

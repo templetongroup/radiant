@@ -119,3 +119,42 @@ export function onSkillsChanged (fn) {
   window.addEventListener('rx:skills-changed', h)
   return () => window.removeEventListener('rx:skills-changed', h)
 }
+
+/**
+ * Slash commands.
+ *
+ * `/plain-english fix this` means "use the Plain English skill for this one
+ * message". The Mac has worked this way since the day Tony pointed out that
+ * Hermes and Claude both insert the command into the box; the phone shipped
+ * without it, so typing the same thing here sent the slash to the model as
+ * literal text.
+ *
+ * Kept here, pure and exported, because the alternative is parsing inside a
+ * component nobody can test without a phone.
+ */
+export const slug = name => String(name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+
+/** Skills whose command starts with what has been typed, or [] if it is not a command. */
+export function slashMatches (draft, rows = listSkills()) {
+  if (!/^\/[\w-]*$/.test(draft || '')) return []
+  return rows.map(sk => ({ ...sk, cmd: '/' + slug(sk.name) })).filter(c => c.cmd.startsWith(draft))
+}
+
+/**
+ * Split a leading command off a message.
+ *
+ * Returns { text, skill }. The command is REMOVED from the text: the skill's
+ * instructions reach the model at the head of the prompt, where they work,
+ * rather than as a bare word at the top of the request. An unknown command is
+ * left alone — it is far likelier to be a date or a path than a typo.
+ */
+export function parseSlash (body, rows = listSkills()) {
+  const text = String(body || '').trim()
+  const lead = /^\/([\w-]+)\s*/.exec(text)
+  if (!lead) return { text, skill: null }
+  const skill = rows.find(sk => slug(sk.name) === lead[1])
+  if (!skill) return { text, skill: null }
+  const rest = text.slice(lead[0].length).trim()
+  return { text: rest || `Use the ${skill.name} skill.`, skill }
+}
+

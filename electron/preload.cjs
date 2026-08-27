@@ -12,7 +12,7 @@ contextBridge.exposeInMainWorld('radiantNative', {
     return () => ipcRenderer.removeListener('rad:config-changed', h)
   },
   openSettings: tab => ipcRenderer.send('rad:open-settings', tab),
-  pickFolder: current => ipcRenderer.invoke('rad:pick-folder', current),
+  pickFolder: (current, title) => ipcRenderer.invoke('rad:pick-folder', current, title),
   saveFile: payload => ipcRenderer.invoke('rad:save-file', payload),
   closeSettings: () => ipcRenderer.send('rad:close-settings'),
   onSettingsClosed: cb => {

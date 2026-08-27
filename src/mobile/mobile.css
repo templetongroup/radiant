@@ -2415,6 +2415,29 @@
 .is-native .rx-chat-skillpick.is-on {
   border-color: var(--rx-tint); color: var(--rx-tint); background: var(--rx-cell-2);
 }
+
+/* The `/` list. Above the composer and hard against it, so the thumb moves the
+   shortest distance from the keyboard; capped in height so a long library
+   scrolls rather than pushing the field off screen. */
+.is-native .rx-chat-slash {
+  margin: 0 14px 6px; border-radius: 12px; overflow: hidden auto; max-height: 42vh;
+  background: var(--rx-cell); border: 1px solid var(--rx-separator);
+  -webkit-overflow-scrolling: touch;
+}
+.is-native .rx-chat-slashrow {
+  display: flex; align-items: baseline; gap: 10px;
+  padding: 11px 14px; border-bottom: 1px solid var(--rx-separator);
+}
+.is-native .rx-chat-slashrow:last-child { border-bottom: none; }
+.is-native .rx-chat-slashrow.is-pressed { background: var(--rx-cell-2); }
+.is-native .rx-chat-slashcmd {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 14px; color: var(--rx-tint); flex-shrink: 0;
+}
+.is-native .rx-chat-slashname {
+  font-size: 14px; color: var(--rx-label-2);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 .is-native .rx-screen-intro { padding: 4px 16px 14px; color: var(--rx-label-2); font-size: 14px; line-height: 1.45; }
 .is-native .rx-skill-add {
   margin: 0 16px 12px; padding: 11px 14px; border-radius: 12px;

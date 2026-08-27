@@ -48,3 +48,8 @@ Short on purpose. Every line is something that already cost Tony time.
 15. **Anything two Macs both edit needs its own file.** iCloud Drive has no
     merge; the later write wins and the other Mac's work is gone.
 16. **Nothing temporary belongs in a file that syncs.**
+17. **The phone is the other half of the app.** A convention that ships on the
+    Mac is not shipped until iPhone has it. `/plain-english` worked on one and
+    was silently absent on the other.
+18. **A skill is read, never run.** Nothing installable may contain an
+    executable file, and the refusal names the file.

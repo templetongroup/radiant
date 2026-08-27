@@ -129,6 +129,78 @@ const skillsCandidates = [
 ]
 export const SKILLS_ROOT = skillsCandidates.find(p => { try { return fs.existsSync(p) } catch { return false } }) || skillsCandidates[0]
 
+// Skills the user added live in the DATA directory, not the app bundle.
+// SKILLS_ROOT is inside Radiant.app: read-only, and replaced wholesale by every
+// update. A folder written there would vanish on the next release, which is the
+// same class of bug as rule 16 — so anything the user owns goes here instead,
+// where it also syncs with the rest of their data.
+export const USER_SKILLS_ROOT = path.join(RADIANT_DIR, 'skills')
+
+/**
+ * Absolute path for a skill's `dir`, or null.
+ *
+ * ⚠️ `dir` REACHES THIS FROM A URL. It is one path segment, never a path:
+ * anything with a separator, a dot-dot, or a leading dot is refused outright
+ * rather than normalized, because normalizing is where traversal bugs hide.
+ * User skills win over bundled ones so a local edit of a library skill sticks.
+ */
+export function resolveSkillDir (dir) {
+  const name = String(dir || '')
+  if (!name || name.length > 128) return null
+  if (!/^[a-z0-9][a-z0-9._-]*$/i.test(name) || name.includes('..')) return null
+  for (const root of [USER_SKILLS_ROOT, SKILLS_ROOT]) {
+    const abs = path.join(root, name)
+    // belt and braces: the resolved path must still sit under its root
+    if (path.relative(root, abs).startsWith('..')) continue
+    try { if (fs.statSync(abs).isDirectory()) return abs } catch {}
+  }
+  return null
+}
+
+// Files a skill folder may contain. A skill is instructions the agent READS;
+// nothing in one needs to be runnable, so anything that could be executed is
+// refused at import rather than shipped and hoped about.
+const SKILL_TEXT_EXT = new Set(['.md', '.markdown', '.txt', '.json', '.yaml', '.yml', '.csv', '.svg', '.png', '.jpg', '.jpeg', '.gif', '.webp'])
+const SKILL_EXEC_EXT = new Set(['.py', '.sh', '.bash', '.zsh', '.js', '.mjs', '.cjs', '.rb', '.pl', '.php', '.command', '.scpt', '.applescript', '.app', '.exe', '.dylib', '.so'])
+
+/**
+ * Look inside a skill folder without installing it.
+ *
+ * Returns the SKILL.md text so the user can read the whole thing before it ever
+ * reaches a prompt, plus every other file split into text and executable. An
+ * import that reports `executables` is refused by the caller — see the route.
+ */
+export function inspectSkillFolder (abs) {
+  const out = { doc: '', files: [], executables: [], oversize: false }
+  let names = []
+  try { names = fs.readdirSync(abs) } catch { return out }
+  for (const n of names) {
+    if (n.startsWith('.')) continue
+    let st
+    try { st = fs.statSync(path.join(abs, n)) } catch { continue }
+    if (st.isDirectory()) { out.files.push({ name: n + '/', bytes: 0, dir: true }); continue }
+    const ext = path.extname(n).toLowerCase()
+    const rec = { name: n, bytes: st.size }
+    if (SKILL_EXEC_EXT.has(ext) || (st.mode & 0o111)) out.executables.push(rec)
+    else if (!SKILL_TEXT_EXT.has(ext)) out.executables.push({ ...rec, unknown: true })
+    else if (n !== 'SKILL.md') out.files.push(rec)
+  }
+  try {
+    const raw = fs.readFileSync(path.join(abs, 'SKILL.md'), 'utf8')
+    out.oversize = raw.length > 200_000
+    out.doc = raw.slice(0, 200_000)
+  } catch {}
+  return out
+}
+
+/** The bundled library: catalog rows, each flagged with whether it is installed. */
+export function skillLibrary (installedDirs = []) {
+  let rows = []
+  try { rows = JSON.parse(fs.readFileSync(path.join(SKILLS_ROOT, 'library.json'), 'utf8')) } catch { return [] }
+  const have = new Set(installedDirs)
+  return rows.filter(r => resolveSkillDir(r.dir)).map(r => ({ ...r, installed: have.has(r.dir) }))
+}
+
 const DEFAULT_CONFIG = {
   // A project is a named piece of work with a folder attached. Sessions point at
   // one by id. It is deliberately its OWN entity rather than being derived from

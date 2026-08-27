@@ -920,6 +920,106 @@ function parseSkillFile (filename, text) {
   return { name: name.trim(), description, content: content.trim() }
 }
 
+/**
+ * The skill library — a shelf of ready-made skills that ship inside the app.
+ *
+ * ⚠️ NOTHING IS ADDED WITHOUT BEING READABLE FIRST. A skill is text that goes
+ * into the model's instructions, so "Read it" fetches the whole SKILL.md and
+ * shows it before "Add" is worth pressing. The same reason the server refuses
+ * a skill folder containing anything runnable: a skill is read, never executed.
+ *
+ * Collapsed by default. Twenty-nine rows unfurled above the user's own skills
+ * would bury the list that actually matters.
+ */
+function SkillLibrary ({ onConfigChange }) {
+  const [open, setOpen] = useState(false)
+  const [rows, setRows] = useState(null)
+  const [reading, setReading] = useState(null)   // { dir, doc, files, executables } | 'loading'
+  const [busy, setBusy] = useState(null)
+  const [err, setErr] = useState('')
+
+  useEffect(() => {
+    if (!open || rows) return
+    api.skillLibrary().then(r => setRows(r.skills || [])).catch(() => setRows([]))
+  }, [open, rows])
+
+  const read = async dir => {
+    if (reading?.dir === dir) return setReading(null)
+    setReading({ dir, loading: true })
+    try { setReading({ ...(await api.skillLibraryOne(dir)), dir }) } catch { setReading(null) }
+  }
+
+  const install = async dir => {
+    setBusy(dir); setErr('')
+    try {
+      onConfigChange(await api.installLibrarySkill(dir))
+      setRows(rs => (rs || []).map(r => r.dir === dir ? { ...r, installed: true } : r))
+    } catch (e) {
+      setErr(String(e?.message || e).includes('executable')
+        ? 'That skill folder contains a runnable file, so it was not added.'
+        : 'Could not add that skill.')
+    }
+    setBusy(null)
+  }
+
+  const groups = []
+  for (const r of rows || []) {
+    const g = groups.find(x => x.name === r.category)
+    if (g) g.rows.push(r); else groups.push({ name: r.category, rows: [r] })
+  }
+
+  return (
+    <div className='skill-library'>
+      <button className='skill-lib-head' onClick={() => setOpen(o => !o)}>
+        <Icon.file size={14} />
+        <span className='skill-lib-title'>Skill library</span>
+        <span className='skill-lib-sub'>Ready-made skills that ship with Radiant — read one before you add it</span>
+        <span className='skill-lib-chev'>{open ? '▾' : '▸'}</span>
+      </button>
+
+      {open && rows === null && <div className='activity-empty' style={{ marginTop: 8 }}>Loading…</div>}
+      {open && rows?.length === 0 && <div className='activity-empty' style={{ marginTop: 8 }}>The library did not load.</div>}
+      {open && err && <div className='skill-lib-err'>{err}</div>}
+
+      {open && groups.map(g => (
+        <div key={g.name} className='skill-lib-group'>
+          <div className='skill-lib-cat'>{g.name}</div>
+          {g.rows.map(r => (
+            <div key={r.dir} className='skill-lib-row'>
+              <div className='skill-main'>
+                <div className='skill-name'>{r.title}</div>
+                <div className='skill-body'>{r.blurb}</div>
+              </div>
+              <button className='small-btn' onClick={() => read(r.dir)}>
+                {reading?.dir === r.dir ? 'Hide' : 'Read it'}
+              </button>
+              {r.installed
+                ? <span className='key-ok' title='Already in your skills'>✓ Added</span>
+                : <button className='small-btn primary' disabled={busy === r.dir} onClick={() => install(r.dir)}>
+                    {busy === r.dir ? 'Adding…' : 'Add'}
+                  </button>}
+              {reading?.dir === r.dir && (
+                <div className='skill-lib-doc'>
+                  {reading.loading
+                    ? <div className='activity-empty'>Loading…</div>
+                    : <>
+                        <div className='skill-lib-meta'>
+                          {Math.round((reading.doc || '').length / 1024)} KB
+                          {reading.files?.length ? ` · also ${reading.files.map(f => f.name).join(', ')}` : ''}
+                          {r.origin ? ` · from ${r.origin}, ${r.license}` : ''}
+                        </div>
+                        <pre className='sug-preview'>{reading.doc}</pre>
+                      </>}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function SkillsPane ({ config, onConfigChange }) {
   const skills = config.skills || []
   const suggestions = config.skillSuggestions || []
@@ -929,6 +1029,7 @@ function SkillsPane ({ config, onConfigChange }) {
   const [dragOver, setDragOver] = useState(false)
   const [expanded, setExpanded] = useState(null)
   const fileRef = useRef(null)
+  const [upload, setUpload] = useState(null)   // { kind: 'err' | 'ok', text }
 
   const acceptSuggestion = async id => onConfigChange(await api.acceptSkillSuggestion(id))
   const rejectSuggestion = async id => onConfigChange(await api.rejectSkillSuggestion(id))
@@ -939,6 +1040,46 @@ function SkillsPane ({ config, onConfigChange }) {
     const cfg = await api.addSkill({ name: name.trim(), content: content.trim() })
     setName(''); setContent(''); setAdding(false)
     onConfigChange(cfg)
+  }
+
+  /**
+   * Upload a skill FOLDER — a SKILL.md with its supporting files beside it.
+   *
+   * The one-file drop zone below cannot express this shape, and folder skills
+   * are most of what exists: a skill that says "see references/checklist.md"
+   * is useless without the folder. Goes through the native picker because the
+   * server needs a real path, and a browser file input never gives one.
+   *
+   * ⚠️ A REFUSAL MUST NAME THE FILE AND THE FIX. The server rejects a folder
+   * holding anything runnable; saying only "that didn't work" would be rule 12
+   * all over again.
+   */
+  const uploadFolder = async () => {
+    setUpload(null)
+    if (!window.radiantNative?.pickFolder) {
+      setUpload({ kind: 'err', text: 'Uploading a folder needs the Radiant app — the browser cannot see a folder path.' })
+      return
+    }
+    const picked = await window.radiantNative.pickFolder(null, 'Choose a skill folder')
+    if (!picked) return
+    setUpload({ kind: 'ok', text: 'Reading…' })
+    try {
+      const cfg = await api.importSkillFolder(picked)
+      onConfigChange(cfg)
+      setUpload({ kind: 'ok', text: 'Added. Turn it on above to use it everywhere, or pick it inside one agent.' })
+    } catch (e) {
+      const raw = String(e?.message || e)
+      let text = 'That folder could not be added.'
+      if (/executable_files/.test(raw)) {
+        const named = (raw.match(/"files":\[([^\]]*)\]/) || [])[1]?.replace(/"/g, '') || ''
+        text = `Not added: ${named || 'a file in there'} could be run. A skill is only ever read, so remove ${named ? 'it' : 'any scripts'} and upload the folder again.`
+      } else if (/no_skill_md/.test(raw)) {
+        text = 'Not added: that folder has no SKILL.md. Pick the folder that contains it, not the one above it.'
+      } else if (/not_a_folder|not_found/.test(raw)) {
+        text = 'Not added: that is not a folder Radiant can read.'
+      }
+      setUpload({ kind: 'err', text })
+    }
   }
 
   const importFiles = async fileList => {
@@ -988,6 +1129,8 @@ function SkillsPane ({ config, onConfigChange }) {
         </div>
       )}
 
+      <SkillLibrary onConfigChange={onConfigChange} />
+
       <div
         className={'skill-drop' + (dragOver ? ' over' : '')}
         onDragOver={e => { e.preventDefault(); setDragOver(true) }}
@@ -1000,6 +1143,12 @@ function SkillsPane ({ config, onConfigChange }) {
         <div>Drop a skill file here <span style={{ color: 'var(--text-faint)' }}>— or click to browse</span></div>
         <div className='skill-drop-hint'>Markdown (.md) files with optional <span className='mono'>name:</span> / <span className='mono'>description:</span> frontmatter</div>
       </div>
+
+      <div className='skill-upload'>
+        <button className='small-btn' onClick={uploadFolder}>Upload a skill folder…</button>
+        <span className='skill-upload-hint'>A folder with a <span className='mono'>SKILL.md</span> inside, plus any notes or references it refers to. Anything runnable is refused.</span>
+      </div>
+      {upload && <div className={'skill-upload-msg' + (upload.kind === 'err' ? ' is-err' : '')}>{upload.text}</div>}
 
       {skills.length > 0 && <div className='skill-list-head'>On for all agents</div>}
       {skills.map(sk => (
@@ -2034,6 +2183,9 @@ const GUIDE = [
       ['Website → API', 'The agent can watch a site’s network calls and turn its hidden API into a reusable HTTP client (a built-in skill).'],
       ['MCP', 'Connect Model Context Protocol servers in Settings → MCP to give agents extra tools.'],
       ['Skills', 'Drop a skill file into Settings → Skills (or type one) to inject house rules the agent follows — globally or per agent.'],
+      ['Skill library', 'Settings → Skills → Skill library holds ready-made skills that ship with Radiant — verification, security review, React, SwiftUI, design, research. Read the whole thing before you add it; added skills start switched off.'],
+      ['Upload a skill folder', 'A skill can be a folder — a SKILL.md with notes and references beside it. Upload one in Settings → Skills. Radiant refuses any folder containing a runnable file, and names it: a skill is read, never executed.'],
+      ['Use a skill for one message', 'Type / in the composer, pick a skill, and the command goes in the box. It applies to that message only. Works the same on iPhone.'],
       ['Skills that build themselves', 'When an agent notices a repeatable workflow it suggests a reusable skill; review the full description and Add or Reject it in Settings → Skills.']
     ]
   },
