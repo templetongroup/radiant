@@ -901,18 +901,30 @@ code, pre, .mono { font-family: var(--font-mono); }
 @media (max-width: 720px) { .widget-diff { grid-template-columns: 1fr; } }
 
 /* tool chips */
+/* ⚠️ TOOL ACTIVITY IS A MARGIN NOTE, NOT A CARD. Every call was a bordered,
+   filled pill at full width, and a stretch of work turned the transcript into a
+   column of boxes with the sentences squeezed between them. Grouping helped and
+   did not fix the real problem: the chrome itself was competing with the reply.
+   Tony, twice: "i hate the chips littering the chat... cant you just highlight
+   tool calls some way other than chips? they distract the chat."
+
+   No border, no fill, no pill. A quiet line of muted text set slightly in from
+   the prose, which reads as annotation and lets the eye skip it. Everything is
+   still clickable and still expands; a failure is the one thing allowed to
+   raise its voice. */
 .tool-chip {
-  display: flex; align-items: center; gap: 8px;
-  margin: 6px 0; padding: 6px 11px;
-  background: var(--bg-panel);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  font-size: 12px; color: var(--text-muted);
-  cursor: pointer; width: fit-content; max-width: 100%; text-align: left;
+  display: flex; align-items: baseline; gap: 8px;
+  margin: 2px 0; padding: 1px 0 1px 2px;
+  background: none; border: 0;
+  font-size: 11.5px; color: var(--text-faint);
+  font-family: var(--font-mono);
+  width: 100%; text-align: left; cursor: pointer;
 }
-.tool-chip:hover { border-color: var(--border-strong); background: var(--bg-raised); }
-.tool-chip .tool-ico { font-size: 11px; color: var(--text-faint); }
-.tool-chip .tool-name { color: var(--text); font-weight: 500; }
+.tool-chip:hover { background: none; color: var(--text-muted); }
+.tool-chip:hover .tool-arg { color: var(--text-muted); }
+.tool-chip.denied, .tool-chip.failed { color: var(--danger); }
+.tool-chip .tool-ico { font-size: 10px; color: var(--text-faint); }
+.tool-chip .tool-name { color: var(--text-muted); font-weight: 500; }
 .tool-chip .tool-arg {
   overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
   max-width: 380px; font-family: var(--font-mono); font-size: 11px; color: var(--text-faint);
@@ -1483,21 +1495,20 @@ input[type='range']::-webkit-slider-thumb {
 .slash-item.is-skill .slash-cmd { color: var(--accent); }
 .tool-run { margin: 4px 0; }
 .tool-run-head {
-  display: flex; align-items: center; gap: 8px; width: 100%;
-  padding: 4px 10px; border-radius: 999px;
-  border: 1px solid var(--border); background: var(--bg-panel);
-  color: var(--text-muted); font-size: 12px; cursor: pointer; text-align: left;
+  display: flex; align-items: baseline; gap: 7px; width: 100%;
+  padding: 2px 0 2px 2px; border: 0; background: none;
+  color: var(--text-faint); font-size: 11.5px; font-family: var(--font-mono);
+  cursor: pointer; text-align: left;
 }
-.tool-run-head:hover { border-color: var(--accent-dim); color: var(--text); }
+.tool-run-head:hover { color: var(--text-muted); background: none; }
+.tool-run.has-fail .tool-run-head { color: var(--danger); }
 .tool-run-caret { width: 10px; font-size: 9px; opacity: .7; }
 .tool-run-label { flex: 1; }
 .tool-run.has-fail .tool-run-head { border-color: var(--danger); color: var(--text); }
 .tool-run-body {
-  margin: 4px 0 6px 13px; padding-left: 10px;
-  border-left: 2px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  margin: 1px 0 4px 9px; padding-left: 9px;
+  border-left: 1px solid var(--border);
 }
-.tool-chip.compact { padding-top: 2px; padding-bottom: 2px; background: none; border-color: transparent; }
-.tool-chip.compact:hover { background: var(--bg-hover); border-color: var(--border); }
 .auto-choice {
   display: flex; align-items: flex-start; gap: 9px;
   padding: 9px 10px; margin-top: 8px; border-radius: 10px;
