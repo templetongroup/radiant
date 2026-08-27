@@ -1,8 +1,20 @@
-# Radiant ✦
+<p align="center">
+  <img src="src/assets/brand/radiant-mark.png" alt="" width="104">
+</p>
+<p align="center">
+  <img src="src/assets/brand/radiant-wordmark.png" alt="Radiant" width="280">
+</p>
 
-A local coding harness for your Mac: chat with coding agents across cloud and
-local models, watch them work in a live activity feed, and drive a real
-terminal — all in one window.
+<p align="center">
+  <strong>100% free and open source.</strong> MIT licensed — use it, modify it,
+  redistribute it, sell it.
+</p>
+
+<p align="center">
+  A local coding harness for your Mac: chat with coding agents across cloud and
+  local models, watch them work in a live activity feed, and drive a real
+  terminal — all in one window.
+</p>
 
 ## Features
 
