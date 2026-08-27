@@ -1,68 +1,278 @@
 [
   {
-    "dir": "verification-loop",
-    "title": "Verify before claiming done",
-    "category": "Craft",
-    "blurb": "Build, typecheck, lint, test and scan \u2014 in that order \u2014 before saying a change works.",
+    "dir": "agent-eval",
+    "title": "Agent eval",
+    "category": "Agents & automation",
+    "blurb": "Head-to-head comparison of coding agents (Claude Code, Aider, Codex, etc.) on custom tasks with pass rate, cost, time, and consistency metrics",
     "files": [],
-    "bytes": 2625,
+    "bytes": 4696,
     "origin": "ECC",
     "license": "MIT"
   },
   {
-    "dir": "tdd-workflow",
-    "title": "Test-driven workflow",
-    "category": "Craft",
-    "blurb": "Write the failing test first, then the code that passes it.",
+    "dir": "agent-harness-construction",
+    "title": "Agent harness construction",
+    "category": "Agents & automation",
+    "blurb": "Design and optimize AI agent action spaces, tool definitions, and observation formatting for higher completion rates",
     "files": [],
-    "bytes": 21462,
+    "bytes": 2100,
     "origin": "ECC",
     "license": "MIT"
   },
   {
-    "dir": "coding-standards",
-    "title": "Coding standards",
-    "category": "Craft",
-    "blurb": "Naming, structure, comments and error handling that stay consistent across a codebase.",
+    "dir": "agent-introspection-debugging",
+    "title": "Agent introspection debugging",
+    "category": "Agents & automation",
+    "blurb": "Structured self-debugging workflow for AI agent failures using capture, diagnosis, contained recovery, and introspection reports",
     "files": [],
-    "bytes": 12866,
+    "bytes": 5627,
     "origin": "ECC",
     "license": "MIT"
   },
   {
-    "dir": "error-handling",
-    "title": "Error handling",
-    "category": "Craft",
-    "blurb": "Fail loudly in the right place, and never swallow an error you cannot explain.",
+    "dir": "agent-sort",
+    "title": "Agent sort",
+    "category": "Agents & automation",
+    "blurb": "Build an evidence-backed ECC install plan for a specific repo by sorting skills, commands, rules, hooks, and extras into DAILY vs LIBRARY buckets usin\u2026",
     "files": [],
-    "bytes": 10984,
+    "bytes": 5922,
     "origin": "ECC",
     "license": "MIT"
   },
   {
-    "dir": "codebase-onboarding",
-    "title": "Learn an unfamiliar codebase",
-    "category": "Craft",
-    "blurb": "Map an unknown repo \u2014 entry points, architecture, conventions \u2014 before changing it.",
+    "dir": "agentic-engineering",
+    "title": "Agentic engineering",
+    "category": "Agents & automation",
+    "blurb": "Operate as an agentic engineer using eval-first execution, decomposition, and cost-aware model routing",
     "files": [],
-    "bytes": 8235,
+    "bytes": 1830,
     "origin": "ECC",
     "license": "MIT"
   },
   {
-    "dir": "repo-scan",
-    "title": "Scan a repository",
-    "category": "Craft",
-    "blurb": "A fast structured read of what a repo is, what it uses and where the risk sits.",
+    "dir": "agentic-os",
+    "title": "Agentic os",
+    "category": "Agents & automation",
+    "blurb": "Build persistent multi-agent operating systems on Claude Code.",
     "files": [],
-    "bytes": 7242,
+    "bytes": 12349,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "ai-first-engineering",
+    "title": "AI first engineering",
+    "category": "Agents & automation",
+    "blurb": "Engineering operating model for teams where AI agents generate a large share of implementation output",
+    "files": [],
+    "bytes": 1454,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "autonomous-agent-harness",
+    "title": "Autonomous agent harness",
+    "category": "Agents & automation",
+    "blurb": "Transform Claude Code into a fully autonomous agent system with persistent memory, scheduled operations, computer use, and task queuing.",
+    "files": [],
+    "bytes": 10860,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "autonomous-loops",
+    "title": "Autonomous loops",
+    "category": "Agents & automation",
+    "blurb": "Patterns and architectures for autonomous Claude Code loops \u2014 from simple sequential pipelines to RFC-driven multi-agent DAG systems.",
+    "files": [],
+    "bytes": 24851,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "claude-devfleet",
+    "title": "Claude devfleet",
+    "category": "Agents & automation",
+    "blurb": "Orchestrate multi-agent coding tasks via Claude DevFleet \u2014 plan projects, dispatch parallel agents in isolated worktrees, monitor progress, and read s\u2026",
+    "files": [],
+    "bytes": 6216,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "codehealth-mcp",
+    "title": "Codehealth MCP",
+    "category": "Agents & automation",
+    "blurb": "Real-time structural Code Health via CodeScene MCP \u2014 review before edits, verify score deltas after changes, gate commits and PRs",
+    "files": [],
+    "bytes": 7463,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "config-gc",
+    "title": "Config gc",
+    "category": "Agents & automation",
+    "blurb": "Garbage collection for your Claude Code configuration.",
+    "files": [],
+    "bytes": 7942,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "configure-ecc",
+    "title": "Configure ecc",
+    "category": "Agents & automation",
+    "blurb": "Guide ECC installation, update, or reconfiguration from inside Claude Code, Codex, or Kimi while respecting each harness's real plugin, scope, and hoo\u2026",
+    "files": [],
+    "bytes": 7713,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "context-budget",
+    "title": "Context budget",
+    "category": "Agents & automation",
+    "blurb": "Audits Claude Code context window consumption across agents, skills, MCP servers, and rules.",
+    "files": [],
+    "bytes": 5840,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "continuous-agent-loop",
+    "title": "Continuous agent loop",
+    "category": "Agents & automation",
+    "blurb": "Patterns for continuous autonomous agent loops with quality gates, evals, and recovery controls",
+    "files": [],
+    "bytes": 1190,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "cost-aware-llm-pipeline",
+    "title": "Cost aware LLM pipeline",
+    "category": "Agents & automation",
+    "blurb": "Cost optimization patterns for LLM API usage \u2014 model routing by task complexity, budget tracking, retry logic, and prompt caching",
+    "files": [],
+    "bytes": 5821,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "cost-tracking",
+    "title": "Cost tracking",
+    "category": "Agents & automation",
+    "blurb": "Track and report Claude Code token usage, spending, and budgets from the local ECC cost-tracker metrics log",
+    "files": [],
+    "bytes": 4465,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "council",
+    "title": "Council",
+    "category": "Agents & automation",
+    "blurb": "Convene a four-voice council for ambiguous decisions, tradeoffs, and go/no-go calls",
+    "files": [],
+    "bytes": 6358,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "dmux-workflows",
+    "title": "Dmux workflows",
+    "category": "Agents & automation",
+    "blurb": "Multi-agent orchestration using dmux (tmux pane manager for AI agents).",
+    "files": [],
+    "bytes": 6336,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "dynamic-workflow-mode",
+    "title": "Dynamic workflow mode",
+    "category": "Agents & automation",
+    "blurb": "Design task-local harnesses, eval gates, and reusable skill extraction for Claude dynamic workflow mode and other adaptive agent harnesses",
+    "files": [],
+    "bytes": 5389,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "ecc-guide",
+    "title": "Ecc guide",
+    "category": "Agents & automation",
+    "blurb": "Guide users through ECC's current agents, skills, commands, hooks, rules, install profiles, and project onboarding by reading the live repository surf\u2026",
+    "files": [],
+    "bytes": 5611,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "ecc-recipes",
+    "title": "Ecc recipes",
+    "category": "Agents & automation",
+    "blurb": "Map a described workflow to the right ECC command-GROUP with run-order and stop condition, and browse all command-group recipe families.",
+    "files": [],
+    "bytes": 6567,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "enterprise-agent-ops",
+    "title": "Enterprise agent ops",
+    "category": "Agents & automation",
+    "blurb": "Operate long-lived agent workloads with observability, security boundaries, and lifecycle management",
+    "files": [],
+    "bytes": 1328,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "eval-harness",
+    "title": "Eval harness",
+    "category": "Agents & automation",
+    "blurb": "Formal evaluation framework for Claude Code sessions implementing eval-driven development (EDD) principles",
+    "files": [],
+    "bytes": 6592,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "exa-search",
+    "title": "Exa search",
+    "category": "Agents & automation",
+    "blurb": "Neural search via Exa MCP for web, code, and company research",
+    "files": [],
+    "bytes": 3620,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "fal-ai-media",
+    "title": "Fal AI media",
+    "category": "Agents & automation",
+    "blurb": "Unified media generation via fal.ai MCP \u2014 image, video, and audio.",
+    "files": [],
+    "bytes": 7158,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "gan-style-harness",
+    "title": "Gan style harness",
+    "category": "Agents & automation",
+    "blurb": "GAN-inspired Generator-Evaluator agent harness for building high-quality applications autonomously.",
+    "files": [],
+    "bytes": 12431,
     "origin": "ECC",
     "license": "MIT"
   },
   {
     "dir": "git-workflow",
     "title": "Git workflow",
-    "category": "Craft",
+    "category": "Agents & automation",
     "blurb": "Branching, commit hygiene, rebasing and recovering from a bad history.",
     "files": [],
     "bytes": 15191,
@@ -70,111 +280,49 @@
     "license": "MIT"
   },
   {
-    "dir": "github-ops",
-    "title": "GitHub operations",
-    "category": "Craft",
-    "blurb": "Pull requests, reviews, releases and issues driven from the command line.",
+    "dir": "hermes-imports",
+    "title": "Hermes imports",
+    "category": "Agents & automation",
+    "blurb": "Convert local Hermes operator workflows into sanitized ECC skills and release-pack artifacts",
     "files": [],
-    "bytes": 4639,
+    "bytes": 3006,
     "origin": "ECC",
     "license": "MIT"
   },
   {
-    "dir": "security-review",
-    "title": "Security review",
-    "category": "Safety",
-    "blurb": "Secrets, input validation, auth, and the injection classes \u2014 with the fix for each.",
-    "files": [
-      "cloud-infrastructure-security.md"
-    ],
-    "bytes": 12493,
+    "dir": "hookify-rules",
+    "title": "Hookify rules",
+    "category": "Agents & automation",
+    "blurb": "This skill should be used when the user asks to create a hookify rule, write a hook rule, configure hookify, add a hookify rule, or needs guidance on\u2026",
+    "files": [],
+    "bytes": 3534,
     "origin": "ECC",
     "license": "MIT"
   },
   {
-    "dir": "production-audit",
-    "title": "Production readiness audit",
-    "category": "Safety",
-    "blurb": "What has to be true before something faces real users.",
+    "dir": "inherit-legacy-style",
+    "title": "Inherit legacy style",
+    "category": "Agents & automation",
+    "blurb": "Legacy-project style inheritance skill",
     "files": [],
-    "bytes": 7727,
+    "bytes": 8552,
     "origin": "ECC",
     "license": "MIT"
   },
   {
-    "dir": "e2e-testing",
-    "title": "End-to-end testing",
-    "category": "Safety",
-    "blurb": "Test the path a person actually takes, not the function underneath it.",
+    "dir": "iterative-retrieval",
+    "title": "Iterative retrieval",
+    "category": "Agents & automation",
+    "blurb": "Pattern for progressively refining context retrieval to solve the subagent context problem",
     "files": [],
-    "bytes": 8170,
-    "origin": "ECC",
-    "license": "MIT"
-  },
-  {
-    "dir": "browser-qa",
-    "title": "Browser QA",
-    "category": "Safety",
-    "blurb": "Drive the running app in a browser and check what really renders.",
-    "files": [],
-    "bytes": 3727,
-    "origin": "ECC",
-    "license": "MIT"
-  },
-  {
-    "dir": "react-patterns",
-    "title": "React patterns",
-    "category": "Stack",
-    "blurb": "Hooks discipline, state shape, and composition that does not fight the framework.",
-    "files": [],
-    "bytes": 11466,
-    "origin": "ECC",
-    "license": "MIT"
-  },
-  {
-    "dir": "react-performance",
-    "title": "React performance",
-    "category": "Stack",
-    "blurb": "Find the re-render that is costing you, and fix the cause rather than memoizing around it.",
-    "files": [],
-    "bytes": 18184,
-    "origin": "ECC",
-    "license": "MIT"
-  },
-  {
-    "dir": "react-testing",
-    "title": "React testing",
-    "category": "Stack",
-    "blurb": "Test components the way a user meets them.",
-    "files": [],
-    "bytes": 13168,
-    "origin": "ECC",
-    "license": "MIT"
-  },
-  {
-    "dir": "swiftui-patterns",
-    "title": "SwiftUI patterns",
-    "category": "Stack",
-    "blurb": "State, layout and navigation patterns for SwiftUI.",
-    "files": [],
-    "bytes": 7039,
-    "origin": "ECC",
-    "license": "MIT"
-  },
-  {
-    "dir": "swift-concurrency-6-2",
-    "title": "Swift concurrency",
-    "category": "Stack",
-    "blurb": "Actors, async/await and sendability under Swift 6 strict checking.",
-    "files": [],
-    "bytes": 8117,
+    "bytes": 6786,
     "origin": "ECC",
     "license": "MIT"
   },
   {
     "dir": "mcp-server-patterns",
     "title": "MCP server patterns",
-    "category": "Stack",
+    "category": "Agents & automation",
     "blurb": "Building and debugging Model Context Protocol servers.",
     "files": [],
     "bytes": 4192,
@@ -182,19 +330,955 @@
     "license": "MIT"
   },
   {
-    "dir": "frontend-patterns",
-    "title": "Frontend patterns",
-    "category": "Stack",
-    "blurb": "Structure, data flow and state for browser UI.",
+    "dir": "messages-ops",
+    "title": "Messages ops",
+    "category": "Agents & automation",
+    "blurb": "Evidence-first live messaging workflow for ECC",
     "files": [],
-    "bytes": 15432,
+    "bytes": 2896,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "mle-workflow",
+    "title": "Mle workflow",
+    "category": "Agents & automation",
+    "blurb": "Production machine-learning engineering workflow for data contracts, reproducible training, model evaluation, deployment, monitoring, and rollback",
+    "files": [],
+    "bytes": 22450,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "nanoclaw-repl",
+    "title": "Nanoclaw repl",
+    "category": "Agents & automation",
+    "blurb": "Operate and extend NanoClaw v2, ECC's zero-dependency session-aware REPL built on claude -p",
+    "files": [],
+    "bytes": 916,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "opensource-pipeline",
+    "title": "Opensource pipeline",
+    "category": "Agents & automation",
+    "blurb": "Open-source pipeline: fork, sanitize, and package private projects for safe public release. Chains 3 agents (forker, sanitizer, packager).",
+    "files": [],
+    "bytes": 7083,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "orch-change-feature",
+    "title": "Orch change feature",
+    "category": "Agents & automation",
+    "blurb": "Orchestrate altering an existing, working feature to new desired behavior \u2014 update its tests to the new spec, change the implementation to match, revi\u2026",
+    "files": [],
+    "bytes": 1711,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "orch-fix-defect",
+    "title": "Orch fix defect",
+    "category": "Agents & automation",
+    "blurb": "Orchestrate fixing a bug \u2014 reproduce it as a failing regression test, fix to green, review, and gated commit \u2014 by delegating each phase to the matchin\u2026",
+    "files": [],
+    "bytes": 1684,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "orch-pipeline",
+    "title": "Orch pipeline",
+    "category": "Agents & automation",
+    "blurb": "Shared orchestration engine for the orch-* skill family.",
+    "files": [],
+    "bytes": 6339,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "orch-refine-code",
+    "title": "Orch refine code",
+    "category": "Agents & automation",
+    "blurb": "Orchestrate a behavior-preserving refactor \u2014 confirm tests are green, restructure without changing behavior, keep tests green, review, and gated commi\u2026",
+    "files": [],
+    "bytes": 1819,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "parallel-execution-optimizer",
+    "title": "Parallel execution optimizer",
+    "category": "Agents & automation",
+    "blurb": "The user wants a task done much faster through parallel work, concurrent agents, batched tool calls, isolated worktrees, or many independent verificat\u2026",
+    "files": [],
+    "bytes": 2633,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "plan-orchestrate",
+    "title": "Plan orchestrate",
+    "category": "Agents & automation",
+    "blurb": "Read a plan document, decompose it into steps, design a per-step agent chain from the ECC catalogue, and emit ready-to-paste /orchestrate custom promp\u2026",
+    "files": [],
+    "bytes": 17965,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "prompt-optimizer",
+    "title": "Prompt optimizer",
+    "category": "Agents & automation",
+    "blurb": ">- Analyze raw prompts, identify intent and gaps, match ECC components (skills/commands/agents/hooks), and output a ready-to-paste optimized prompt.",
+    "files": [],
+    "bytes": 16429,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "ralphinho-rfc-pipeline",
+    "title": "Ralphinho rfc pipeline",
+    "category": "Agents & automation",
+    "blurb": "RFC-driven multi-agent DAG execution pattern with quality gates, merge queues, and work unit orchestration",
+    "files": [],
+    "bytes": 1622,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "regex-vs-llm-structured-text",
+    "title": "Regex vs LLM structured text",
+    "category": "Agents & automation",
+    "blurb": "Decision framework for choosing between regex and LLM when parsing structured text \u2014 start with regex, add LLM only for low-confidence edge cases.",
+    "files": [],
+    "bytes": 6493,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "santa-method",
+    "title": "Santa method",
+    "category": "Agents & automation",
+    "blurb": "Multi-agent adversarial verification with convergence loop. Two independent review agents must both pass before output ships",
+    "files": [],
+    "bytes": 12875,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "search-first",
+    "title": "Search first",
+    "category": "Agents & automation",
+    "blurb": "Research-before-coding workflow. Search for existing tools, libraries, and patterns before writing custom code. Invokes the researcher agent.",
+    "files": [],
+    "bytes": 8021,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "skill-scout",
+    "title": "Skill scout",
+    "category": "Agents & automation",
+    "blurb": "Search existing local, marketplace, GitHub, and web skill sources before creating a new skill",
+    "files": [],
+    "bytes": 4496,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "social-publisher",
+    "title": "Social publisher",
+    "category": "Agents & automation",
+    "blurb": "Agent-driven scheduling and publishing of social media posts across 13 platforms via SocialClaw",
+    "files": [],
+    "bytes": 3949,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "strategic-compact",
+    "title": "Strategic compact",
+    "category": "Agents & automation",
+    "blurb": "Suggests manual context compaction at logical intervals to preserve context through task phases rather than arbitrary auto-compaction",
+    "files": [],
+    "bytes": 7687,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "team-agent-orchestration",
+    "title": "Team agent orchestration",
+    "category": "Agents & automation",
+    "blurb": "Run team-based orchestration for agent squads using work items, ownership, agent Kanban, merge gates, and control pane handoffs",
+    "files": [],
+    "bytes": 4775,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "team-builder",
+    "title": "Team builder",
+    "category": "Agents & automation",
+    "blurb": "Interactive agent picker for composing and dispatching parallel teams",
+    "files": [],
+    "bytes": 7220,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "terminal-ops",
+    "title": "Terminal ops",
+    "category": "Agents & automation",
+    "blurb": "Evidence-first repo execution workflow for ECC",
+    "files": [],
+    "bytes": 2997,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "tdd-workflow",
+    "title": "Test-driven workflow",
+    "category": "Agents & automation",
+    "blurb": "Write the failing test first, then the code that passes it.",
+    "files": [],
+    "bytes": 21462,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "unified-memory",
+    "title": "Unified memory",
+    "category": "Agents & automation",
+    "blurb": "Share durable, inspectable context and handoffs between Claude, Codex, Hermes, Cursor, OpenCode, and other agents through the local ECC Memory Vault",
+    "files": [],
+    "bytes": 6032,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "agent-payment-x402",
+    "title": "Agent payment x402",
+    "category": "Business & operations",
+    "blurb": "Add x402 payment execution to AI agents with per-task budgets, spending controls, and non-custodial wallets.",
+    "files": [],
+    "bytes": 10715,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "carrier-relationship-management",
+    "title": "Carrier relationship management",
+    "category": "Business & operations",
+    "blurb": "> Codified expertise for managing carrier portfolios, negotiating freight rates, tracking carrier performance, allocating freight, and maintaining str\u2026",
+    "files": [],
+    "bytes": 23765,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "competitive-platform-analysis",
+    "title": "Competitive platform analysis",
+    "category": "Business & operations",
+    "blurb": "Decide who to benchmark and where to find them before",
+    "files": [],
+    "bytes": 11991,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "competitive-report-structure",
+    "title": "Competitive report structure",
+    "category": "Business & operations",
+    "blurb": ">- Use after benchmark-methodology has produced scored competitor profile cards.",
+    "files": [],
+    "bytes": 8464,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "customer-billing-ops",
+    "title": "Customer billing ops",
+    "category": "Business & operations",
+    "blurb": "Operate customer billing workflows such as subscriptions, refunds, churn triage, billing-portal recovery, and plan analysis using connected billing to\u2026",
+    "files": [],
+    "bytes": 4289,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "customs-trade-compliance",
+    "title": "Customs trade compliance",
+    "category": "Business & operations",
+    "blurb": "> Codified expertise for customs documentation, tariff classification, duty optimization, restricted party screening, and regulatory compliance across\u2026",
+    "files": [],
+    "bytes": 29049,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "email-ops",
+    "title": "Email ops",
+    "category": "Business & operations",
+    "blurb": "Evidence-first mailbox triage, drafting, send verification, and sent-mail-safe follow-up workflow for ECC",
+    "files": [],
+    "bytes": 3445,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "finance-billing-ops",
+    "title": "Finance billing ops",
+    "category": "Business & operations",
+    "blurb": "Evidence-first revenue, pricing, refunds, team-billing, and billing-model truth workflow for ECC",
+    "files": [],
+    "bytes": 3831,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "google-workspace-ops",
+    "title": "Google workspace ops",
+    "category": "Business & operations",
+    "blurb": "Operate across Google Drive, Docs, Sheets, and Slides as one workflow surface for plans, trackers, decks, and shared documents",
+    "files": [],
+    "bytes": 2736,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "growth-log",
+    "title": "Growth log",
+    "category": "Business & operations",
+    "blurb": "Use after a complex task, failure, or when reviewing what was learned.",
+    "files": [],
+    "bytes": 6766,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "healthcare-cdss-patterns",
+    "title": "Healthcare cdss patterns",
+    "category": "Business & operations",
+    "blurb": "Clinical Decision Support System (CDSS) development patterns.",
+    "files": [],
+    "bytes": 9461,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "healthcare-emr-patterns",
+    "title": "Healthcare emr patterns",
+    "category": "Business & operations",
+    "blurb": "EMR/EHR development patterns for healthcare applications.",
+    "files": [],
+    "bytes": 6746,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "healthcare-eval-harness",
+    "title": "Healthcare eval harness",
+    "category": "Business & operations",
+    "blurb": "Patient safety evaluation harness for healthcare application deployments.",
+    "files": [],
+    "bytes": 7849,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "healthcare-phi-compliance",
+    "title": "Healthcare phi compliance",
+    "category": "Business & operations",
+    "blurb": "Protected Health Information (PHI) and Personally Identifiable Information (PII) compliance patterns for healthcare applications.",
+    "files": [],
+    "bytes": 5696,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "hipaa-compliance",
+    "title": "HIPAA compliance",
+    "category": "Business & operations",
+    "blurb": "HIPAA-specific entrypoint for healthcare privacy and security work",
+    "files": [],
+    "bytes": 3631,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "inventory-demand-planning",
+    "title": "Inventory demand planning",
+    "category": "Business & operations",
+    "blurb": "> Codified expertise for demand forecasting, safety stock optimization, replenishment planning, and promotional lift estimation at multi-location reta\u2026",
+    "files": [],
+    "bytes": 24512,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "ito-compute",
+    "title": "Ito compute",
+    "category": "Business & operations",
+    "blurb": "Query live GPU inventory, submit an authenticated It\u00f4 fixed-rate RFQ, inspect RFQ or procurement status, revoke device credentials, and run explicitly\u2026",
+    "files": [
+      "agents"
+    ],
+    "bytes": 5984,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "jira-integration",
+    "title": "Jira integration",
+    "category": "Business & operations",
+    "blurb": "Retrieving Jira tickets, analyzing requirements, updating ticket status, adding comments, or transitioning issues.",
+    "files": [],
+    "bytes": 9025,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "logistics-exception-management",
+    "title": "Logistics exception management",
+    "category": "Business & operations",
+    "blurb": "> Codified expertise for handling freight exceptions, shipment delays, damages, losses, and carrier disputes.",
+    "files": [],
+    "bytes": 16881,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "mailtrap-email-integration",
+    "title": "Mailtrap email integration",
+    "category": "Business & operations",
+    "blurb": "Guides agents through integrating transactional email sending via Mailtrap's Email API, including sandbox testing, domain verification, and API authen\u2026",
+    "files": [],
+    "bytes": 3820,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "market-research",
+    "title": "Market research",
+    "category": "Business & operations",
+    "blurb": "Conduct market research, competitive analysis, investor due diligence, and industry intelligence with source attribution and decision-oriented summari\u2026",
+    "files": [],
+    "bytes": 2238,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "marketing-campaign",
+    "title": "Marketing campaign",
+    "category": "Business & operations",
+    "blurb": "End-to-end marketing campaign planning and execution.",
+    "files": [],
+    "bytes": 5293,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "prediction-market-oracle-research",
+    "title": "Prediction market oracle research",
+    "category": "Business & operations",
+    "blurb": "Research prediction markets as data sources or oracle signals for products, agents, dashboards, and corporate decision intelligence",
+    "files": [],
+    "bytes": 2306,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "prediction-market-risk-review",
+    "title": "Prediction market risk review",
+    "category": "Business & operations",
+    "blurb": "Review prediction-market, basket, oracle, and trading-agent workflows for compliance, safety, data-quality, privacy, and execution risk.",
+    "files": [],
+    "bytes": 1882,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "project-flow-ops",
+    "title": "Project flow ops",
+    "category": "Business & operations",
+    "blurb": "Operate execution flow across GitHub and Linear by triaging issues and pull requests, linking active work, and keeping GitHub public-facing while Line\u2026",
+    "files": [],
+    "bytes": 3145,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "returns-reverse-logistics",
+    "title": "Returns reverse logistics",
+    "category": "Business & operations",
+    "blurb": "> Codified expertise for returns authorization, receipt and inspection, disposition decisions, refund processing, fraud detection, and warranty claims\u2026",
+    "files": [],
+    "bytes": 24703,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "unified-notifications-ops",
+    "title": "Unified notifications ops",
+    "category": "Business & operations",
+    "blurb": "Operate notifications as one ECC-native workflow across GitHub, Linear, desktop alerts, hooks, and connected communication surfaces",
+    "files": [],
+    "bytes": 5630,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "visa-doc-translate",
+    "title": "Visa doc translate",
+    "category": "Business & operations",
+    "blurb": "Translate visa application documents (images) to English and create a bilingual PDF with original and translation",
+    "files": [
+      "README.md"
+    ],
+    "bytes": 3952,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "workspace-surface-audit",
+    "title": "Workspace surface audit",
+    "category": "Business & operations",
+    "blurb": "Audit the active repo, MCP servers, plugins, connectors, env surfaces, and harness setup, then recommend the highest-value ECC-native skills, hooks, a\u2026",
+    "files": [],
+    "bytes": 5163,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "ai-regression-testing",
+    "title": "AI regression testing",
+    "category": "Craft & verification",
+    "blurb": "Regression testing strategies for AI-assisted development.",
+    "files": [],
+    "bytes": 11659,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "api-connector-builder",
+    "title": "API connector builder",
+    "category": "Craft & verification",
+    "blurb": "Build a new API connector or provider by matching the target repo's existing integration pattern exactly",
+    "files": [],
+    "bytes": 2664,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "architecture-decision-records",
+    "title": "Architecture decision records",
+    "category": "Craft & verification",
+    "blurb": "Capture architectural decisions made during Claude Code sessions as structured ADRs.",
+    "files": [],
+    "bytes": 7131,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "benchmark",
+    "title": "Benchmark",
+    "category": "Craft & verification",
+    "blurb": "Measure performance baselines, detect regressions before/after PRs, and compare stack alternatives.",
+    "files": [],
+    "bytes": 2356,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "benchmark-methodology",
+    "title": "Benchmark methodology",
+    "category": "Craft & verification",
+    "blurb": ">- Use after competitive-platform-analysis has produced a tiered competitor set.",
+    "files": [],
+    "bytes": 9811,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "benchmark-optimization-loop",
+    "title": "Benchmark optimization loop",
+    "category": "Craft & verification",
+    "blurb": "The user asks to make something faster, try many variants, run recursive optimization, benchmark latency/throughput/cost, or choose the best implement\u2026",
+    "files": [],
+    "bytes": 2433,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "blueprint",
+    "title": "Blueprint",
+    "category": "Craft & verification",
+    "blurb": ">- Turn a one-line objective into a step-by-step construction plan for multi-session, multi-agent engineering projects.",
+    "files": [],
+    "bytes": 5356,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "coding-standards",
+    "title": "Coding standards",
+    "category": "Craft & verification",
+    "blurb": "Naming, structure, comments and error handling that stay consistent across a codebase.",
+    "files": [],
+    "bytes": 12866,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "contract-first",
+    "title": "Contract first",
+    "category": "Craft & verification",
+    "blurb": "Multiple consumers and providers must evolve an API or event schema without field drift, integration surprises, or one side silently redefining the in\u2026",
+    "files": [],
+    "bytes": 9521,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "dev-team",
+    "title": "Dev team",
+    "category": "Craft & verification",
+    "blurb": "Simulate a collaborative dev team session where multiple role-based personas (PM, Architect, Developer, QA) respond to the same problem together in on\u2026",
+    "files": [],
+    "bytes": 8318,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "e2e-testing",
+    "title": "End-to-end testing",
+    "category": "Craft & verification",
+    "blurb": "Test the path a person actually takes, not the function underneath it.",
+    "files": [],
+    "bytes": 8170,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "github-ops",
+    "title": "GitHub operations",
+    "category": "Craft & verification",
+    "blurb": "Pull requests, reviews, releases and issues driven from the command line.",
+    "files": [],
+    "bytes": 4639,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "hexagonal-architecture",
+    "title": "Hexagonal architecture",
+    "category": "Craft & verification",
+    "blurb": "Design, implement, and refactor Ports & Adapters systems with clear domain boundaries, dependency inversion, and testable use-case orchestration acros\u2026",
+    "files": [],
+    "bytes": 11520,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "intent-driven-development",
+    "title": "Intent driven development",
+    "category": "Craft & verification",
+    "blurb": "Turn ambiguous or high-impact product and engineering changes into scoped, verifiable acceptance criteria before or alongside implementation",
+    "files": [],
+    "bytes": 17199,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "codebase-onboarding",
+    "title": "Learn an unfamiliar codebase",
+    "category": "Craft & verification",
+    "blurb": "Map an unknown repo \u2014 entry points, architecture, conventions \u2014 before changing it.",
+    "files": [],
+    "bytes": 8235,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "nasiko-control-plane",
+    "title": "Nasiko control plane",
+    "category": "Craft & verification",
+    "blurb": "Use the experimental Nasiko CLI lifecycle bridge for pinned installation, read-only status, and qualified uninstall with explicit consent and telemetr\u2026",
+    "files": [
+      "agents"
+    ],
+    "bytes": 2470,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "plan-canvas",
+    "title": "Plan canvas",
+    "category": "Craft & verification",
+    "blurb": "Open plans and HTML artifacts in a local browser canvas where the human annotates elements, chats, and approves or requests changes without leaving th\u2026",
+    "files": [],
+    "bytes": 8586,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "plankton-code-quality",
+    "title": "Plankton code quality",
+    "category": "Craft & verification",
+    "blurb": "Write-time code quality enforcement using Plankton \u2014 auto-formatting, linting, and Claude-powered fixes on every file edit via hooks",
+    "files": [],
+    "bytes": 8047,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "product-lens",
+    "title": "Product lens",
+    "category": "Craft & verification",
+    "blurb": "Validate the \"why\" before building, run product diagnostics, and pressure-test product direction before the request becomes an implementation contract\u2026",
+    "files": [],
+    "bytes": 3102,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "quality-nonconformance",
+    "title": "Quality nonconformance",
+    "category": "Craft & verification",
+    "blurb": "> Codified expertise for quality control, non-conformance investigation, root cause analysis, corrective action, and supplier quality management in re\u2026",
+    "files": [],
+    "bytes": 30391,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "verification-loop",
+    "title": "Verify before claiming done",
+    "category": "Craft & verification",
+    "blurb": "Build, typecheck, lint, test and scan \u2014 in that order \u2014 before saying a change works.",
+    "files": [],
+    "bytes": 2625,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "backend-patterns",
+    "title": "Backend patterns",
+    "category": "Data & databases",
+    "blurb": "Backend architecture patterns, API design, database optimization, and server-side best practices for Node.js, Express, and Next.js API routes",
+    "files": [],
+    "bytes": 13349,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "clickhouse-io",
+    "title": "Clickhouse io",
+    "category": "Data & databases",
+    "blurb": "ClickHouse database patterns, query optimization, analytics, and data engineering best practices for high-performance analytical workloads",
+    "files": [],
+    "bytes": 10731,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "dashboard-builder",
+    "title": "Dashboard builder",
+    "category": "Data & databases",
+    "blurb": "Build monitoring dashboards that answer real operator questions for Grafana, SigNoz, and similar platforms",
+    "files": [],
+    "bytes": 2358,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "data-scraper-agent",
+    "title": "Data scraper agent",
+    "category": "Data & databases",
+    "blurb": "Build a fully automated AI-powered data collection agent for any public source \u2014 job boards, prices, news, GitHub, sports, anything.",
+    "files": [],
+    "bytes": 24094,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "data-throughput-accelerator",
+    "title": "Data throughput accelerator",
+    "category": "Data & databases",
+    "blurb": "Large data ingestion, backfill, export, ETL, warehouse loading, manifest catch-up, or table synchronization needs to become much faster while preservi\u2026",
+    "files": [],
+    "bytes": 2612,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "database-migrations",
+    "title": "Database migrations",
+    "category": "Data & databases",
+    "blurb": "Database migration best practices for schema changes, data migrations, rollbacks, and zero-downtime deployments across PostgreSQL, MySQL, and common O\u2026",
+    "files": [],
+    "bytes": 11957,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "ito-training",
+    "title": "Ito training",
+    "category": "Data & databases",
+    "blurb": "Inspect the availability of ML training on a completed It\u00f4 compute booking and, when the canonical backend becomes available, hand off an explicitly c\u2026",
+    "files": [],
+    "bytes": 6087,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "latency-critical-systems",
+    "title": "Latency critical systems",
+    "category": "Data & databases",
+    "blurb": "Latency-sensitive systems such as realtime dashboards, market data, streaming agents, execution gateways, queues, caches, or HFT-like infrastructure w\u2026",
+    "files": [],
+    "bytes": 2495,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "ml-adoption-playbook",
+    "title": "ML adoption playbook",
+    "category": "Data & databases",
+    "blurb": "End-to-end methodology for AI agents and software engineers to add machine learning algorithms to existing non-ML codebases.",
+    "files": [],
+    "bytes": 3899,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "mysql-patterns",
+    "title": "Mysql patterns",
+    "category": "Data & databases",
+    "blurb": "MySQL and MariaDB schema, query, indexing, transaction, replication, and connection-pool patterns for production backends",
+    "files": [],
+    "bytes": 12169,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "postgres-patterns",
+    "title": "Postgres patterns",
+    "category": "Data & databases",
+    "blurb": "PostgreSQL database patterns for query optimization, schema design, indexing, and security. Based on Supabase best practices",
+    "files": [],
+    "bytes": 3914,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "pytorch-patterns",
+    "title": "Pytorch patterns",
+    "category": "Data & databases",
+    "blurb": "PyTorch deep learning patterns and best practices for building robust, efficient, and reproducible training pipelines, model architectures, and data l\u2026",
+    "files": [],
+    "bytes": 11797,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "recsys-pipeline-architect",
+    "title": "Recsys pipeline architect",
+    "category": "Data & databases",
+    "blurb": "Design composable recommendation, ranking, and feed pipelines using the six-stage Source\u2192Hydrator\u2192Filter\u2192Scorer\u2192Selector\u2192SideEffect framework populari\u2026",
+    "files": [],
+    "bytes": 7788,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "redis-patterns",
+    "title": "Redis patterns",
+    "category": "Data & databases",
+    "blurb": "Redis data structure patterns, caching strategies, distributed locks, rate limiting, pub/sub, and connection management for production applications",
+    "files": [],
+    "bytes": 11977,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "scientific-db-pubmed-database",
+    "title": "Scientific DB pubmed database",
+    "category": "Data & databases",
+    "blurb": "Direct PubMed and NCBI E-utilities search workflows for biomedical literature, MeSH queries, PMID lookup, citation retrieval, and API-backed literatur\u2026",
+    "files": [],
+    "bytes": 4813,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "scientific-db-uspto-database",
+    "title": "Scientific DB uspto database",
+    "category": "Data & databases",
+    "blurb": "USPTO patent and trademark data workflow for official record lookup, PatentSearch queries, TSDR checks, assignment data, and reproducible IP research\u2026",
+    "files": [],
+    "bytes": 6317,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "scientific-pkg-gget",
+    "title": "Scientific pkg gget",
+    "category": "Data & databases",
+    "blurb": "Gget CLI and Python workflow for quick genomic database queries, sequence lookup, BLAST-style searches, enrichment checks, and reproducible bioinforma\u2026",
+    "files": [],
+    "bytes": 5074,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "scientific-thinking-literature-review",
+    "title": "Scientific thinking literature review",
+    "category": "Data & databases",
+    "blurb": "Systematic literature-review workflow for academic, biomedical, technical, and scientific topics, including search planning, source screening, synthes\u2026",
+    "files": [],
+    "bytes": 5181,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "scientific-thinking-scholar-evaluation",
+    "title": "Scientific thinking scholar evaluation",
+    "category": "Data & databases",
+    "blurb": "Structured scholarly-work evaluation for papers, proposals, literature reviews, methods sections, evidence quality, citation support, and research-wri\u2026",
+    "files": [],
+    "bytes": 4886,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "x-api",
+    "title": "X API",
+    "category": "Data & databases",
+    "blurb": "X/Twitter API integration for posting tweets, threads, reading timelines, search, and analytics.",
+    "files": [],
+    "bytes": 6695,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "accessibility",
+    "title": "Accessibility",
+    "category": "Design & interface",
+    "blurb": "Design, implement, and audit inclusive digital products using WCAG 2.2 Level AA",
+    "files": [],
+    "bytes": 6563,
     "origin": "ECC",
     "license": "MIT"
   },
   {
     "dir": "frontend-a11y",
-    "title": "Accessibility",
-    "category": "Design",
+    "title": "Accessibility (frontend a11y)",
+    "category": "Design & interface",
     "blurb": "Keyboard, focus, contrast and screen readers \u2014 checked, not assumed.",
     "files": [],
     "bytes": 12724,
@@ -202,19 +1286,53 @@
     "license": "MIT"
   },
   {
-    "dir": "design-system",
-    "title": "Design system",
-    "category": "Design",
-    "blurb": "Tokens, scale and the rules that keep an interface coherent.",
+    "dir": "api-design",
+    "title": "API design",
+    "category": "Design & interface",
+    "blurb": "REST API design patterns including resource naming, status codes, pagination, filtering, error responses, versioning, and rate limiting for production\u2026",
     "files": [],
-    "bytes": 2610,
+    "bytes": 13227,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "blender-motion-state-inspection",
+    "title": "Blender motion state inspection",
+    "category": "Design & interface",
+    "blurb": "Inspecting Blender characters, rigs, poses, animation retargeting, ground contact, facing direction, or model-vs-motion alignment where screenshots al\u2026",
+    "files": [],
+    "bytes": 8146,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "brand-discovery",
+    "title": "Brand discovery",
+    "category": "Design & interface",
+    "blurb": "Conduct a structured, adaptive brand identity interview.",
+    "files": [
+      "references"
+    ],
+    "bytes": 7514,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "brand-voice",
+    "title": "Brand voice",
+    "category": "Design & interface",
+    "blurb": "Build a source-derived writing style profile from real posts, essays, launch notes, docs, or site copy, then reuse that profile across content, outrea\u2026",
+    "files": [
+      "references"
+    ],
+    "bytes": 3648,
     "origin": "ECC",
     "license": "MIT"
   },
   {
     "dir": "frontend-design-direction",
     "title": "Design direction",
-    "category": "Design",
+    "category": "Design & interface",
     "blurb": "Choosing a visual direction and holding it across screens.",
     "files": [],
     "bytes": 4360,
@@ -222,9 +1340,49 @@
     "license": "MIT"
   },
   {
+    "dir": "design-system",
+    "title": "Design system",
+    "category": "Design & interface",
+    "blurb": "Tokens, scale and the rules that keep an interface coherent.",
+    "files": [],
+    "bytes": 2610,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "frontend-patterns",
+    "title": "Frontend patterns",
+    "category": "Design & interface",
+    "blurb": "Structure, data flow and state for browser UI.",
+    "files": [],
+    "bytes": 15432,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "liquid-glass-design",
+    "title": "Liquid Glass",
+    "category": "Design & interface",
+    "blurb": "Apple\u2019s current design language, and how to build for it.",
+    "files": [],
+    "bytes": 9119,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "loop-design-check",
+    "title": "Loop design check",
+    "category": "Design & interface",
+    "blurb": "Design a goal-oriented agent loop, and review it for the ways loops go wrong \u2014 spinning and burning tokens, Goodhart-gaming the verifier, or running a\u2026",
+    "files": [],
+    "bytes": 12492,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
     "dir": "make-interfaces-feel-better",
     "title": "Make it feel better",
-    "category": "Design",
+    "category": "Design & interface",
     "blurb": "The small details \u2014 timing, weight, spacing \u2014 that separate good from fine.",
     "files": [],
     "bytes": 4795,
@@ -234,7 +1392,7 @@
   {
     "dir": "motion-ui",
     "title": "Motion",
-    "category": "Design",
+    "category": "Design & interface",
     "blurb": "Animation that carries meaning instead of decorating.",
     "files": [],
     "bytes": 13867,
@@ -242,19 +1400,1201 @@
     "license": "MIT"
   },
   {
-    "dir": "liquid-glass-design",
-    "title": "Liquid Glass",
-    "category": "Design",
-    "blurb": "Apple\u2019s current design language, and how to build for it.",
+    "dir": "motion-advanced",
+    "title": "Motion advanced",
+    "category": "Design & interface",
+    "blurb": "Advanced motion patterns for React / Next.js \u2014 drag & drop, gestures, text animations, SVG path drawing, custom hooks, imperative sequences (useAnimat\u2026",
     "files": [],
-    "bytes": 9119,
+    "bytes": 18800,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "motion-foundations",
+    "title": "Motion foundations",
+    "category": "Design & interface",
+    "blurb": "Motion tokens, spring presets, performance rules, device adaptation, accessibility enforcement, and SSR safety for React / Next.js using motion/react.\u2026",
+    "files": [],
+    "bytes": 9797,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "motion-patterns",
+    "title": "Motion patterns",
+    "category": "Design & interface",
+    "blurb": "Production-ready animation patterns for React / Next.js \u2014 button, modal, toast, stagger, page transitions, exit animations, scroll, and layout \u2014 built\u2026",
+    "files": [],
+    "bytes": 13418,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "orch-add-feature",
+    "title": "Orch add feature",
+    "category": "Design & interface",
+    "blurb": "Orchestrate building a brand-new feature end to end \u2014 research, plan, TDD implementation, review, and gated commit \u2014 by delegating each phase to the m\u2026",
+    "files": [],
+    "bytes": 1803,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "orch-build-mvp",
+    "title": "Orch build mvp",
+    "category": "Design & interface",
+    "blurb": "Orchestrate bootstrapping a working MVP from a design or spec document \u2014 ingest the doc, plan thin vertical slices, scaffold the first end-to-end slic\u2026",
+    "files": [],
+    "bytes": 2415,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "ui-demo",
+    "title": "UI demo",
+    "category": "Design & interface",
+    "blurb": "Record polished UI demo videos using Playwright",
+    "files": [],
+    "bytes": 15256,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "windows-desktop-e2e",
+    "title": "Windows desktop E2E",
+    "category": "Design & interface",
+    "blurb": "E2E testing for Windows native desktop apps (WPF, WinForms, Win32/MFC, Qt) using pywinauto and Windows UI Automation",
+    "files": [],
+    "bytes": 30577,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "browser-qa",
+    "title": "Browser QA",
+    "category": "Everything else",
+    "blurb": "Drive the running app in a browser and check what really renders.",
+    "files": [],
+    "bytes": 3727,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "code-tour",
+    "title": "Code tour",
+    "category": "Everything else",
+    "blurb": "Create CodeTour `.tour` files \u2014 persona-targeted, step-by-step walkthroughs with real file and line anchors",
+    "files": [],
+    "bytes": 8030,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "energy-procurement",
+    "title": "Energy procurement",
+    "category": "Everything else",
+    "blurb": "> Codified expertise for electricity and gas procurement, tariff optimization, demand charge management, renewable PPA evaluation, and multi-facility\u2026",
+    "files": [],
+    "bytes": 30081,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "error-handling",
+    "title": "Error handling",
+    "category": "Everything else",
+    "blurb": "Fail loudly in the right place, and never swallow an error you cannot explain.",
+    "files": [],
+    "bytes": 10984,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "evm-token-decimals",
+    "title": "Evm token decimals",
+    "category": "Everything else",
+    "blurb": "Prevent silent decimal mismatch bugs across EVM chains.",
+    "files": [],
+    "bytes": 3988,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "investor-materials",
+    "title": "Investor materials",
+    "category": "Everything else",
+    "blurb": "Create and update pitch decks, one-pagers, investor memos, accelerator applications, financial models, and fundraising materials",
+    "files": [],
+    "bytes": 2735,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "investor-outreach",
+    "title": "Investor outreach",
+    "category": "Everything else",
+    "blurb": "Draft cold emails, warm intro blurbs, follow-ups, update emails, and investor communications for fundraising",
+    "files": [],
+    "bytes": 2655,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "ito-inference",
+    "title": "Ito inference",
+    "category": "Everything else",
+    "blurb": "Inspect the availability of model serving on a completed It\u00f4 compute booking and, when the canonical backend becomes available, hand off an explicitly\u2026",
+    "files": [],
+    "bytes": 6147,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "lead-intelligence",
+    "title": "Lead intelligence",
+    "category": "Everything else",
+    "blurb": "AI-native lead intelligence and outreach pipeline.",
+    "files": [
+      "agents"
+    ],
+    "bytes": 11777,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "production-scheduling",
+    "title": "Production scheduling",
+    "category": "Everything else",
+    "blurb": "> Codified expertise for production scheduling, job sequencing, line balancing, changeover optimization, and bottleneck resolution in discrete and bat\u2026",
+    "files": [],
+    "bytes": 28577,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "token-budget-advisor",
+    "title": "Token budget advisor",
+    "category": "Everything else",
+    "blurb": ">- Offers the user an informed choice about how much response depth to consume before answering",
+    "files": [],
+    "bytes": 6117,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "connections-optimizer",
+    "title": "Connections optimizer",
+    "category": "Infrastructure",
+    "blurb": "Reorganize the user's X and LinkedIn network with review-first pruning, add/follow recommendations, and channel-specific warm outreach drafted in the\u2026",
+    "files": [],
+    "bytes": 5477,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "deployment-patterns",
+    "title": "Deployment patterns",
+    "category": "Infrastructure",
+    "blurb": "Deployment workflows, CI/CD pipeline patterns, Docker containerization, health checks, rollback strategies, and production readiness checklists for we\u2026",
+    "files": [],
+    "bytes": 11113,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "docker-patterns",
+    "title": "Docker patterns",
+    "category": "Infrastructure",
+    "blurb": "Docker and Docker Compose patterns for local development, hardened CLI installer harnesses, container security, networking, volumes, and multi-service\u2026",
+    "files": [],
+    "bytes": 14937,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "flox-environments",
+    "title": "Flox environments",
+    "category": "Infrastructure",
+    "blurb": "Create reproducible, cross-platform (macOS/Linux) development environments with Flox, a declarative Nix-based environment manager",
+    "files": [],
+    "bytes": 14220,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "homelab-network-readiness",
+    "title": "Homelab network readiness",
+    "category": "Infrastructure",
+    "blurb": "Readiness checklist for homelab VLAN segmentation, local DNS filtering, and WireGuard-style remote access before changing router, firewall, DHCP, or V\u2026",
+    "files": [],
+    "bytes": 7571,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "homelab-network-setup",
+    "title": "Homelab network setup",
+    "category": "Infrastructure",
+    "blurb": "Practical home and homelab network planning for gateways, switches, access points, IP ranges, DHCP reservations, DNS, cabling, and common beginner mis\u2026",
+    "files": [],
+    "bytes": 4432,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "homelab-pihole-dns",
+    "title": "Homelab pihole dns",
+    "category": "Infrastructure",
+    "blurb": "Pi-hole installation, blocklist management, DNS-over-HTTPS setup, DHCP integration, local DNS records, and troubleshooting broken DNS resolution on a\u2026",
+    "files": [],
+    "bytes": 9592,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "homelab-vlan-segmentation",
+    "title": "Homelab vlan segmentation",
+    "category": "Infrastructure",
+    "blurb": "Segmenting home networks into VLANs for IoT, guest, trusted, and server traffic using UniFi, pfSense/OPNsense, and MikroTik \u2014 including switch trunk c\u2026",
+    "files": [],
+    "bytes": 10290,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "homelab-wireguard-vpn",
+    "title": "Homelab wireguard vpn",
+    "category": "Infrastructure",
+    "blurb": "WireGuard VPN server setup, peer configuration, key generation, split tunneling vs full tunnel routing, and remote access to a home network from mobil\u2026",
+    "files": [],
+    "bytes": 10628,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "knowledge-ops",
+    "title": "Knowledge ops",
+    "category": "Infrastructure",
+    "blurb": "Knowledge base management, ingestion, sync, and retrieval across multiple storage layers (local files, MCP memory, vector stores, Git repos)",
+    "files": [],
+    "bytes": 6752,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "kubernetes-patterns",
+    "title": "Kubernetes patterns",
+    "category": "Infrastructure",
+    "blurb": "Kubernetes workload patterns, resource management, RBAC, probes, autoscaling, ConfigMap/Secret handling, and kubectl debugging for production-grade de\u2026",
+    "files": [],
+    "bytes": 20099,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "netmiko-ssh-automation",
+    "title": "Netmiko ssh automation",
+    "category": "Infrastructure",
+    "blurb": "Safe Python Netmiko patterns for read-only collection, bounded batch SSH, TextFSM parsing, guarded config changes, timeouts, and network automation er\u2026",
+    "files": [],
+    "bytes": 6046,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "network-bgp-diagnostics",
+    "title": "Network bgp diagnostics",
+    "category": "Infrastructure",
+    "blurb": "Diagnostics-only BGP troubleshooting patterns for neighbor state, route exchange, prefix policy, AS path inspection, and safe evidence collection",
+    "files": [],
+    "bytes": 5641,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "network-config-validation",
+    "title": "Network config validation",
+    "category": "Infrastructure",
+    "blurb": "Pre-deployment checks for router and switch configuration, including dangerous commands, duplicate addresses, subnet overlaps, stale references, manag\u2026",
+    "files": [],
+    "bytes": 7727,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "network-interface-health",
+    "title": "Network interface health",
+    "category": "Infrastructure",
+    "blurb": "Diagnose interface errors, drops, CRCs, duplex mismatches, flapping, speed negotiation issues, and counter trends on routers, switches, and Linux host\u2026",
+    "files": [],
+    "bytes": 5754,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "recursive-decision-ledger",
+    "title": "Recursive decision ledger",
+    "category": "Infrastructure",
+    "blurb": "The user asks for repeated rollouts, marked decision processes, high-dimensional search, stochastic optimization, local-optima exploration, ensemble c\u2026",
+    "files": [],
+    "bytes": 2547,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "social-graph-ranker",
+    "title": "Social graph ranker",
+    "category": "Infrastructure",
+    "blurb": "Weighted social-graph ranking for warm intro discovery, bridge scoring, and network gap analysis across X and LinkedIn",
+    "files": [],
+    "bytes": 4156,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "taste",
+    "title": "Taste",
+    "category": "Infrastructure",
+    "blurb": "A creative-direction (taste) layer for music videos and short-form edits in the angelcore / cloud-trance / hyperpop visual family.",
+    "files": [
+      "references"
+    ],
+    "bytes": 15568,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "uncloud",
+    "title": "Uncloud",
+    "category": "Infrastructure",
+    "blurb": "Managing an Uncloud cluster \u2014 deploying services, configuring Caddy ingress, adding static proxy routes for non-cluster devices, publishing ports, sca\u2026",
+    "files": [],
+    "bytes": 9282,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "android-clean-architecture",
+    "title": "Android clean architecture",
+    "category": "Languages & frameworks",
+    "blurb": "Clean Architecture patterns for Android and Kotlin Multiplatform projects \u2014 module structure, dependency rules, UseCases, Repositories, and data layer\u2026",
+    "files": [],
+    "bytes": 8887,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "angular-developer",
+    "title": "Angular developer",
+    "category": "Languages & frameworks",
+    "blurb": "Generates Angular code and provides architectural guidance.",
+    "files": [
+      "references"
+    ],
+    "bytes": 11021,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "bun-runtime",
+    "title": "Bun runtime",
+    "category": "Languages & frameworks",
+    "blurb": "Bun as runtime, package manager, bundler, and test runner. When to choose Bun vs Node, migration notes, and Vercel support.",
+    "files": [],
+    "bytes": 2608,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "cisco-ios-patterns",
+    "title": "Cisco IOS patterns",
+    "category": "Languages & frameworks",
+    "blurb": "Cisco IOS and IOS-XE review patterns for show commands, config hierarchy, wildcard masks, ACL placement, interface hygiene, and safe change-window ver\u2026",
+    "files": [],
+    "bytes": 5305,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "compose-multiplatform-patterns",
+    "title": "Compose multiplatform patterns",
+    "category": "Languages & frameworks",
+    "blurb": "Compose Multiplatform and Jetpack Compose patterns for KMP projects \u2014 state management, navigation, theming, performance, and platform-specific UI",
+    "files": [],
+    "bytes": 8229,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "cpp-coding-standards",
+    "title": "CPP coding standards",
+    "category": "Languages & frameworks",
+    "blurb": "C++ coding standards based on the C++ Core Guidelines (isocpp.github.io)",
+    "files": [],
+    "bytes": 22291,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "cpp-testing",
+    "title": "CPP testing",
+    "category": "Languages & frameworks",
+    "blurb": "Use only when writing/updating/fixing C++ tests, configuring GoogleTest/CTest, diagnosing failing or flaky tests, or adding coverage/sanitizers.",
+    "files": [],
+    "bytes": 9175,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "csharp-testing",
+    "title": "Csharp testing",
+    "category": "Languages & frameworks",
+    "blurb": "C# and .NET testing patterns with xUnit, FluentAssertions, mocking, integration tests, and test organization best practices",
+    "files": [],
+    "bytes": 8726,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "dart-flutter-patterns",
+    "title": "Dart flutter patterns",
+    "category": "Languages & frameworks",
+    "blurb": "Production-ready Dart and Flutter patterns covering null safety, immutable state, async composition, widget architecture, popular state management fra\u2026",
+    "files": [],
+    "bytes": 16033,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "django-celery",
+    "title": "Django celery",
+    "category": "Languages & frameworks",
+    "blurb": "Django + Celery async task patterns \u2014 configuration, task design, beat scheduling, retries, canvas workflows, monitoring, and testing",
+    "files": [],
+    "bytes": 13134,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "django-patterns",
+    "title": "Django patterns",
+    "category": "Languages & frameworks",
+    "blurb": "Django architecture patterns, REST API design with DRF, ORM best practices, caching, signals, middleware, and production-grade Django apps",
+    "files": [],
+    "bytes": 21116,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "django-security",
+    "title": "Django security",
+    "category": "Languages & frameworks",
+    "blurb": "Django security best practices, authentication, authorization, CSRF protection, SQL injection prevention, XSS prevention, and secure deployment config\u2026",
+    "files": [],
+    "bytes": 17269,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "django-tdd",
+    "title": "Django TDD",
+    "category": "Languages & frameworks",
+    "blurb": "Django testing strategies with pytest-django, TDD methodology, factory_boy, mocking, coverage, and testing Django REST Framework APIs",
+    "files": [],
+    "bytes": 21031,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "django-verification",
+    "title": "Django verification",
+    "category": "Languages & frameworks",
+    "blurb": "Verification loop for Django projects: migrations, linting, tests with coverage, security scans, and deployment readiness checks before release or PR.",
+    "files": [],
+    "bytes": 11491,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "dotnet-patterns",
+    "title": "Dotnet patterns",
+    "category": "Languages & frameworks",
+    "blurb": "Idiomatic C# and .NET patterns, conventions, dependency injection, async/await, and best practices for building robust, maintainable .NET applications",
+    "files": [],
+    "bytes": 9316,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "fastapi-patterns",
+    "title": "Fastapi patterns",
+    "category": "Languages & frameworks",
+    "blurb": "FastAPI best practices covering project structure, Pydantic v2 schemas, dependency injection, async handlers, authentication, authorization, transacti\u2026",
+    "files": [],
+    "bytes": 15637,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "flutter-dart-code-review",
+    "title": "Flutter dart code review",
+    "category": "Languages & frameworks",
+    "blurb": "Library-agnostic Flutter/Dart code review checklist covering widget best practices, state management patterns (BLoC, Riverpod, Provider, GetX, MobX, S\u2026",
+    "files": [],
+    "bytes": 23194,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "foundation-models-on-device",
+    "title": "Foundation models on device",
+    "category": "Languages & frameworks",
+    "blurb": "Apple FoundationModels framework for on-device LLM \u2014 text generation, guided generation with @Generable, tool calling, and snapshot streaming in iOS 2\u2026",
+    "files": [],
+    "bytes": 8255,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "fsharp-testing",
+    "title": "Fsharp testing",
+    "category": "Languages & frameworks",
+    "blurb": "F# testing patterns with xUnit, FsUnit, Unquote, FsCheck property-based testing, integration tests, and test organization best practices",
+    "files": [],
+    "bytes": 7941,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "generating-python-installer",
+    "title": "Generating python installer",
+    "category": "Languages & frameworks",
+    "blurb": "Commercial-grade Python installer expert for Windows: Nuitka extreme compilation, dist slimming, DLL footprint analysis, and Inno Setup packaging to s\u2026",
+    "files": [],
+    "bytes": 30327,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "golang-patterns",
+    "title": "Golang patterns",
+    "category": "Languages & frameworks",
+    "blurb": "Idiomatic Go patterns, best practices, and conventions for building robust, efficient, and maintainable Go applications",
+    "files": [],
+    "bytes": 14136,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "golang-testing",
+    "title": "Golang testing",
+    "category": "Languages & frameworks",
+    "blurb": "Go testing patterns including table-driven tests, subtests, benchmarks, fuzzing, and test coverage.",
+    "files": [],
+    "bytes": 16744,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "java-coding-standards",
+    "title": "Java coding standards",
+    "category": "Languages & frameworks",
+    "blurb": "Java coding standards for Spring Boot and Quarkus services: naming, immutability, Optional usage, streams, exceptions, generics, CDI, reactive pattern\u2026",
+    "files": [],
+    "bytes": 11550,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "jpa-patterns",
+    "title": "JPA patterns",
+    "category": "Languages & frameworks",
+    "blurb": "JPA/Hibernate patterns for entity design, relationships, query optimization, transactions, auditing, indexing, pagination, and pooling in Spring Boot",
+    "files": [],
+    "bytes": 4679,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "kotlin-coroutines-flows",
+    "title": "Kotlin coroutines flows",
+    "category": "Languages & frameworks",
+    "blurb": "Kotlin Coroutines and Flow patterns for Android and KMP \u2014 structured concurrency, Flow operators, StateFlow, error handling, and testing",
+    "files": [],
+    "bytes": 7869,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "kotlin-exposed-patterns",
+    "title": "Kotlin exposed patterns",
+    "category": "Languages & frameworks",
+    "blurb": "JetBrains Exposed ORM patterns including DSL queries, DAO pattern, transactions, HikariCP connection pooling, Flyway migrations, and repository patter\u2026",
+    "files": [],
+    "bytes": 22119,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "kotlin-ktor-patterns",
+    "title": "Kotlin ktor patterns",
+    "category": "Languages & frameworks",
+    "blurb": "Ktor server patterns including routing DSL, plugins, authentication, Koin DI, kotlinx.serialization, WebSockets, and testApplication testing",
+    "files": [],
+    "bytes": 19536,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "kotlin-patterns",
+    "title": "Kotlin patterns",
+    "category": "Languages & frameworks",
+    "blurb": "Idiomatic Kotlin patterns, best practices, and conventions for building robust, efficient, and maintainable Kotlin applications with coroutines, null\u2026",
+    "files": [],
+    "bytes": 18951,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "kotlin-testing",
+    "title": "Kotlin testing",
+    "category": "Languages & frameworks",
+    "blurb": "Kotlin testing patterns with Kotest, MockK, coroutine testing, property-based testing, and Kover coverage.",
+    "files": [],
+    "bytes": 20800,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "laravel-patterns",
+    "title": "Laravel patterns",
+    "category": "Languages & frameworks",
+    "blurb": "Laravel architecture patterns, routing/controllers, Eloquent ORM, service layers, queues, events, caching, and API resources for production apps",
+    "files": [],
+    "bytes": 10664,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "laravel-plugin-discovery",
+    "title": "Laravel plugin discovery",
+    "category": "Languages & frameworks",
+    "blurb": "Discover and evaluate Laravel packages via LaraPlugins.io MCP",
+    "files": [],
+    "bytes": 6393,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "laravel-security",
+    "title": "Laravel security",
+    "category": "Languages & frameworks",
+    "blurb": "Laravel security best practices \u2014 authentication, authorization, Eloquent safety, CSRF, XSS prevention, API security, and secure deployment configurat\u2026",
+    "files": [],
+    "bytes": 26556,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "laravel-tdd",
+    "title": "Laravel TDD",
+    "category": "Languages & frameworks",
+    "blurb": "Laravel testing strategies with PHPUnit, Pest, model factories, HTTP tests, Sanctum authentication testing, mocking, and coverage",
+    "files": [],
+    "bytes": 17863,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "laravel-verification",
+    "title": "Laravel verification",
+    "category": "Languages & frameworks",
+    "blurb": "Verification loop for Laravel projects: env checks, linting, static analysis, tests with coverage, security scans, and deployment readiness",
+    "files": [],
+    "bytes": 4376,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "nestjs-patterns",
+    "title": "Nestjs patterns",
+    "category": "Languages & frameworks",
+    "blurb": "NestJS architecture patterns for modules, controllers, providers, DTO validation, guards, interceptors, config, and production-grade TypeScript backen\u2026",
+    "files": [],
+    "bytes": 6533,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "nextjs-turbopack",
+    "title": "Nextjs turbopack",
+    "category": "Languages & frameworks",
+    "blurb": "Next.js 16+ and Turbopack \u2014 incremental bundling, FS caching, dev speed, and when to use Turbopack vs webpack.",
+    "files": [],
+    "bytes": 2892,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "nodejs-keccak256",
+    "title": "Nodejs keccak256",
+    "category": "Languages & frameworks",
+    "blurb": "Prevent Ethereum hashing bugs in JavaScript and TypeScript.",
+    "files": [],
+    "bytes": 2992,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "nuxt4-patterns",
+    "title": "Nuxt4 patterns",
+    "category": "Languages & frameworks",
+    "blurb": "Nuxt 4 app patterns for hydration safety, performance, route rules, lazy loading, and SSR-safe data fetching with useFetch and useAsyncData",
+    "files": [],
+    "bytes": 4761,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "perl-patterns",
+    "title": "Perl patterns",
+    "category": "Languages & frameworks",
+    "blurb": "Modern Perl 5.36+ idioms, best practices, and conventions for building robust, maintainable Perl applications",
+    "files": [],
+    "bytes": 11591,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "perl-security",
+    "title": "Perl security",
+    "category": "Languages & frameworks",
+    "blurb": "Comprehensive Perl security covering taint mode, input validation, safe process execution, DBI parameterized queries, web security (XSS/SQLi/CSRF), an\u2026",
+    "files": [],
+    "bytes": 13856,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "perl-testing",
+    "title": "Perl testing",
+    "category": "Languages & frameworks",
+    "blurb": "Perl testing patterns using Test2::V0, Test::More, prove runner, mocking, coverage with Devel::Cover, and TDD methodology",
+    "files": [],
+    "bytes": 11282,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "prisma-patterns",
+    "title": "Prisma patterns",
+    "category": "Languages & frameworks",
+    "blurb": "Prisma ORM patterns for TypeScript backends \u2014 schema design, query optimization, transactions, pagination, and critical traps like updateMany returnin\u2026",
+    "files": [],
+    "bytes": 15281,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "python-patterns",
+    "title": "Python patterns",
+    "category": "Languages & frameworks",
+    "blurb": "Pythonic idioms, PEP 8 standards, type hints, and best practices for building robust, efficient, and maintainable Python applications",
+    "files": [],
+    "bytes": 16914,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "python-testing",
+    "title": "Python testing",
+    "category": "Languages & frameworks",
+    "blurb": "Python testing strategies using pytest, TDD methodology, fixtures, mocking, parametrization, and coverage requirements",
+    "files": [],
+    "bytes": 18955,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "quarkus-patterns",
+    "title": "Quarkus patterns",
+    "category": "Languages & frameworks",
+    "blurb": "Quarkus 3.x LTS architecture patterns with Camel for messaging, RESTful API design, CDI services, data access with Panache, and async processing",
+    "files": [],
+    "bytes": 21520,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "quarkus-security",
+    "title": "Quarkus security",
+    "category": "Languages & frameworks",
+    "blurb": "Quarkus Security best practices for authentication, authorization, JWT/OIDC, RBAC, input validation, CSRF, secrets management, and dependency security",
+    "files": [],
+    "bytes": 12174,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "quarkus-tdd",
+    "title": "Quarkus TDD",
+    "category": "Languages & frameworks",
+    "blurb": "Test-driven development for Quarkus 3.x LTS using JUnit 5, Mockito, REST Assured, Camel testing, and JaCoCo",
+    "files": [],
+    "bytes": 25526,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "quarkus-verification",
+    "title": "Quarkus verification",
+    "category": "Languages & frameworks",
+    "blurb": "Verification loop for Quarkus projects: build, static analysis, tests with coverage, security scans, native compilation, and diff review before releas\u2026",
+    "files": [],
+    "bytes": 10552,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "react-native-patterns",
+    "title": "React native patterns",
+    "category": "Languages & frameworks",
+    "blurb": "React Native and Expo app patterns \u2014 Expo Router navigation, state separation (server/client/route/form), TanStack Query data fetching with Zod, perfo\u2026",
+    "files": [],
+    "bytes": 11752,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "react-patterns",
+    "title": "React patterns",
+    "category": "Languages & frameworks",
+    "blurb": "Hooks discipline, state shape, and composition that does not fight the framework.",
+    "files": [],
+    "bytes": 11466,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "react-performance",
+    "title": "React performance",
+    "category": "Languages & frameworks",
+    "blurb": "Find the re-render that is costing you, and fix the cause rather than memoizing around it.",
+    "files": [],
+    "bytes": 18184,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "react-testing",
+    "title": "React testing",
+    "category": "Languages & frameworks",
+    "blurb": "Test components the way a user meets them.",
+    "files": [],
+    "bytes": 13168,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "remotion-video-creation",
+    "title": "Remotion video creation",
+    "category": "Languages & frameworks",
+    "blurb": "Best practices for Remotion - Video creation in React.",
+    "files": [
+      "rules"
+    ],
+    "bytes": 3642,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "rust-patterns",
+    "title": "Rust patterns",
+    "category": "Languages & frameworks",
+    "blurb": "Idiomatic Rust patterns, ownership, error handling, traits, concurrency, and best practices for building safe, performant applications",
+    "files": [],
+    "bytes": 13500,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "rust-testing",
+    "title": "Rust testing",
+    "category": "Languages & frameworks",
+    "blurb": "Rust testing patterns including unit tests, integration tests, async testing, property-based testing, mocking, and coverage. Follows TDD methodology",
+    "files": [],
+    "bytes": 11798,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "springboot-patterns",
+    "title": "Springboot patterns",
+    "category": "Languages & frameworks",
+    "blurb": "Spring Boot architecture patterns, REST API design, layered services, data access, caching, async processing, and logging",
+    "files": [],
+    "bytes": 10047,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "springboot-security",
+    "title": "Springboot security",
+    "category": "Languages & frameworks",
+    "blurb": "Spring Security best practices for authn/authz, validation, CSRF, secrets, headers, rate limiting, and dependency security in Java Spring Boot service\u2026",
+    "files": [],
+    "bytes": 8133,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "springboot-tdd",
+    "title": "Springboot TDD",
+    "category": "Languages & frameworks",
+    "blurb": "Test-driven development for Spring Boot using JUnit 5, Mockito, MockMvc, Testcontainers, and JaCoCo",
+    "files": [],
+    "bytes": 3786,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "springboot-verification",
+    "title": "Springboot verification",
+    "category": "Languages & frameworks",
+    "blurb": "Verification loop for Spring Boot projects: build, static analysis, tests with coverage, security scans, and diff review before release or PR.",
+    "files": [],
+    "bytes": 5833,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "swift-actor-persistence",
+    "title": "Swift actor persistence",
+    "category": "Languages & frameworks",
+    "blurb": "Thread-safe data persistence in Swift using actors \u2014 in-memory cache with file-backed storage, eliminating data races by design",
+    "files": [],
+    "bytes": 4906,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "swift-concurrency-6-2",
+    "title": "Swift concurrency",
+    "category": "Languages & frameworks",
+    "blurb": "Actors, async/await and sendability under Swift 6 strict checking.",
+    "files": [],
+    "bytes": 8117,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "swift-protocol-di-testing",
+    "title": "Swift protocol di testing",
+    "category": "Languages & frameworks",
+    "blurb": "Protocol-based dependency injection for testable Swift code \u2014 mock file system, network, and external APIs using focused protocols and Swift Testing",
+    "files": [],
+    "bytes": 6112,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "swiftui-patterns",
+    "title": "SwiftUI patterns",
+    "category": "Languages & frameworks",
+    "blurb": "State, layout and navigation patterns for SwiftUI.",
+    "files": [],
+    "bytes": 7039,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "tinystruct-patterns",
+    "title": "Tinystruct patterns",
+    "category": "Languages & frameworks",
+    "blurb": "Expert guidance for developing with the tinystruct Java framework",
+    "files": [
+      "references"
+    ],
+    "bytes": 11879,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "ui-to-vue",
+    "title": "UI to vue",
+    "category": "Languages & frameworks",
+    "blurb": "The user has UI screenshots or design exports that need batch conversion into Vue 3 components, especially with Vant, Element Plus, or Ant Design Vue.",
+    "files": [],
+    "bytes": 4809,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "vite-patterns",
+    "title": "Vite patterns",
+    "category": "Languages & frameworks",
+    "blurb": "Vite build tool patterns including config, plugins, HMR, env variables, proxy setup, SSR, library mode, dependency pre-bundling, and build optimizatio\u2026",
+    "files": [],
+    "bytes": 17115,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "vue-patterns",
+    "title": "Vue patterns",
+    "category": "Languages & frameworks",
+    "blurb": "Vue.js 3 Composition API patterns, component architecture, reactivity best practices, Pinia state management, Vue Router navigation, and Nuxt SSR patt\u2026",
+    "files": [],
+    "bytes": 13182,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "agent-architecture-audit",
+    "title": "Agent architecture audit",
+    "category": "Security & safety",
+    "blurb": "Full-stack diagnostic for agent and LLM applications.",
+    "files": [],
+    "bytes": 10278,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "automation-audit-ops",
+    "title": "Automation audit ops",
+    "category": "Security & safety",
+    "blurb": "Evidence-first automation inventory and overlap audit workflow for ECC",
+    "files": [],
+    "bytes": 4167,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "canary-watch",
+    "title": "Canary watch",
+    "category": "Security & safety",
+    "blurb": "Monitor and verify a deployed URL after releases \u2014 checks HTTP endpoints, SSE streams, static assets, console errors, and performance regressions afte\u2026",
+    "files": [],
+    "bytes": 3128,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "click-path-audit",
+    "title": "Click path audit",
+    "category": "Security & safety",
+    "blurb": "Trace every user-facing button/touchpoint through its full state change sequence to find bugs where functions individually work but cancel each other\u2026",
+    "files": [],
+    "bytes": 7975,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "defi-amm-security",
+    "title": "Defi amm security",
+    "category": "Security & safety",
+    "blurb": "Security checklist for Solidity AMM contracts, liquidity pools, and swap flows.",
+    "files": [],
+    "bytes": 5390,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "ecc-tools-cost-audit",
+    "title": "Ecc tools cost audit",
+    "category": "Security & safety",
+    "blurb": "Evidence-first ECC Tools burn and billing audit workflow",
+    "files": [],
+    "bytes": 6496,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "gateguard",
+    "title": "Gateguard",
+    "category": "Security & safety",
+    "blurb": "Fact-forcing gate that blocks Edit/Write/Bash (including MultiEdit) and demands concrete investigation (importers, data schemas, user instruction) bef\u2026",
+    "files": [],
+    "bytes": 5214,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "llm-trading-agent-security",
+    "title": "LLM trading agent security",
+    "category": "Security & safety",
+    "blurb": "Security patterns for autonomous trading agents with wallet or transaction authority.",
+    "files": [],
+    "bytes": 4632,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "production-audit",
+    "title": "Production readiness audit",
+    "category": "Security & safety",
+    "blurb": "What has to be true before something faces real users.",
+    "files": [],
+    "bytes": 7727,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "safety-guard",
+    "title": "Safety guard",
+    "category": "Security & safety",
+    "blurb": "Prevent destructive operations when working on production systems or running agents autonomously.",
+    "files": [],
+    "bytes": 1945,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "repo-scan",
+    "title": "Scan a repository",
+    "category": "Security & safety",
+    "blurb": "A fast structured read of what a repo is, what it uses and where the risk sits.",
+    "files": [],
+    "bytes": 7242,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "security-bounty-hunter",
+    "title": "Security bounty hunter",
+    "category": "Security & safety",
+    "blurb": "Hunt for exploitable, bounty-worthy security issues in repositories.",
+    "files": [],
+    "bytes": 3628,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "security-review",
+    "title": "Security review",
+    "category": "Security & safety",
+    "blurb": "Secrets, input validation, auth, and the injection classes \u2014 with the fix for each.",
+    "files": [
+      "cloud-infrastructure-security.md"
+    ],
+    "bytes": 12493,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "security-scan",
+    "title": "Security scan",
+    "category": "Security & safety",
+    "blurb": "Scan your Claude Code configuration (.claude/ directory) for security vulnerabilities, misconfigurations, and injection risks using AgentShield.",
+    "files": [],
+    "bytes": 4592,
     "origin": "ECC",
     "license": "MIT"
   },
   {
     "dir": "article-writing",
     "title": "Article writing",
-    "category": "Writing",
+    "category": "Writing & research",
     "blurb": "Structure and edit a piece of writing so it holds a reader.",
     "files": [],
     "bytes": 2926,
@@ -262,9 +2602,39 @@
     "license": "MIT"
   },
   {
+    "dir": "content-engine",
+    "title": "Content engine",
+    "category": "Writing & research",
+    "blurb": "Create platform-native content systems for X, LinkedIn, TikTok, YouTube, newsletters, and repurposed multi-platform campaigns",
+    "files": [],
+    "bytes": 4370,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "content-hash-cache-pattern",
+    "title": "Content hash cache pattern",
+    "category": "Writing & research",
+    "blurb": "Cache expensive file processing results using SHA-256 content hashes \u2014 path-independent, auto-invalidating, with service layer separation",
+    "files": [],
+    "bytes": 5732,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "crosspost",
+    "title": "Crosspost",
+    "category": "Writing & research",
+    "blurb": "Multi-platform content distribution across X, LinkedIn, Threads, and Bluesky. Adapts content per platform using content-engine patterns.",
+    "files": [],
+    "bytes": 3447,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
     "dir": "deep-research",
     "title": "Deep research",
-    "category": "Writing",
+    "category": "Writing & research",
     "blurb": "Research a question properly \u2014 sources, contradictions, and what is still unknown.",
     "files": [],
     "bytes": 4798,
@@ -274,7 +2644,7 @@
   {
     "dir": "documentation-lookup",
     "title": "Documentation lookup",
-    "category": "Writing",
+    "category": "Writing & research",
     "blurb": "Find and read the real docs instead of recalling an old version of them.",
     "files": [],
     "bytes": 4912,
@@ -282,12 +2652,72 @@
     "license": "MIT"
   },
   {
+    "dir": "living-docs-governance",
+    "title": "Living docs governance",
+    "category": "Writing & research",
+    "blurb": "Keep a long-lived project's documentation from rotting by assigning existing project docs clear constitution, map, status, and history roles, then wir\u2026",
+    "files": [],
+    "bytes": 8482,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "nutrient-document-processing",
+    "title": "Nutrient document processing",
+    "category": "Writing & research",
+    "blurb": "Process, convert, OCR, extract, redact, sign, and fill documents using the Nutrient DWS API. Works with PDFs, DOCX, XLSX, PPTX, HTML, and images",
+    "files": [],
+    "bytes": 6015,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "product-capability",
+    "title": "Product capability",
+    "category": "Writing & research",
+    "blurb": "Translate PRD intent, roadmap asks, or product discussions into an implementation-ready capability plan that exposes constraints, invariants, interfac\u2026",
+    "files": [],
+    "bytes": 4436,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "research-ops",
+    "title": "Research ops",
+    "category": "Writing & research",
+    "blurb": "Evidence-first current-state research workflow for ECC",
+    "files": [],
+    "bytes": 3605,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
     "dir": "seo",
     "title": "SEO",
-    "category": "Writing",
+    "category": "Writing & research",
     "blurb": "What actually moves search visibility, and what is folklore.",
     "files": [],
     "bytes": 4320,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "tasteforge-video",
+    "title": "Tasteforge video",
+    "category": "Writing & research",
+    "blurb": "File-driven multimodal image, video, and 3D-asset discovery; taste interviews; distill or apply workflows; style-pack validation; editable EDL/FCPXML\u2026",
+    "files": [],
+    "bytes": 10469,
+    "origin": "ECC",
+    "license": "MIT"
+  },
+  {
+    "dir": "video-editing",
+    "title": "Video editing",
+    "category": "Writing & research",
+    "blurb": "AI-assisted video editing workflows for cutting, structuring, and augmenting real footage.",
+    "files": [],
+    "bytes": 9737,
     "origin": "ECC",
     "license": "MIT"
   }

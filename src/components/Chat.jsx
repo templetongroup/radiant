@@ -627,8 +627,15 @@ export default function Chat ({ session, live, todos = [], stats, approval, ques
         .filter(sk => !activeSkillIds.includes(sk.id))
         .map(sk => ({ kind: 'skill', id: sk.id, cmd: '/' + slug(sk.name), desc: sk.description || 'Skill', enabled: sk.enabled }))
         .filter(c => c.cmd.startsWith(slashQuery))
+        // ⚠️ ALPHABETICAL, NOT CONFIG ORDER. The list used to come out in
+        // whatever order the skills happened to be stored in, which is no order
+        // at all once there are more than a few. Tony: "i dont know what order
+        // they are in now."
+        .sort((a, b) => a.cmd.localeCompare(b.cmd))
     : []
-  const slashPrompts = slashQuery ? SLASH_COMMANDS.filter(c => c.cmd.startsWith(slashQuery)).map(c => ({ ...c, kind: 'prompt' })) : []
+  const slashPrompts = slashQuery
+    ? SLASH_COMMANDS.filter(c => c.cmd.startsWith(slashQuery)).map(c => ({ ...c, kind: 'prompt' })).sort((a, b) => a.cmd.localeCompare(b.cmd))
+    : []
   const slashMatches = [...slashSkills, ...slashPrompts]
   const applySlash = c => {
     // ⚠️ THE COMMAND GOES IN THE BOX. Hermes and Claude Code both work this way,

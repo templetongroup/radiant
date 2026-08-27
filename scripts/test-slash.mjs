@@ -24,7 +24,9 @@ is('a name becomes a command', slug('Plain English'), 'plain-english')
 is('punctuation and case are dropped', slug('  Step  by/Step! '), 'step-by-step')
 
 // The list
-is('a bare slash offers everything', cmds('/'), ['/plain-english', '/keep-it-short', '/step-by-step'])
+// ⚠️ ALPHABETICAL, ALWAYS. ROWS is deliberately not in alphabetical order, so
+// this fails if the list ever falls back to storage order.
+is('a bare slash offers everything, alphabetically', cmds('/'), ['/keep-it-short', '/plain-english', '/step-by-step'])
 is('typing narrows it', cmds('/ke'), ['/keep-it-short'])
 is('no match is an empty list, not everything', cmds('/zzz'), [])
 is('ordinary text is not a command', cmds('what is 2/3'), [])

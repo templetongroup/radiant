@@ -937,6 +937,8 @@ function SkillLibrary ({ onConfigChange }) {
   const [reading, setReading] = useState(null)   // { dir, doc, files, executables } | 'loading'
   const [busy, setBusy] = useState(null)
   const [err, setErr] = useState('')
+  const [q, setQ] = useState('')
+  const [openCat, setOpenCat] = useState(null)
 
   useEffect(() => {
     if (!open || rows) return
@@ -962,8 +964,15 @@ function SkillLibrary ({ onConfigChange }) {
     setBusy(null)
   }
 
+  // ⚠️ 270 SKILLS IS A SEARCH PROBLEM, NOT A LIST. Every category closed and a
+  // box at the top: typing filters across titles, blurbs and folder names, and
+  // a search opens whatever it matched so results are never hidden behind a
+  // heading someone still has to click.
+  const needle = q.trim().toLowerCase()
+  const hits = (rows || []).filter(r => !needle ||
+    (r.title + ' ' + r.blurb + ' ' + r.dir).toLowerCase().includes(needle))
   const groups = []
-  for (const r of rows || []) {
+  for (const r of hits) {
     const g = groups.find(x => x.name === r.category)
     if (g) g.rows.push(r); else groups.push({ name: r.category, rows: [r] })
   }
@@ -981,10 +990,30 @@ function SkillLibrary ({ onConfigChange }) {
       {open && rows?.length === 0 && <div className='activity-empty' style={{ marginTop: 8 }}>The library did not load.</div>}
       {open && err && <div className='skill-lib-err'>{err}</div>}
 
-      {open && groups.map(g => (
+      {open && rows?.length > 0 && (
+        <div className='skill-lib-search'>
+          <input
+            className='text-input'
+            placeholder={`Search ${rows.length} skills…`}
+            value={q}
+            onChange={e => setQ(e.target.value)}
+          />
+          {needle && <span className='skill-lib-count'>{hits.length} match{hits.length === 1 ? '' : 'es'}</span>}
+          {needle && <button className='small-btn' onClick={() => setQ('')}>Clear</button>}
+        </div>
+      )}
+      {open && needle && !hits.length && <div className='activity-empty' style={{ margin: '8px 12px' }}>Nothing matches “{q}”.</div>}
+
+      {open && groups.map(g => {
+        const shown = needle || openCat === g.name
+        return (
         <div key={g.name} className='skill-lib-group'>
-          <div className='skill-lib-cat'>{g.name}</div>
-          {g.rows.map(r => (
+          <button className='skill-lib-cat' onClick={() => setOpenCat(c => c === g.name ? null : g.name)}>
+            <span className='skill-lib-chev'>{shown ? '▾' : '▸'}</span>
+            {g.name}
+            <span className='skill-lib-catcount'>{g.rows.length}</span>
+          </button>
+          {shown && g.rows.map(r => (
             <div key={r.dir} className='skill-lib-row'>
               <div className='skill-main'>
                 <div className='skill-name'>{r.title}</div>
@@ -1015,7 +1044,8 @@ function SkillLibrary ({ onConfigChange }) {
             </div>
           ))}
         </div>
-      ))}
+        )
+      })}
     </div>
   )
 }
@@ -2204,7 +2234,7 @@ const GUIDE = [
       ['MCP', 'Connect Model Context Protocol servers in Settings → MCP to give agents extra tools.'],
       ['Skills', 'Drop a skill file into Settings → Skills (or type one) to inject house rules the agent follows — globally or per agent.'],
       ['If a Mac shows no projects', 'Settings → Devices → “Where it is now”. If Radiant says nothing there is syncing, press “Fix this folder” — it stands up a folder iCloud will actually sync, copies your setup in, and keeps the old one alongside.'],
-      ['Skill library', 'Settings → Skills → Skill library holds ready-made skills that ship with Radiant — verification, security review, React, SwiftUI, design, research. Read the whole thing before you add it; added skills start switched off.'],
+      ['Skill library', 'Settings → Skills → Skill library holds 270 ready-made skills that ship with Radiant, grouped and searchable — languages and frameworks, design, data, security, research and more. Search it, read the whole skill before you add it, and added skills start switched off.'],
       ['Upload a skill folder', 'A skill can be a folder — a SKILL.md with notes and references beside it. Upload one in Settings → Skills. Radiant refuses any folder containing a runnable file, and names it: a skill is read, never executed.'],
       ['Use a skill for one message', 'Type / in the composer, pick a skill, and the command goes in the box. It applies to that message only. Works the same on iPhone.'],
       ['Skills that build themselves', 'When an agent notices a repeatable workflow it suggests a reusable skill; review the full description and Add or Reject it in Settings → Skills.']

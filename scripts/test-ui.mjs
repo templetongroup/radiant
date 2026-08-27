@@ -89,8 +89,12 @@ await composer.fill('/')
 await page.waitForTimeout(200)
 const slashRows = page.locator('.rx-chat-slashrow')
 ok('typing / offers the skills', await slashRows.count() > 0)
-is('and offers the bundled ones by command',
-  await page.locator('.rx-chat-slashcmd').first().innerText(), '/plain-english')
+// ⚠️ ALPHABETICAL, NOT STORAGE ORDER. Tony: "i dont know what order they are in
+// now." Asserting the sort rather than a fixed first item, so adding a skill
+// never breaks this for the wrong reason.
+const cmds = await page.locator('.rx-chat-slashcmd').allInnerTexts()
+is('the commands are alphabetical', cmds, [...cmds].sort((a, b) => a.localeCompare(b)))
+ok('and the bundled skills are all there', cmds.includes('/plain-english') && cmds.length >= 5)
 
 await composer.fill('/pl')
 await page.waitForTimeout(200)

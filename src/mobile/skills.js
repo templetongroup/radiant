@@ -137,7 +137,10 @@ export const slug = name => String(name || '').toLowerCase().replace(/[^a-z0-9]+
 /** Skills whose command starts with what has been typed, or [] if it is not a command. */
 export function slashMatches (draft, rows = listSkills()) {
   if (!/^\/[\w-]*$/.test(draft || '')) return []
-  return rows.map(sk => ({ ...sk, cmd: '/' + slug(sk.name) })).filter(c => c.cmd.startsWith(draft))
+  // Alphabetical: storage order is not an order anyone can predict.
+  return rows.map(sk => ({ ...sk, cmd: '/' + slug(sk.name) }))
+    .filter(c => c.cmd.startsWith(draft))
+    .sort((a, b) => a.cmd.localeCompare(b.cmd))
 }
 
 /**

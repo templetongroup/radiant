@@ -938,7 +938,7 @@ export default function MobileChat ({
                 onPick={() => { setPickSkill(false); onSkillChange?.(null) }}
               />
               {listSkills().length > 0 && <div className='rx-chat-menusep' />}
-              {listSkills().map(sk => (
+              {[...listSkills()].sort((a, b) => a.name.localeCompare(b.name)).map(sk => (
                 <MenuRow
                   key={sk.id}
                   label={sk.name}
