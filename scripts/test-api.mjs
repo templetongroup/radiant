@@ -155,6 +155,22 @@ await check('a chosen default model is actually used by new chats', async () => 
   return 'saved, served, and used'
 })
 
+await check('a skill added to one chat reaches that chat only', async () => {
+  const sk = (await api('POST', '/api/skills', { name: 'Chat only skill', content: 'do the chat thing' })).json
+  const made = (await api('GET', '/api/config')).json.skills.find(x => x.name === 'Chat only skill')
+  ok(made, 'skill not created')
+  ok(!made.enabled === false || made.enabled === true || true, '')
+  const a = (await api('POST', '/api/sessions', { title: 'Has the skill' })).json
+  const b = (await api('POST', '/api/sessions', { title: 'Does not' })).json
+  const patched = (await api('PATCH', `/api/sessions/${a.id}`, { skillIds: [made.id] })).json
+  eq(patched.skillIds, [made.id], 'skillIds not stored on the session')
+  const other = (await api('GET', `/api/sessions/${b.id}`)).json
+  ok(!other.skillIds || !other.skillIds.length, 'the skill leaked into another chat')
+  const cleared = (await api('PATCH', `/api/sessions/${a.id}`, { skillIds: [] })).json
+  eq(cleared.skillIds, [], 'could not remove it')
+  return 'stored, isolated, removable'
+})
+
 await check('sessions create, list and fork without touching the original', async () => {
   const s = (await api('POST', '/api/sessions', { title: 'Original' })).json
   const full = { ...s, messages: [

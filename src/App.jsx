@@ -208,6 +208,18 @@ function DesktopApp () {
     refreshSessions()
   }
 
+  // Skills added to THIS chat with a slash command. Persisted on the session so
+  // they survive a reload and travel with an export, and removable because a
+  // skill you invoked once should not be stuck there.
+  const setChatSkills = async ids => {
+    if (!session) return
+    const s = await api.patchSession(session.id, { skillIds: ids })
+    setSession(s)
+    refreshSessions()
+  }
+  const addSkillToChat = id => setChatSkills([...new Set([...(session?.skillIds || []), id])])
+  const removeSkillFromChat = id => setChatSkills((session?.skillIds || []).filter(x => x !== id))
+
   const newGroup = async (participantIds) => {
     const body = { participants: participantIds }
     // Same rule as newSession: do not out-vote the configured default.
@@ -422,6 +434,9 @@ function DesktopApp () {
         onUpdate={() => { setNavOpen(false); if (window.radiantNative?.openSettings) window.radiantNative.openSettings('about'); else { setSettingsTab('about'); setSettingsOpen(true) } }}
       />
       <Chat
+        skills={config.skills || []}
+        onAddSkill={addSkillToChat}
+        onRemoveSkill={removeSkillFromChat}
         rightOpen={rightOpen}
         onToggleRight={() => setRightOpen(o => !o)}
         onMenu={() => setNavOpen(true)}

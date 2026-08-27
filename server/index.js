@@ -501,7 +501,7 @@ app.patch('/api/agents/:id', (req, res) => {
 
 const SAFE_SESSION_KEYS = [
   'title', 'agentId', 'group', 'participants', 'provider', 'model', 'cwd',
-  'useTools', 'computerControl', 'planMode', 'createdAt', 'updatedAt', 'messages'
+  'useTools', 'computerControl', 'planMode', 'skillIds', 'createdAt', 'updatedAt', 'messages'
 ]
 
 // ---- ChatGPT exports --------------------------------------------------------
@@ -1752,7 +1752,11 @@ app.get('/api/sessions/:id', (req, res) => {
 app.patch('/api/sessions/:id', (req, res) => {
   const s = loadSession(req.params.id)
   if (!s) return res.status(404).json({ error: 'not found' })
-  for (const k of ['title', 'model', 'provider', 'cwd', 'useTools', 'computerControl', 'agentId', 'projectId', 'pinned', 'planMode']) {
+  // ⚠️ skillIds IS PER-CHAT AND DELIBERATE. Until now a skill was either on for
+  // every conversation (the Settings checkbox) or bound to an agent — so a skill
+  // you want occasionally had to live in every chat's system prompt. This is the
+  // third source: skills the user added to THIS chat, and only this chat.
+  for (const k of ['title', 'model', 'provider', 'cwd', 'useTools', 'computerControl', 'agentId', 'projectId', 'pinned', 'planMode', 'skillIds']) {
     if (k in req.body) s[k] = req.body[k]
   }
   if ('title' in req.body) s.autoTitle = false // manual rename pins the title
@@ -1839,7 +1843,10 @@ app.post('/api/chat', async (req, res) => {
   // agent (persona + its skills, resolved above) plus globally-enabled skills
   const allSkills = skillsStore.list()
   const agentSkillIds = new Set(agent?.skills || [])
-  const mergedSkills = allSkills.filter(s => s.enabled || agentSkillIds.has(s.id))
+  // Three sources now: on for everything, carried by the agent, or added to this
+  // chat with a slash command.
+  const chatSkillIds = new Set(Array.isArray(session.skillIds) ? session.skillIds : [])
+  const mergedSkills = allSkills.filter(s => s.enabled || agentSkillIds.has(s.id) || chatSkillIds.has(s.id))
 
   // MCP tools from enabled servers, bridged into the tool set
   let mcpTools = []

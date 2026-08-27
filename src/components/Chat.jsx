@@ -573,7 +573,7 @@ export function GroupPicker ({ agents, onStart, onCancel }) {
   )
 }
 
-export default function Chat ({ session, live, todos = [], stats, approval, question, onAnswer, usage, error, models, agents = [], recipes = [], onSend, onStop, onApproval, onPickModel, onToggleTools, onToggleComputer, onTogglePlan, onSetCwd, onNew, onNewGroup, onTruncate, onRefreshModels, skillSuggestion, onReviewSkill, onDismissSuggestion, onOpenLibrary, rightOpen, onToggleRight, onMenu, approvalMode = 'ask', onCycleApproval, onFork}) {
+export default function Chat ({ session, live, todos = [], stats, approval, question, onAnswer, usage, error, models, agents = [], recipes = [], onSend, onStop, onApproval, onPickModel, onToggleTools, onToggleComputer, onTogglePlan, onSetCwd, onNew, onNewGroup, onTruncate, onRefreshModels, skillSuggestion, onReviewSkill, onDismissSuggestion, onOpenLibrary, rightOpen, onToggleRight, onMenu, approvalMode = 'ask', onCycleApproval, onFork, skills = [], onAddSkill, onRemoveSkill}) {
   const [groupPicker, setGroupPicker] = useState(false)
   const [pickAgent, setPickAgent] = useState(false) // splash: reveal the agent picker
   const [draft, setDraft] = useState('')
@@ -611,10 +611,32 @@ export default function Chat ({ session, live, todos = [], stats, approval, ques
   // a session switch abandons anything still queued for the old turn
   useEffect(() => { setQueued([]) }, [session?.id])
 
+  // ⚠️ SKILLS HAD NO WAY IN. A skill was either on for every conversation or
+  // bound to an agent, so one you want occasionally sat in every chat's system
+  // prompt or nowhere. Slash already existed as the affordance and listed seven
+  // fixed prompt templates instead. Skills come first now; picking one adds it
+  // to THIS chat and it stays until removed.
+  //
+  // Disabled skills are listed deliberately: being invocable on demand is the
+  // point, and it lets someone switch a skill off globally without losing it.
   const slashQuery = /^\/[\w-]*$/.test(draft) ? draft : null
-  const slashMatches = slashQuery ? SLASH_COMMANDS.filter(c => c.cmd.startsWith(slashQuery)) : []
+  const slug = name => String(name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+  const activeSkillIds = session?.skillIds || []   // session is null on the welcome screen
+  const slashSkills = slashQuery
+    ? skills
+        .filter(sk => !activeSkillIds.includes(sk.id))
+        .map(sk => ({ kind: 'skill', id: sk.id, cmd: '/' + slug(sk.name), desc: sk.description || 'Skill', enabled: sk.enabled }))
+        .filter(c => c.cmd.startsWith(slashQuery))
+    : []
+  const slashPrompts = slashQuery ? SLASH_COMMANDS.filter(c => c.cmd.startsWith(slashQuery)).map(c => ({ ...c, kind: 'prompt' })) : []
+  const slashMatches = [...slashSkills, ...slashPrompts]
   const applySlash = c => {
-    setDraft(c.prompt)
+    if (c.kind === 'skill') {
+      setDraft('')
+      onAddSkill?.(c.id)
+    } else {
+      setDraft(c.prompt)
+    }
     setTimeout(() => textareaRef.current?.focus(), 0)
   }
 
@@ -940,8 +962,9 @@ export default function Chat ({ session, live, todos = [], stats, approval, ques
           {slashMatches.length > 0 && (
             <div className='slash-menu'>
               {slashMatches.map(c => (
-                <button key={c.cmd} className='slash-item' onMouseDown={e => { e.preventDefault(); applySlash(c) }}>
+                <button key={c.kind + c.cmd} className={'slash-item' + (c.kind === 'skill' ? ' is-skill' : '')} onMouseDown={e => { e.preventDefault(); applySlash(c) }}>
                   <span className='slash-cmd'>{c.cmd}</span>
+                  {c.kind === 'skill' && <span className='slash-kind'>skill{c.enabled ? '' : ' · off elsewhere'}</span>}
                   <span className='slash-desc'>{c.desc}</span>
                 </button>
               ))}
@@ -979,6 +1002,15 @@ export default function Chat ({ session, live, todos = [], stats, approval, ques
               />
               <button className='attach-btn' onClick={() => fileInputRef.current?.click()} title='Attach files or images' data-tip='Attach files or images'><Icon.plus size={17} /></button>
               <button className={'attach-btn' + (designBusy ? ' listening' : '')} onClick={startDesign} disabled={designBusy} title='Design Mode' data-tip={'Design Mode — open a web page and click\nan element to capture its HTML, CSS &\na screenshot as context'}><Icon.target size={16} /></button>
+              {activeSkillIds.length > 0 && activeSkillIds.map(id => {
+                const sk = skills.find(x => x.id === id)
+                return (
+                  <span key={id} className='chat-skill' title={sk?.description || 'Skill active in this chat'}>
+                    {sk?.name || 'skill'}
+                    <button className='chat-skill-x' onClick={() => onRemoveSkill?.(id)} title='Remove from this chat'>×</button>
+                  </span>
+                )
+              })}
               <RecipeMenu recipes={recipes} onUse={text => { setDraft(text); setTimeout(() => textareaRef.current?.focus(), 0) }} />
               <ModelPicker session={session} models={models} onPick={onPickModel} onRefresh={onRefreshModels} />
               <button

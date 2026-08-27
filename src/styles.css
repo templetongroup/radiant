@@ -1472,6 +1472,15 @@ input[type='range']::-webkit-slider-thumb {
    14px matches the label text, flex:none stops it distorting when the label is
    long, and the 1px nudge lines it up with the FIRST line rather than the
    middle of a wrapped one. */
+.chat-skill {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 6px 3px 9px; border-radius: 999px; font-size: 12px;
+  border: 1px solid var(--accent-dim); background: var(--accent-wash); color: var(--text);
+}
+.chat-skill-x { background: none; border: 0; color: var(--text-muted); font-size: 13px; line-height: 1; padding: 0 2px; cursor: pointer; }
+.chat-skill-x:hover { color: var(--danger); }
+.slash-kind { margin-left: 6px; font-size: 10.5px; color: var(--text-faint); }
+.slash-item.is-skill .slash-cmd { color: var(--accent); }
 .tool-run { margin: 4px 0; }
 .tool-run-head {
   display: flex; align-items: center; gap: 8px; width: 100%;
