@@ -22,7 +22,10 @@ Short on purpose. Every line is something that already cost Tony time.
 5. **Verify in `/Applications`, not the dev server.** Different PATH, different
    startup, different first-run.
 6. **`npm run release` runs the gates. Do not bypass them.** Contrast, API,
-   smoke.
+   smoke. It now builds first — a gate that passes against yesterday's binary
+   is worse than no gate.
+6b. **Bump the version before releasing.** The script reads it; it does not
+    raise it. Same version means no user is ever offered the update.
 7. **Verify the exact surface that was reported.** If the sidebar was wrong,
    check the sidebar.
 

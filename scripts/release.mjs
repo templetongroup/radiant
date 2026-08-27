@@ -23,6 +23,14 @@ const sh = (cmd, args) => execFileSync(cmd, args, { stdio: 'inherit' })
 
 const versioned = `Radiant-${version}-arm64.dmg`
 const stable = path.join(tmpdir(), 'radiant.dmg')
+
+// ⚠️ BUILD HERE, OR SHIP THE LAST BUILD BY ACCIDENT. This script used to assume
+// someone had already run `npm run dist`. On 2026-08-27 they had not: every gate
+// below went green — including the smoke test, which booted the PREVIOUS
+// binary — and a release went out containing none of the changes it was named
+// for. A gate that passes against a stale artefact is worse than no gate.
+console.log('[release] building the app')
+execFileSync('npm', ['run', 'dist'], { stdio: 'inherit' })
 copyFileSync(path.join(rel, versioned), stable)
 
 const assets = [
