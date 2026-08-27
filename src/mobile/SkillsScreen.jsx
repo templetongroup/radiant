@@ -262,9 +262,16 @@ export default function SkillsScreen () {
       {editing === 'paste' && <PasteImport onDone={() => { setEditing(null); refresh() }} onCancel={() => setEditing(null)} />}
       {editing === 'mac' && <MacImport onDone={() => { setEditing(null); refresh() }} onCancel={() => setEditing(null)} />}
 
+      {/* ⚠️ ONE GROUP UNDER A HEADER, THE WAY SETTINGS IS BUILT. The four ways in
+          were a lone blue pill plus a group that then collided with the list
+          below it. Tony: "awful spacing on the skill buttons." A header gives
+          the separation and says what the group is for. */}
       {!editing && <>
-        <div className={'rx-skill-add' + add.className} {...add.handlers}>New skill</div>
+        <h2 className="rx-section-header">Add a skill</h2>
         <div className="rx-group">
+          <div className={'rx-row rx-pressable' + add.className} {...add.handlers}>
+            <div className="rx-row-text"><div className="rx-headline">Write one</div></div>
+          </div>
           <div className={'rx-row rx-pressable' + paste.className} {...paste.handlers}>
             <div className="rx-row-text"><div className="rx-headline">Paste a skill</div></div>
           </div>
@@ -279,6 +286,7 @@ export default function SkillsScreen () {
       </>}
       {note && <p className="rx-screen-intro">{note}</p>}
 
+      {!editing && <h2 className="rx-section-header">Your skills</h2>}
       <div className="rx-group">
         {skills.length === 0 && (
           <div className="rx-row"><div className="rx-row-text">

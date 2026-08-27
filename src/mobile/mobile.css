@@ -464,7 +464,13 @@
   font-weight: 600;
 }
 .is-native .rx-headline {
-  font: -apple-system-headline;    /* 17/semibold, and it tracks Dynamic Type */
+  /* ⚠️ BODY, NOT HEADLINE. A list row's title in iOS Settings is 17 REGULAR —
+     emphasis belongs to the section header above it, not to every row. This was
+     semibold, so every row on every screen read as a heading and the hierarchy
+     flattened. Tony, against Locally side by side: "why are the items in
+     settings in bold. headings in bold, everything else normal." Still
+     -apple-system-*, so it tracks Dynamic Type as before. */
+  font: -apple-system-body;        /* 17/regular */
   line-height: 1.294;              /* 22/17 */
   color: var(--rx-label);
 }
@@ -842,6 +848,10 @@
   text-wrap: pretty;
 }
 
+/* ⚠️ TWO GROUPS IN A ROW MUST NOT TOUCH. Groups are normally separated by a
+   section header, which carries the margin. Put two back to back with nothing
+   between and their rounded corners collide into one lumpy shape. */
+.is-native .rx-group + .rx-group { margin-top: var(--rx-sp-28, 28px); }
 .is-native .rx-group {
   /* 20, measured off Settings on this simulator. 16 is the pre-iOS-26 inset and
      reads a generation old in a side-by-side. */

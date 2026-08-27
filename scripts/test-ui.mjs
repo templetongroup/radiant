@@ -401,7 +401,7 @@ await page.waitForTimeout(600)
     await p3.locator('text="Edit skills…"').first().click({ force: true, timeout: 4000 })
     await p3.waitForTimeout(600)
     const screen = await p3.locator('body').innerText()
-    landed = /New skill/.test(screen) && /Plain English/.test(screen)
+    landed = /Add a skill/.test(screen) && /Your skills/.test(screen) && /Plain English/.test(screen)
   } catch { landed = false }
   ok('and that lands on the skills library', landed)
   await p3.close()
@@ -433,7 +433,15 @@ await page.waitForTimeout(600)
   await p4.waitForTimeout(500)
   ok('Settings has a Skills row', await row('Skills'))
   const screen = await p4.locator('body').innerText()
-  ok('the phone offers all three ways in', /Paste a skill/.test(screen) && /Import from a file/.test(screen) && /Import from your Mac/.test(screen))
+  ok('the phone offers every way in', /Write one/.test(screen) && /Paste a skill/.test(screen) && /Import from a file/.test(screen) && /Import from your Mac/.test(screen))
+  // ⚠️ TWO GROUPS MUST NOT TOUCH. They collided into one lumpy shape when the
+  // import group was added straight above the list with nothing between.
+  const gap = await p4.evaluate(() => {
+    const g = [...document.querySelectorAll('.rx-group')]
+    if (g.length < 2) return -1
+    return Math.round(g[1].getBoundingClientRect().top - g[0].getBoundingClientRect().bottom)
+  })
+  ok(`the groups are separated (gap ${gap}px)`, gap >= 20)
 
   // paste a real SKILL.md
   ok('Paste a skill opens', await row('Paste a skill'))
