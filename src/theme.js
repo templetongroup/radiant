@@ -218,7 +218,18 @@ export function applyTheme (settings) {
   // screen renders with no palette at all — black on white.
   try { localStorage.setItem('radiant.mode', mode) } catch {}
   // window chrome (Electron) only knows light/dark — medium reads as dark
-  if (window.radiantNative) window.radiantNative.setMode(mode === 'light' ? 'light' : 'dark')
+  // ⚠️ THE NATIVE WINDOW COLOUR WAS HARDCODED. Electron paints backgroundColor
+  // before the page renders and whenever the window is resized, and it was fixed
+  // at #141517 / #f5f5f6 regardless of theme — so on a pinned palette like Nous
+  // Classic the frame flashed dark grey around a deep blue app. Send the theme's
+  // actual --bg so the native frame matches what the page is about to draw.
+  if (window.radiantNative) {
+    window.radiantNative.setMode(mode === 'light' ? 'light' : 'dark')
+    try {
+      const bg = getComputedStyle(root).getPropertyValue('--bg').trim()
+      if (bg && window.radiantNative.setBackground) window.radiantNative.setBackground(bg)
+    } catch {}
+  }
   root.style.setProperty('--accent-h', String(hue))
   root.style.setProperty('--accent-c', String(chroma))
   root.style.setProperty('--bg-tint', String(tint))

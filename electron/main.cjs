@@ -18,6 +18,21 @@ ipcMain.on('radiant:set-mode', (e, mode) => {
   nativeTheme.themeSource = mode === 'light' ? 'light' : 'dark'
 })
 
+// ⚠️ THE FRAME MUST MATCH THE THEME, NOT A CONSTANT. Electron paints
+// backgroundColor before the page draws and while a window is being resized, and
+// both windows had it hardcoded to #141517 / #f5f5f6. Every derived theme is
+// near-neutral so nobody noticed; a pinned palette is not, so Nous Classic
+// showed a dark grey frame flashing around a deep blue app. The renderer sends
+// its real --bg whenever the theme changes.
+let lastBg = null
+ipcMain.on('radiant:set-bg', (e, color) => {
+  if (typeof color !== 'string' || !/^#[0-9a-f]{6}$/i.test(color.trim())) return
+  lastBg = color.trim()
+  for (const w of [win, settingsWin]) {
+    if (w && !w.isDestroyed()) { try { w.setBackgroundColor(lastBg) } catch {} }
+  }
+})
+
 // native folder picker for the workspace chip (window.prompt is a no-op in Electron)
 // ⚠️ PARENT A DIALOG TO THE WINDOW THAT ASKED FOR IT. This was pinned to `win`,
 // the main window, but the caller that matters is the Settings window. On macOS
@@ -74,7 +89,7 @@ ipcMain.on('rad:open-settings', async (e, tab) => {
     minWidth: 720,
     minHeight: 520,
     title: 'Radiant Settings',
-    backgroundColor: nativeTheme.themeSource === 'light' ? '#f5f5f6' : '#141517',
+    backgroundColor: lastBg || (nativeTheme.themeSource === 'light' ? '#f5f5f6' : '#141517'),
     parent: win || undefined,
     webPreferences: { contextIsolation: true, nodeIntegration: false, preload: path.join(__dirname, 'preload.cjs') }
   })
@@ -125,7 +140,7 @@ async function createWindow () {
     minWidth: 900,
     minHeight: 600,
     title: 'Radiant',
-    backgroundColor: nativeTheme.themeSource === 'light' ? '#f5f5f6' : '#141517',
+    backgroundColor: lastBg || (nativeTheme.themeSource === 'light' ? '#f5f5f6' : '#141517'),
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,

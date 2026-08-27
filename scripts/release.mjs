@@ -38,6 +38,25 @@ const assets = [
 // went out on 2026-08-26, many of them fixing a regression in the one before,
 // and each had been "verified" by looking at something adjacent to the part
 // that broke. These two gates run every time and a failure stops the release.
+// ⚠️ THE DEPENDENCY CHECKS RUN FIRST, BEFORE ANYTHING IS BUILT. Radiant is
+// signed with Tony's Developer ID and runs shell commands; a compromised
+// dependency executes on his Mac with his permissions inside an app macOS has
+// been told to trust. Finding that out after notarising is too late.
+console.log('[release] supply chain')
+execFileSync('node', ['scripts/test-supply-chain.mjs'], { stdio: 'inherit' })
+console.log('[release] npm audit (runtime deps)')
+try {
+  execFileSync('npm', ['audit', '--omit=dev'], { stdio: 'inherit' })
+} catch {
+  console.error('\n[release] npm audit reported vulnerabilities in runtime dependencies. Fix or accept them deliberately before shipping.')
+  process.exit(1)
+}
+try {
+  execFileSync('npm', ['audit', 'signatures', '--omit=dev'], { stdio: 'inherit' })
+} catch {
+  console.error('\n[release] npm could not verify registry signatures for the runtime dependencies.')
+  process.exit(1)
+}
 console.log('[release] theme contrast')
 execFileSync('node', ['scripts/test-contrast.mjs'], { stdio: 'inherit' })
 console.log('[release] end-to-end API checks')
