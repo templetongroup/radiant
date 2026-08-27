@@ -12,7 +12,7 @@
 // HEAD returns 404 on GitHub's asset CDN even for a healthy asset — the check
 // has to be a GET.
 import { execFileSync } from 'child_process'
-import { readFileSync, copyFileSync } from 'fs'
+import { readFileSync, writeFileSync, existsSync, statSync, copyFileSync } from 'fs'
 import { tmpdir } from 'os'
 import path from 'path'
 
@@ -97,3 +97,33 @@ if (!ok) {
   process.exit(1)
 }
 console.log(`\n✓ ${tag} published and the public download works`)
+
+// ⚠️ THE DOWNLOAD PAGE SHOWS A VERSION, AND IT WAS FOUR RELEASES BEHIND. The
+// button always worked — it points at /releases/latest/download/radiant.dmg —
+// but the page read "Version 0.6.162 · 156 MB" while serving 0.6.166, and set
+// the save-as filename to Radiant-0.6.162.dmg. A page that misreports what it
+// is handing you is its own kind of broken, and nothing updated it because
+// version.json was maintained by hand. Same shape as the version bump this
+// script did not do either.
+const site = path.join(path.dirname(rel.replace(/\/$/, '')), '..', 'templeton-group-dev-website')
+const vfile = path.join(site, 'showcase', 'radiant', 'version.json')
+const sizeMB = `${Math.round(statSync(path.join(rel, versioned)).size / 1048576)} MB`
+if (!existsSync(vfile)) {
+  console.error(`\n✗ ${tag} is live, but the website repo is not at ${site}, so its version label still says the old one. Clone it beside radiant and re-run, or edit showcase/radiant/version.json by hand.`)
+  process.exit(1)
+}
+const current = JSON.parse(readFileSync(vfile, 'utf8'))
+if (current.version === version && current.size === sizeMB) {
+  console.log(`✓ the download page already says ${version} · ${sizeMB}`)
+} else {
+  writeFileSync(vfile, JSON.stringify({ version, size: sizeMB }, null, 2) + '\n')
+  try {
+    // Only this file — the site repo may have other work in progress.
+    execFileSync('git', ['-C', site, 'commit', '-m', `Radiant ${version}`, '--', 'showcase/radiant/version.json'], { stdio: 'inherit' })
+    execFileSync('git', ['-C', site, 'push', '-q'], { stdio: 'inherit' })
+    console.log(`✓ download page updated to ${version} · ${sizeMB} (deploys in about a minute)`)
+  } catch (e) {
+    console.error(`\n✗ ${tag} is live, but the download page still says ${current.version}. version.json was written; commit and push the website repo.`)
+    process.exit(1)
+  }
+}
