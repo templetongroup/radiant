@@ -329,6 +329,7 @@ export const api = {
   addSkill: skill => json('POST', '/api/skills', skill),
   updateSkill: (id, patch) => json('PATCH', `/api/skills/${id}`, patch),
   deleteSkill: id => json('DELETE', `/api/skills/${id}`),
+  repairCloudFolder: () => json('POST', '/api/data-dir/repair'),
   skillLibrary: () => json('GET', '/api/skill-library'),
   skillLibraryOne: dir => json('GET', `/api/skill-library/${encodeURIComponent(dir)}`),
   installLibrarySkill: dir => json('POST', `/api/skill-library/${encodeURIComponent(dir)}`),

@@ -193,6 +193,80 @@ export function inspectSkillFolder (abs) {
   return out
 }
 
+/**
+ * Repair a data folder that sits inside iCloud Drive but that iCloud never
+ * adopted.
+ *
+ * ⚠️ THIS IS THE BUG THAT LOSES A MAC'S PROJECTS. If the folder was created
+ * before iCloud Drive finished setting up, macOS treats it as an ordinary
+ * directory forever: Radiant writes there happily, nothing uploads, nothing
+ * arrives, and that Mac shows an empty sidebar while the others are fine. A
+ * folder created inside a LIVE container is adopted immediately — measured, not
+ * assumed — so the repair is to stand a fresh one up in the same place.
+ *
+ * ⚠️ COPY-VERIFY-SWAP, AND ROLL BACK ON ANY DOUBT (rule 10). The old folder is
+ * renamed aside, never deleted, and it stays non-ubiquitous so it does not
+ * suddenly upload gigabytes. `status` is injected so the failure paths can be
+ * tested without a broken Mac.
+ */
+export function repairCloudFolder (dir, { status = cloudStatus, stamp = String(Date.now()) } = {}) {
+  const cloudDocs = path.join(os.homedir(), 'Library', 'Mobile Documents', 'com~apple~CloudDocs')
+  if (dir !== cloudDocs && !dir.startsWith(cloudDocs + path.sep)) {
+    return { ok: false, reason: 'not_icloud', message: 'That folder is not inside iCloud Drive, so this repair does not apply to it.' }
+  }
+  const root = status(cloudDocs)
+  if (!root?.ubiquitous) {
+    return { ok: false, reason: 'icloud_off', message: 'iCloud Drive is not running on this Mac, so a folder inside it would still sync with nobody. Check System Settings → your name → iCloud → iCloud Drive first.' }
+  }
+  const here = status(dir)
+  if (here?.ubiquitous) {
+    return { ok: false, reason: 'already_fine', message: 'This folder is already syncing — there is nothing to repair.' }
+  }
+
+  const aside = `${dir}-not-syncing-${stamp}`
+  try { fs.renameSync(dir, aside) } catch (e) {
+    return { ok: false, reason: 'move_failed', message: `Could not set the old folder aside, so nothing was changed: ${e.message}` }
+  }
+
+  const rollback = (why) => {
+    try { fs.rmSync(dir, { recursive: true, force: true }) } catch {}
+    try { fs.renameSync(aside, dir) } catch {}
+    return { ok: false, reason: 'rolled_back', message: why }
+  }
+
+  try { fs.mkdirSync(dir, { recursive: true }) } catch (e) {
+    return rollback(`Could not create the new folder: ${e.message}. Your setup was put back exactly as it was.`)
+  }
+  // The whole point of the exercise: iCloud has to own the new one.
+  if (!status(dir)?.ubiquitous) {
+    return rollback('The new folder was still not adopted by iCloud, so nothing was moved. Your setup was put back exactly as it was.')
+  }
+
+  try {
+    for (const entry of fs.readdirSync(aside)) fs.cpSync(path.join(aside, entry), path.join(dir, entry), { recursive: true })
+  } catch (e) {
+    return rollback(`Copying your setup across failed: ${e.message}. Your setup was put back exactly as it was.`)
+  }
+
+  // ⚠️ VERIFY BEFORE DECLARING SUCCESS. Every top-level name has to be present,
+  // and config.json has to be the same size it was.
+  try {
+    const want = fs.readdirSync(aside)
+    const got = new Set(fs.readdirSync(dir))
+    const missing = want.filter(n => !got.has(n))
+    if (missing.length) return rollback(`The copy was incomplete (${missing.slice(0, 3).join(', ')}). Your setup was put back exactly as it was.`)
+    const a = path.join(aside, 'config.json')
+    const b = path.join(dir, 'config.json')
+    if (fs.existsSync(a) && fs.statSync(a).size !== fs.statSync(b).size) {
+      return rollback('Your settings file did not copy across cleanly. Your setup was put back exactly as it was.')
+    }
+  } catch (e) {
+    return rollback(`The copy could not be verified: ${e.message}. Your setup was put back exactly as it was.`)
+  }
+
+  return { ok: true, kept: aside, message: 'Repaired. Your setup is in a folder iCloud is syncing, and the old one was kept alongside it.' }
+}
+
 /** The bundled library: catalog rows, each flagged with whether it is installed. */
 export function skillLibrary (installedDirs = []) {
   let rows = []

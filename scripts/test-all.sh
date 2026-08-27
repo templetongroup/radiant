@@ -7,6 +7,7 @@ run () { printf '\n=== %s ===\n' "$1"; shift; "$@" || fail=1; }
 run "download math"  bash scripts/test-download-math.sh
 run "fit verdicts"   node scripts/test-fit.mjs
 run "slash commands" node scripts/test-slash.mjs
+run "cloud repair"   node scripts/test-cloud-repair.mjs
 run "model catalog"  node scripts/test-catalog.mjs
 run "read me"        node scripts/test-readme.mjs
 run "plugin bridge"  node scripts/test-bridge.mjs

@@ -1765,9 +1765,29 @@ function DataFolderBlock () {
           {info.cloud.icloud === true && (
             <> <br /><br /><strong>iCloud itself is working on this Mac</strong>, so this is the
               folder rather than your settings — most likely it was created at that path before
-              iCloud Drive finished setting up, and iCloud never adopted it. Press
-              “Choose another folder…” and pick your iCloud Drive again: Radiant will make a
-              fresh folder inside the live one and copy your setup into it.</>
+              iCloud Drive finished setting up, and iCloud never adopted it. Radiant can fix
+              that here: it stands up a fresh folder in the same place, copies your setup into
+              it, and keeps the old one alongside.
+              {/* ⚠️ A BUTTON, NOT AN INSTRUCTION. This used to say to press “Choose another
+                  folder…” and pick iCloud Drive — which would have copied config.json,
+                  projects/ and sessions/ into the TOP LEVEL of his iCloud Drive, because that
+                  handler uses whatever folder you pick. Rules 9 and 12: the app repairs
+                  itself, and no sentence without a button. */}
+              <div className='data-folder-row' style={{ marginTop: 12 }}>
+                <button className='btn-secondary' disabled={busy} onClick={async () => {
+                  setBusy(true); setMsg(null)
+                  try {
+                    const r = await api.repairCloudFolder()
+                    setInfo(r)
+                    setMsg({ kind: 'ok', text: `${r.message} Quit and reopen Radiant.` })
+                  } catch (e) {
+                    let text = 'The repair did not run, and nothing was changed.'
+                    try { text = JSON.parse(String(e.message).replace(/^[^{]*/, '')).message || text } catch {}
+                    setMsg({ kind: 'err', text })
+                  }
+                  setBusy(false)
+                }}>{busy ? 'Repairing…' : 'Fix this folder'}</button>
+              </div></>
           )}
           {info.cloud.icloud === false && (
             <> <br /><br /><strong>iCloud is not available to Radiant on this Mac.</strong> Check
@@ -2183,6 +2203,7 @@ const GUIDE = [
       ['Website → API', 'The agent can watch a site’s network calls and turn its hidden API into a reusable HTTP client (a built-in skill).'],
       ['MCP', 'Connect Model Context Protocol servers in Settings → MCP to give agents extra tools.'],
       ['Skills', 'Drop a skill file into Settings → Skills (or type one) to inject house rules the agent follows — globally or per agent.'],
+      ['If a Mac shows no projects', 'Settings → Devices → “Where it is now”. If Radiant says nothing there is syncing, press “Fix this folder” — it stands up a folder iCloud will actually sync, copies your setup in, and keeps the old one alongside.'],
       ['Skill library', 'Settings → Skills → Skill library holds ready-made skills that ship with Radiant — verification, security review, React, SwiftUI, design, research. Read the whole thing before you add it; added skills start switched off.'],
       ['Upload a skill folder', 'A skill can be a folder — a SKILL.md with notes and references beside it. Upload one in Settings → Skills. Radiant refuses any folder containing a runnable file, and names it: a skill is read, never executed.'],
       ['Use a skill for one message', 'Type / in the composer, pick a skill, and the command goes in the box. It applies to that message only. Works the same on iPhone.'],

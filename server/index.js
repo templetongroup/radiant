@@ -11,7 +11,7 @@ import { fileURLToPath } from 'url'
 import { WebSocketServer } from 'ws'
 import pty from 'node-pty'
 import { execSync, spawn } from 'child_process'
-import { RADIANT_DIR, DIR_POINTER, defaultDataDir, dataDirStatus, loadConfig, saveConfig, publicConfig, listSessions, loadSession, saveSession, deleteSession, searchSessions, upsertCredential, activateAccount, removeAccount, SESSIONS_DIR, listProjects, getProject, saveProject, deleteProject, migrateProjects, agentsStore, skillsStore, recipesStore, cloudStatus, MACHINE_KEYS, saveMachineSettings, skillLibrary, inspectSkillFolder, resolveSkillDir, USER_SKILLS_ROOT
+import { RADIANT_DIR, DIR_POINTER, defaultDataDir, dataDirStatus, loadConfig, saveConfig, publicConfig, listSessions, loadSession, saveSession, deleteSession, searchSessions, upsertCredential, activateAccount, removeAccount, SESSIONS_DIR, listProjects, getProject, saveProject, deleteProject, migrateProjects, agentsStore, skillsStore, recipesStore, cloudStatus, MACHINE_KEYS, saveMachineSettings, skillLibrary, inspectSkillFolder, resolveSkillDir, USER_SKILLS_ROOT, repairCloudFolder
 } from './config.js'
 import { runTurn, listModels } from './providers.js'
 import { OAUTH_PROVIDERS, buildAuthUrl, completePaste, startLoopback, validAccessToken, startDevice, pollDevice } from './oauth.js'
@@ -689,6 +689,14 @@ app.post('/api/chats/import', (req, res) => {
 // therefore a folder question, not an identity question: put the data
 // directory somewhere your other Macs already see.
 app.get('/api/data-dir', (req, res) => res.json(dataDirStatus()))
+
+// Repair an iCloud folder macOS never adopted. See repairCloudFolder — the old
+// folder is kept, and any doubt rolls the whole thing back.
+app.post('/api/data-dir/repair', (req, res) => {
+  const out = repairCloudFolder(RADIANT_DIR)
+  if (!out.ok) return res.status(400).json(out)
+  res.json({ ...out, needsRestart: true, ...dataDirStatus() })
+})
 
 app.post('/api/data-dir', (req, res) => {
   const reset = req.body?.reset === true
@@ -1521,15 +1529,25 @@ app.get('/api/registry-files', async (req, res) => {
     for (const s of data.siblings || []) {
       const f = s.rfilename
       if (!/\.gguf$/i.test(f)) continue
-      // top-level weight files only — skip subfolder files and companions
-      // (projectors, vision/clip encoders, drafts, LoRA/adapters, MTP heads).
-      if (f.includes('/')) continue
-      if (/mmproj|projector|\bproj\b|vision|\bclip\b|encoder|lora|adapter|draft|\bmtp\b/i.test(f)) continue
+      // ⚠️ SUBFOLDERS ARE WHERE THE WEIGHTS LIVE NOW. This used to skip any file
+      // with a slash in it, which was fine when every quant sat at the top
+      // level. Unsloth (and others) now publish one FOLDER per quantization —
+      // BF16/, UD-Q4_K_XL/, Q8_0/ — so that rule hid all 50 weight files in
+      // Qwen3.8-Flash-Next-GGUF and the app said "No GGUF files in this repo"
+      // about a repo full of them. Companions are still filtered, on the
+      // basename: projectors, vision/clip encoders, drafts, LoRA, MTP heads.
+      const dirName = f.includes('/') ? f.slice(0, f.lastIndexOf('/')) : ''
+      const baseName = f.slice(f.lastIndexOf('/') + 1)
+      if (dirName.includes('/')) continue                     // one level only
+      if (/mmproj|projector|\bproj\b|vision|\bclip\b|encoder|lora|adapter|draft|\bmtp\b/i.test(baseName)) continue
       // Group sharded parts (…-00001-of-00003.gguf) under one quant. We download
       // files directly from HF and `ollama create` from them, so shards are fine.
-      const stem = f.replace(/-\d+-of-\d+\.gguf$/i, '.gguf')
+      const stem = baseName.replace(/-\d+-of-\d+\.gguf$/i, '.gguf')
       const m = stem.match(/[.\-_](I?Q\d[\w]*?|F16|F32|BF16|FP16|FP32)\.gguf$/i)
-      const label = (m ? m[1] : 'default').toUpperCase().replace(/^FP(16|32)$/, 'F$1')
+      // The folder name IS the quant when there is one — and it is the more
+      // precise of the two: a filename regex reads UD-Q4_K_XL as Q4_K_XL and
+      // would then collide with a plain Q4_K_XL from another folder.
+      const label = (dirName || (m ? m[1] : 'default')).toUpperCase().replace(/^FP(16|32)$/, 'F$1')
       quants[label] = quants[label] || { bytes: 0, files: [] }
       quants[label].bytes += s.size || 0
       quants[label].files.push(f)
@@ -1700,7 +1718,10 @@ async function runDownload (entry) {
       entry.status = entry.files.length > 1 ? `downloading part ${i + 1}/${entry.files.length}` : 'downloading'
       const r = await fetch(hfUrl(entry.repo, f), { redirect: 'follow', signal: controller.signal })
       if (!r.ok) throw new Error(`Couldn't download ${f} (HTTP ${r.status})`)
-      const out = fs.createWriteStream(path.join(dir, f))
+      // ⚠️ BASENAME, NOT THE REPO PATH. `BF16/model-00001-of-00008.gguf` has no
+      // BF16 directory here, so writing the repo path straight out fails with
+      // ENOENT — and joining an attacker-shaped path would be worse than that.
+      const out = fs.createWriteStream(path.join(dir, path.basename(f)))
       const reader = r.body.getReader()
       while (true) {
         const { done: fin, value } = await reader.read()
@@ -1714,7 +1735,7 @@ async function runDownload (entry) {
     }
     entry.status = 'importing into Ollama…'; entry.completed = entry.total
     const modelfile = path.join(dir, 'Modelfile')
-    fs.writeFileSync(modelfile, `FROM ${path.join(dir, entry.files[0])}\n`)
+    fs.writeFileSync(modelfile, `FROM ${path.join(dir, path.basename(entry.files[0]))}\n`)
     await new Promise((resolve, reject) => {
       child = spawn(ollamaBin(), ['create', entry.model, '-f', modelfile], { env: SPAWN_ENV })
       let err = ''
@@ -1740,7 +1761,11 @@ async function runDownload (entry) {
 app.post('/api/download', (req, res) => {
   const { repo, files, model } = req.body || {}
   if (!/^[\w.-]+\/[\w.-]+$/.test(repo || '')) return res.status(400).json({ error: 'bad repo' })
-  if (!Array.isArray(files) || !files.length || !files.every(f => /^[A-Za-z0-9._-]+\.gguf$/i.test(f))) return res.status(400).json({ error: 'bad files' })
+  // One optional folder level, each segment plain — never a traversal, never
+  // an absolute path. These strings become a URL and, as a basename, a filename.
+  const okFile = f => typeof f === 'string' && f.length < 256 &&
+    /^(?:[A-Za-z0-9._-]+\/)?[A-Za-z0-9._-]+\.gguf$/i.test(f) && !f.split('/').includes('..')
+  if (!Array.isArray(files) || !files.length || !files.every(okFile)) return res.status(400).json({ error: 'bad files' })
   if (!/^[a-z0-9][a-z0-9._-]*(:[a-z0-9._-]+)?$/i.test(model || '')) return res.status(400).json({ error: 'bad model name' })
   const existing = downloads.get(model)
   if (existing && !existing.done) return res.json({ ok: true, already: true })

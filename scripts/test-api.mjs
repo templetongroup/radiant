@@ -340,6 +340,41 @@ await check('importing a clean folder writes it to the data dir, not the app bun
   return 'landed in the data folder with its files'
 })
 
+// ---- model downloads -------------------------------------------------------
+
+await check('a repo that keeps each quant in its own folder still lists them', async () => {
+  // ⚠️ A REAL REPO, ON PURPOSE. Unsloth publishes one folder per quantization
+  // (BF16/, UD-Q4_K_XL/, Q8_0/). The listing skipped every path containing a
+  // slash, so this repo's 50 weight files showed as "No GGUF files in this
+  // repo". Tony saw them on Hugging Face and not in Radiant.
+  const r = await api('GET', '/api/registry-files?repo=unsloth%2FQwen3.8-Flash-Next-GGUF')
+  const quants = r.json?.quants || []
+  ok(quants.length >= 8, `only ${quants.length} quants found`)
+  const labels = quants.map(q => q.label)
+  ok(labels.includes('UD-Q4_K_XL'), `folder names are not the labels: ${labels.join(', ')}`)
+  // the folder name beats the filename: UD-Q4_K_XL must not collapse to Q4_K_XL
+  ok(!labels.includes('Q4_K_XL'), 'a UD- quant was mislabelled as the plain one')
+  const q = quants.find(x => x.label === 'UD-Q4_K_XL')
+  ok(q.files.every(f => f.startsWith('UD-Q4_K_XL/')), 'files lost their folder')
+  ok(q.sizeGB > 1, `size looks wrong: ${q.sizeGB} GB`)
+  // the projector at the repo root is a companion, not a quantization
+  ok(!labels.some(l => /MMPROJ/i.test(l)), 'the projector was offered as a model')
+  return `${quants.length} quants, e.g. UD-Q4_K_XL at ${q.sizeGB} GB across ${q.files.length} files`
+})
+
+await check('a download can name a file in a folder, and nothing else', async () => {
+  const bad = ['../../etc/passwd', '/etc/passwd.gguf', 'a/b/c.gguf', 'x.gguf/../y.gguf', '../x.gguf']
+  for (const f of bad) {
+    const r = await api('POST', '/api/download', { repo: 'unsloth/x', files: [f], model: 'test:q4' })
+    eq(r.status, 400, `${f} was accepted`)
+  }
+  // the shape a real repo produces is allowed
+  const good = await api('POST', '/api/download', { repo: 'unsloth/x', files: ['UD-Q4_K_XL/m-00001-of-00004.gguf'], model: 'zzz-not-real:q4' })
+  eq(good.status, 200, 'a legitimate subfolder file')
+  await api('POST', '/api/download/cancel', { model: 'zzz-not-real:q4' })
+  return 'traversal refused, one folder level allowed'
+})
+
 // ---- report ----------------------------------------------------------------
 server.kill('SIGKILL')
 const failed = results.filter(r => !r.ok)

@@ -47,7 +47,14 @@ function DesktopApp () {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [settingsTab, setSettingsTab] = useState('providers')
   const [agentView, setAgentView] = useState(null) // 'library' deep-links the Agents pane into the template gallery
-  const [rightOpen, setRightOpen] = useState(false)
+  // Whether the panel is open is this Mac's preference and nobody else's, so it
+  // lives in localStorage rather than the synced config (rule 16).
+  const [rightOpen, setRightOpen] = useState(() => {
+    try { return localStorage.getItem('radiant.rightOpen') === '1' } catch { return false }
+  })
+  useEffect(() => {
+    try { localStorage.setItem('radiant.rightOpen', rightOpen ? '1' : '0') } catch {}
+  }, [rightOpen])
   const [rightTab, setRightTab] = useState('activity')
   const [updateInfo, setUpdateInfo] = useState(null) // {latest, dmgUrl} when an update exists
   const [paletteOpen, setPaletteOpen] = useState(false)
@@ -325,7 +332,11 @@ function DesktopApp () {
             if (ev.name === 'show_widget') { liveMsg.parts.push({ type: 'tool', id: ev.id, name: 'show_widget', widget: ev.args, hidden: true }); break } // rendered as a rich widget
             liveMsg.parts.push({ type: 'tool', id: ev.id, name: ev.name, args: ev.args, pending: true })
             setActivity(a => [...a, { id: ev.id, name: ev.name, args: ev.args, at: Date.now() }])
-            setRightOpen(true)
+            // ⚠️ THE PANEL DOES NOT OPEN ITSELF. It used to spring open on every
+            // tool run, which moved the chat sideways mid-answer. Tony: "I also
+            // dont want activity sidebar to popup". The feed still fills in the
+            // background, and every tool run is already shown inline in the
+            // transcript — the panel is somewhere to look, not a notification.
             break
           case 'tool_result': {
             const t = liveMsg.parts.find(p => p.type === 'tool' && p.id === ev.id)
