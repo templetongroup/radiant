@@ -2,7 +2,7 @@
 
 Radiant is Tony's own coding harness: an Electron app wrapping a local node
 server (`server/index.js`, port 5834) and a React UI (`src/`). It is a public,
-FSL-licensed repo, signed and notarized, and it auto-updates from GitHub
+MIT-licensed repo, signed and notarized, and it auto-updates from GitHub
 Releases. Work on `master`.
 
 ## Written is not shipped

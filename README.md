@@ -86,12 +86,14 @@ OAuth sign-in to providers is not implemented yet; the provider registry has an
 ## License
 
 Radiant is a Templeton Technologies product, released under the
-[Functional Source License, Version 1.1 (MIT Future License)](LICENSE) —
-`FSL-1.1-MIT`.
+[MIT License](LICENSE).
 
-In plain terms: you can use, modify, and redistribute Radiant freely for any
-purpose **except** building a product or service that competes with it. Two
-years after each version is released, that version automatically converts to
-the permissive MIT license. See [`LICENSE`](LICENSE) for the exact terms.
+In plain terms: use it, modify it, redistribute it, build on it, sell it —
+commercially or otherwise. The only condition is that the copyright notice
+travels with it. See [`LICENSE`](LICENSE) for the exact terms.
+
+Radiant was previously under the Functional Source License (`FSL-1.1-MIT`),
+which prohibited competing use. It is now MIT: fully open source by the Open
+Source Definition, with no carve-out.
 
 Copyright © 2026 Templeton Technologies.

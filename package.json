@@ -4,7 +4,7 @@
   "private": true,
   "description": "Radiant — a local coding harness: chat with coding agents across cloud and local models.",
   "author": "Tony Ricciardi",
-  "license": "FSL-1.1-MIT",
+  "license": "MIT",
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {
