@@ -412,7 +412,7 @@ await page.waitForTimeout(600)
 // came down from 60 to 53, and the floor is Delete's 44pt tap target — which is
 // the thing a future tidy-up would be tempted to shave. It must not move.
 {
-  const p5 = await browser.newPage({ viewport: { width: 393, height: 852 }, deviceScaleFactor: 3 })
+  const p5 = await browser.newPage({ viewport: { width: 393, height: 852 }, deviceScaleFactor: 3, hasTouch: true })
   await p5.goto(BASE, { waitUntil: 'networkidle' })
   await p5.waitForTimeout(400)
   await p5.evaluate(() => {
@@ -432,11 +432,16 @@ await page.waitForTimeout(600)
   const m = await p5.evaluate(() => {
     const rows = [...document.querySelectorAll('.rx-row-compact')]
     if (!rows.length) return null
-    const del = rows[0].querySelector('.rx-row-remove')
+    const del = document.querySelector('.rx-swipe-action')
     return {
       height: Math.round(rows[0].getBoundingClientRect().height),
       del: del ? Math.round(del.getBoundingClientRect().height) : 0,
-      onScreen: rows.filter(r => r.getBoundingClientRect().bottom <= window.innerHeight).length
+      onScreen: rows.filter(r => r.getBoundingClientRect().bottom <= window.innerHeight).length,
+      // ⚠️ THE SEAM. The face was promoted to its own layer at rest and the red
+      // action bled a pixel out of the bottom of untouched rows.
+      seam: [...document.querySelectorAll('.rx-swipe')].map(w =>
+        +(w.querySelector('.rx-swipe-action').getBoundingClientRect().height -
+          w.querySelector('.rx-swipe-face').getBoundingClientRect().height).toFixed(2))
     }
   })
   ok('the recent rows render', Boolean(m))
@@ -444,6 +449,37 @@ await page.waitForTimeout(600)
   // ⚠️ NEVER BUY DENSITY WITH THE TAP TARGET.
   ok(`Delete keeps its 44pt target (${m?.del}px)`, m && m.del >= 44)
   ok(`more than five fit without scrolling (${m?.onScreen})`, m && m.onScreen >= 6)
+  ok('no red bleeds out from under a row at rest', m && m.seam.every(v => v === 0))
+
+  // ── the swipe itself, driven with real touch events ────────────────────
+  const swipe = (idx, dx) => p5.evaluate(([idx, dx]) => {
+    const el = document.querySelectorAll('.rx-swipe')[idx]
+    const r = el.getBoundingClientRect(); const y = r.y + r.height / 2
+    const mk = (t, x) => {
+      const T = new Touch({ identifier: 1, target: el, clientX: x, clientY: y })
+      return new TouchEvent(t, { touches: t === 'touchend' ? [] : [T], changedTouches: [T], bubbles: true, cancelable: true })
+    }
+    const x0 = r.right - 40
+    el.dispatchEvent(mk('touchstart', x0))
+    for (let i = 1; i <= 6; i++) el.dispatchEvent(mk('touchmove', x0 + dx * i / 6))
+    el.dispatchEvent(mk('touchend', x0 + dx))
+  }, [idx, dx])
+  const faceX = (idx) => p5.evaluate(i => Math.round(document.querySelectorAll('.rx-swipe-face')[i].getBoundingClientRect().left), idx)
+
+  const rest = await faceX(0)
+  await swipe(0, -100); await p5.waitForTimeout(400)
+  ok('swiping left uncovers Delete', (await faceX(0)) <= rest - 80)
+
+  // ⚠️ A SHORT DRAG IS A SCROLL, NOT A SWIPE. Opening on any movement makes the
+  // list impossible to scroll past.
+  await swipe(1, -8); await p5.waitForTimeout(300)
+  ok('a short drag leaves its row closed', (await faceX(1)) === rest)
+
+  const before = await p5.evaluate(() => document.querySelectorAll('.rx-swipe').length)
+  await p5.locator('.rx-swipe-action').first().click({ force: true })
+  await p5.waitForTimeout(500)
+  const after = await p5.evaluate(() => document.querySelectorAll('.rx-swipe').length)
+  ok(`tapping Delete removes the session (${before} to ${after})`, after === before - 1)
   await p5.close()
 }
 

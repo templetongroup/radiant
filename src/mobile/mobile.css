@@ -892,10 +892,11 @@
    the fold. Tony: "reduce the size of those chat chips... only a few would
    fit." One step down the same Apple ramp — subheadline over footnote — so it
    still tracks Dynamic Type, and 52 keeps it clear of the 44pt tap target. */
-/* ⚠️ THE FLOOR IS THE DELETE CONTROL, NOT THE TEXT. Delete keeps its 44pt tap
-   target — shrinking that to gain pixels is the wrong trade — so the row can
-   only come down by giving back its own padding: 44 + 4 + 4 = 52. Measured at
-   59 before this. */
+/* The floor used to be Delete's 44pt tap target sitting on the row. Delete now
+   lives behind the swipe, so the text sets the height: subheadline + footnote
+   + 8 of padding. */
+
+
 .is-native .rx-row-compact { min-height: 52px; padding-top: 4px; padding-bottom: 4px; }
 .is-native .rx-row-compact .rx-headline { font: -apple-system-subheadline; line-height: 1.333; }
 .is-native .rx-row-compact .rx-row-blurb { font: -apple-system-footnote; line-height: 1.385; -webkit-line-clamp: 1; }
@@ -913,6 +914,40 @@
   left: var(--rx-sep-inset, var(--rx-sp-16));
   /* stops 16pt short of the card's trailing edge, as Apple's does. Running it
      to `right: 0` is a small thing that reads as not-Apple immediately. */
+  right: var(--rx-sp-16);
+  height: 1px;
+  background: var(--rx-hairline);
+}
+
+/* ── swipe to delete ──
+   The action sits UNDER the row and is uncovered as the face slides left, the
+   way iOS does it: the button does not fly in, the row moves off it. */
+/* ⚠️ GRID, NOT ABSOLUTE. With the action absolutely positioned the face ended
+   up a sub-pixel shorter than it, and a red sliver bled out along the bottom of
+   rows nobody had swiped. Stacking both in one grid cell makes them exactly the
+   same height at any scale factor. */
+.is-native .rx-swipe { display: grid; overflow: hidden; }
+.is-native .rx-swipe > * { grid-area: 1 / 1; }
+.is-native .rx-swipe-action {
+  justify-self: end; width: 88px;
+  border: 0; margin: 0; padding: 0;
+  background: var(--rx-red-fill); color: #fff;
+  font: -apple-system-body; font-weight: 500;
+  display: flex; align-items: center; justify-content: center;
+}
+.is-native .rx-swipe-action:active { filter: brightness(0.9); }
+/* ⚠️ THE FACE MUST BE OPAQUE. It slides across the red action; leave it
+   transparent and Delete bleeds through every row in the list. */
+.is-native .rx-swipe-face { position: relative; background: var(--rx-cell); }
+/* ⚠️ SEPARATORS FOLLOW THE ROWS, WHICH ARE NOW WRAPPED. The group draws them on
+   `.rx-row + .rx-row`, and a .rx-swipe wrapper between the two breaks that
+   selector — every hairline vanished. Drawn on the face instead, so it also
+   travels with the row as it slides. */
+.is-native .rx-group > .rx-swipe + .rx-swipe .rx-swipe-face::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: var(--rx-sep-inset, var(--rx-sp-16));
   right: var(--rx-sp-16);
   height: 1px;
   background: var(--rx-hairline);

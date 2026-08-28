@@ -12,6 +12,7 @@
  */
 import React, { useCallback, useEffect, useState } from 'react'
 import usePress from './usePress.js'
+import SwipeRow from './SwipeRow.jsx'
 import { BrandMark } from './BrandSpinner.jsx'
 import wordUrl from '../assets/brand/radiant-wordmark.png'
 import { listChats, deleteChat, whenLabel, onChatsChanged } from './chats.js'
@@ -25,17 +26,23 @@ function greeting () {
   return 'Good evening'
 }
 
-function ChatRow ({ chat, onOpen, onRemove }) {
-  const row = usePress(() => onOpen(chat.id), {
+function ChatRow ({ chat, onOpen, onRemove, isOpen, onOpenChange }) {
+  const row = usePress(() => { if (isOpen) onOpenChange(false); else onOpen(chat.id) }, {
     label: `${chat.title}, ${whenLabel(chat.updatedAt)}${chat.modelName ? `, ${chat.modelName}` : ''}`
   })
-  // Deleting is its own labelled control, never the row — the same rule the
-  // review forced on Settings after a one-tap delete shipped there.
-  const del = usePress(() => onRemove(chat), {
-    label: `Delete ${chat.title}`, haptic: 'MEDIUM'
-  })
+  // ⚠️ DELETE IS BEHIND A SWIPE, NOT ON THE ROW. A red Delete on every row is
+  // what iOS hides for good reason: it shouts, and the list is unbounded. It is
+  // still a real button in the DOM — see SwipeRow — so VoiceOver reaches it
+  // without knowing the gesture exists.
   return (
-    <div className={'rx-row rx-row-2line rx-row-compact' + row.className} {...row.handlers}>
+    <SwipeRow
+      onDelete={() => onRemove(chat)}
+      deleteLabel={`Delete ${chat.title}`}
+      isOpen={isOpen}
+      onOpenChange={onOpenChange}
+      className={'rx-row rx-row-2line rx-row-compact' + row.className}
+      rowProps={row.handlers}
+    >
       <div className="rx-row-text">
         <div className="rx-headline">{chat.title}</div>
         <div className="rx-row-blurb">
@@ -43,8 +50,7 @@ function ChatRow ({ chat, onOpen, onRemove }) {
           {chat.modelName ? ` · ${chat.modelName}` : ''}
         </div>
       </div>
-      <span className={'rx-row-remove' + del.className} {...del.handlers}>Delete</span>
-    </div>
+    </SwipeRow>
   )
 }
 
@@ -52,6 +58,9 @@ export default function HomeScreen ({
   activeModel, models = [], isTop, onStartChat, onOpenChat, onChooseModel
 }) {
   const [chats, setChats] = useState(() => listChats())
+  // ⚠️ ONE ROW OPEN AT A TIME. Two revealed Delete buttons is a list nobody
+  // trusts, and it is how you delete the wrong conversation.
+  const [openRow, setOpenRow] = useState(null)
   const refresh = useCallback(() => setChats(listChats()), [])
 
   // The store tells us the moment a conversation is written, so this does not
@@ -69,10 +78,14 @@ export default function HomeScreen ({
     return () => document.removeEventListener('visibilitychange', onVis)
   }, [refresh])
 
+  // ⚠️ NO CONFIRM DIALOG. Deleting already takes two deliberate actions — swipe
+  // the row open, then tap Delete — which is exactly what iOS treats as enough
+  // for a list row. window.confirm on top of that was a third step, and in a
+  // web view it renders as a system alert stamped with the host name, which is
+  // the least native thing on the screen. The gesture IS the confirmation.
   const remove = useCallback((chat) => {
-    // eslint-disable-next-line no-alert
-    if (!window.confirm(`Delete “${chat.title}”?`)) return
     deleteChat(chat.id)
+    setOpenRow(null)
     refresh()
   }, [refresh])
 
@@ -137,7 +150,14 @@ export default function HomeScreen ({
           <h2 className="rx-section-header">Recent Sessions</h2>
           <div className="rx-group">
             {chats.map(c => (
-              <ChatRow key={c.id} chat={c} onOpen={onOpenChat} onRemove={remove} />
+              <ChatRow
+                key={c.id}
+                chat={c}
+                onOpen={onOpenChat}
+                onRemove={remove}
+                isOpen={openRow === c.id}
+                onOpenChange={(open) => setOpenRow(open ? c.id : null)}
+              />
             ))}
           </div>
         </>
