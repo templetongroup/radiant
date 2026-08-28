@@ -2,8 +2,14 @@ import Foundation
 import Capacitor
 import os   // os_proc_available_memory()
 import UIKit
+import CoreImage   // CIImage, for a photo on its way to a vision model
 
 import MLXLLM
+// ⚠️ IMPORTING IT IS WHAT REGISTERS IT. loadModelContainer walks
+// ModelFactoryRegistry.shared and tries each factory in turn, so a vision model
+// only loads if MLXVLM has been linked AND imported — otherwise it fails at
+// runtime with "no model factory available", not at build time.
+import MLXVLM
 import MLXLMCommon
 import MLXHuggingFace
 import HuggingFace
@@ -102,6 +108,11 @@ public class LocalModels: CAPPlugin, CAPBridgedPlugin {
     private struct Entry {
         let id: String, name: String, maker: String, blurb: String, gb: Double
         let config: ModelConfiguration
+        /// Reads pictures. The composer only offers an image when this is true,
+        /// because a text-only model handed one silently ignores it.
+        var vision: Bool = false
+        /// Reads short clips as well as stills.
+        var video: Bool = false
     }
     /// ⚠️ SIZES ARE MEASURED, NOT ESTIMATED. Each is the summed blob size from
     /// huggingface.co/api/models/<id>?blobs=true, because the download progress
@@ -175,6 +186,26 @@ public class LocalModels: CAPPlugin, CAPBridgedPlugin {
         Entry(id: "qwen3-1.7b", name: "Qwen 3 1.7B", maker: "Alibaba",
               blurb: "The best all-rounder on any recent iPhone.",
               gb: 0.98, config: LLMRegistry.qwen3_1_7b_4bit),
+        // ── models that can SEE ────────────────────────────────────────────
+        // ⚠️ SIZES MEASURED THE SAME WAY AS EVERY OTHER ROW — summed blobs from
+        // huggingface.co/api/models/<id>?blobs=true, because the progress bar
+        // divides by this number.
+        Entry(id: "fastvlm-0.5b", name: "FastVLM 0.5B", maker: "Apple",
+              blurb: "Apple's own. The quickest way to ask about a picture.",
+              gb: 1.27, config: rxRepo("mlx-community/FastVLM-0.5B-bf16"), vision: true),
+        Entry(id: "qwen2-vl-2b", name: "Qwen 2 VL 2B", maker: "Alibaba",
+              blurb: "Reads screenshots, receipts and handwriting well for its size.",
+              gb: 1.26, config: rxRepo("mlx-community/Qwen2-VL-2B-Instruct-4bit"), vision: true),
+        Entry(id: "lfm2-vl-1.6b", name: "LFM2 VL 1.6B", maker: "Liquid AI",
+              blurb: "Built for phones. Fast at describing what is in a photo.",
+              gb: 1.47, config: rxRepo("mlx-community/LFM2-VL-1.6B-4bit"), vision: true),
+        Entry(id: "qwen2.5-vl-3b", name: "Qwen 2.5 VL 3B", maker: "Alibaba",
+              blurb: "The most capable of the picture models here. Good at charts and dense text.",
+              gb: 3.09, config: rxRepo("mlx-community/Qwen2.5-VL-3B-Instruct-4bit"), vision: true),
+        Entry(id: "smolvlm2-video", name: "SmolVLM2 Video 500M", maker: "Hugging Face",
+              blurb: "Watches a short clip and tells you what happened in it.",
+              gb: 1.02, config: rxRepo("HuggingFaceTB/SmolVLM2-500M-Video-Instruct-mlx"), vision: true, video: true),
+
         Entry(id: "qwen2.5-3b", name: "Qwen 2.5 3B", maker: "Alibaba",
               blurb: "More knowledge than the 1.5B, same steady behavior.",
               gb: 1.75, config: rxRepo("mlx-community/Qwen2.5-3B-Instruct-4bit")),
@@ -360,7 +391,8 @@ public class LocalModels: CAPPlugin, CAPBridgedPlugin {
     @objc func list(_ call: CAPPluginCall) {
         call.resolve(["models": catalog.map { [
             "id": $0.id, "name": $0.name, "maker": $0.maker, "blurb": $0.blurb,
-            "sizeGB": $0.gb, "downloaded": isOnDisk($0)
+            "sizeGB": $0.gb, "downloaded": isOnDisk($0),
+            "vision": $0.vision, "video": $0.video
         ] }])
     }
 
@@ -661,6 +693,16 @@ public class LocalModels: CAPPlugin, CAPBridgedPlugin {
             return call.reject("Unknown model")
         }
         let prompt = call.getString("prompt") ?? ""
+        // ⚠️ THE PICTURE ARRIVES AS BASE64 AND MUST NOT REACH A TEXT MODEL. A
+        // model without a vision tower handed images: [] behaves; handed a real
+        // one it either throws or quietly ignores it, and "quietly ignores" is
+        // the worse of the two — the user gets a confident answer about a photo
+        // nothing ever looked at.
+        var images: [UserInput.Image] = []
+        if entry.vision, let b64 = call.getString("imageB64"), !b64.isEmpty,
+           let data = Data(base64Encoded: b64), let ci = CIImage(data: data) {
+            images = [.ciImage(ci)]
+        }
         task?.cancel()
         task = Task {
             do {
@@ -675,7 +717,7 @@ public class LocalModels: CAPPlugin, CAPBridgedPlugin {
                     loaded = (entry.id, container)
                 }
                 let session = ChatSession(container)
-                for try await chunk in session.streamResponse(to: prompt) {
+                for try await chunk in session.streamResponse(to: prompt, images: images) {
                     if Task.isCancelled { break }
                     self.notifyListeners("token", data: ["id": entry.id, "text": chunk])
                 }

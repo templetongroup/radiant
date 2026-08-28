@@ -36,6 +36,11 @@ let package = Package(
                 .product(name: "CapacitorSplashScreen", package: "CapacitorSplashScreen"),
                 .product(name: "CapacitorStatusBar", package: "CapacitorStatusBar"),
                 .product(name: "MLXLLM", package: "mlx-swift-lm"),
+                // ⚠️ VISION MODELS NEED THEIR OWN LIBRARY REGISTERED. MLXLLM
+                // only knows language architectures; a VLM config handed to the
+                // loader without MLXVLM linked fails at runtime with an unknown
+                // model type, not at build time.
+                .product(name: "MLXVLM", package: "mlx-swift-lm"),
                 .product(name: "MLXLMCommon", package: "mlx-swift-lm"),
                 .product(name: "MLXHuggingFace", package: "mlx-swift-lm"),
                 .product(name: "HuggingFace", package: "swift-huggingface"),

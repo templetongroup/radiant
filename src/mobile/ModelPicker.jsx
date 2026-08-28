@@ -208,7 +208,7 @@ const CSS = `
 .rx-mp-maker-none{color:var(--mp-label-3)}
 
 /* The verdict. Traffic lights, at Tony's call: green runs, amber is tight, red
-   will not. A weighted word rather than a filled pill — forty-four filled pills
+   will not. A weighted word rather than a filled pill — forty-nine filled pills
    down a scroll is a color chart, and the ones that matter stop standing out.
 
    ⚠️ THE SHARED TOKENS, NOT LITERALS. Each was chosen for measured contrast in
@@ -933,7 +933,7 @@ function Row ({ model, Gauge, job, done, busyElsewhere, shortfall, fit, onCommit
           {/* The verdict rides with the NAME, not down in the subtitle, because
               it is the thing that decides whether the row is worth reading at
               all. aria-hidden: the pressable's own label already says it, and
-              hearing it twice per row across forty-four rows is noise. */}
+              hearing it twice per row across forty-nine rows is noise. */}
           {fit && !model.downloaded && !downloading && !failed && (
             <span className={`rx-mp-fit is-${fit}`} aria-hidden="true">{FIT_LABEL[fit]}</span>
           )}

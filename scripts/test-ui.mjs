@@ -634,6 +634,56 @@ for (const [query, label, expect] of [['', 'available', /nothing to download/], 
   await p8.close()
 }
 
+// ── ⚠️ MODELS THAT CAN SEE ───────────────────────────────────────────────
+// Tony wanted image and video on the list. Generation is a different runtime
+// and is not here; understanding is, and MLXVLM was already in the package we
+// ship. The failure mode worth guarding is silent: a picture attached, sent,
+// and dropped somewhere between the composer and the native call, leaving a
+// confident answer about something nothing ever looked at.
+{
+  const p9 = await browser.newPage({ viewport: { width: 393, height: 852 }, deviceScaleFactor: 3, hasTouch: true })
+  await p9.goto(BASE, { waitUntil: 'networkidle' })
+  await p9.waitForTimeout(500)
+
+  const flags = await p9.evaluate(() => {
+    const ms = window.__harness.state.models
+    return { seeing: ms.filter(m => m.vision).length, watching: ms.filter(m => m.video).length }
+  })
+  ok(`the catalogue carries models that can see (${flags.seeing})`, flags.seeing >= 4)
+  ok(`and one that can watch a clip (${flags.watching})`, flags.watching >= 1)
+
+  // ⚠️ NO CAMERA BUTTON BESIDE A TEXT-ONLY MODEL. Offering it there is offering
+  // something that gets thrown away without a word.
+  await p9.evaluate(() => localStorage.setItem('rx.activeModel', 'qwen3-1.7b'))
+  await p9.reload({ waitUntil: 'networkidle' }); await p9.waitForTimeout(800)
+  await p9.locator('[aria-label*="New chat"]').last().click({ force: true })
+  await p9.waitForTimeout(700)
+  is('a text model offers no picture button', await p9.locator('[aria-label="Add a picture"]').count(), 0)
+
+  await p9.evaluate(() => localStorage.setItem('rx.activeModel', 'qwen2-vl-2b'))
+  await p9.reload({ waitUntil: 'networkidle' }); await p9.waitForTimeout(900)
+  await p9.locator('[aria-label*="New chat"]').last().click({ force: true })
+  await p9.waitForTimeout(700)
+  is('a vision model offers one', await p9.locator('[aria-label="Add a picture"]').count(), 1)
+
+  // attach a real (tiny) PNG through the input the button opens
+  const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
+  await p9.setInputFiles('input[type=file][accept="image/*"]', {
+    name: 'shot.png', mimeType: 'image/png', buffer: Buffer.from(png, 'base64')
+  })
+  await p9.waitForTimeout(500)
+  is('the picture shows in the composer', await p9.locator('.rx-chat-photo img').count(), 1)
+
+  await p9.locator('textarea').first().fill('What is in this?')
+  await p9.locator('button[aria-label="Send"]').first().click({ force: true })
+  await p9.waitForTimeout(1200)
+  // ⚠️ THE ASSERTION THAT MATTERS: it reached the native call, not just the UI.
+  const bytes = await p9.evaluate(() => window.__harness.state.lastImageBytes)
+  ok(`the image reached the model (${bytes} base64 chars)`, bytes > 0)
+  is('and the composer clears it after sending', await p9.locator('.rx-chat-photo img').count(), 0)
+  await p9.close()
+}
+
 console.log(results.join('\n'))
 console.log(`${pass}/${pass + fail} passed  ·  the app was RUN, not read`)
 await browser.close()

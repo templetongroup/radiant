@@ -208,6 +208,14 @@ function usePress (onPress, { haptic = null } = {}) {
 // ─────────────────────────────────────────────────────────────────────────────
 // glyphs — SF Symbols geometry, stroked at the weights iOS uses
 
+const PhotoGlyph = () => (
+  <svg width='22' height='22' viewBox='0 0 22 22' fill='none' aria-hidden='true'>
+    <rect x='2.4' y='4' width='17.2' height='14' rx='3.2' stroke='currentColor' strokeWidth='1.7' />
+    <circle cx='8' cy='9' r='1.6' fill='currentColor' />
+    <path d='M3.2 15.2 L7.6 11.4 L11.6 14.6 L14.6 12.2 L19 15.8' stroke='currentColor' strokeWidth='1.7' strokeLinecap='round' strokeLinejoin='round' />
+  </svg>
+)
+
 const Chevron = () => (
   <svg width='12' height='20' viewBox='0 0 12 20' fill='none' aria-hidden='true'>
     <path d='M10 2L2.5 10L10 18' stroke='currentColor' strokeWidth='2.4' strokeLinecap='round' strokeLinejoin='round' />
@@ -349,6 +357,11 @@ export default function MobileChat ({
   const [showJump, setShowJump] = useState(false)
   const [menu, setMenu] = useState(false)
   const [pickModel, setPickModel] = useState(false)
+  // ⚠️ ONE PICTURE, NOT A GALLERY. The prompt budget is 4,000 characters and a
+  // vision model turns an image into a large block of tokens before a word of
+  // the question is read; two would leave no room for the conversation.
+  const [photo, setPhoto] = useState(null)   // { b64, mime, url }
+  const photoRef = useRef(null)
   const [pickSkill, setPickSkill] = useState(false)
   const skill = getSkill(skillId)
 
@@ -364,6 +377,24 @@ export default function MobileChat ({
    * nothing here while it worked on the Mac. The parsing lives in skills.js so
    * it can be tested without a phone.
    */
+  /**
+   * ⚠️ A PLAIN FILE INPUT WITH capture UNSET. In the app's web view this opens
+   * iOS's own sheet — Photo Library, Take Photo, Choose File — so there is no
+   * native picker to write and no extra permission prompt. Setting `capture`
+   * would force the camera and take the library away.
+   */
+  const onPhoto = async (e) => {
+    const f = e.target.files?.[0]
+    e.target.value = ''
+    if (!f) return
+    try {
+      const bytes = new Uint8Array(await f.arrayBuffer())
+      let bin = ''
+      for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i])
+      setPhoto({ b64: btoa(bin), mime: f.type || 'image/jpeg', url: URL.createObjectURL(f) })
+    } catch { /* a picture that will not read is not worth an alert */ }
+  }
+
   const slashList = matchSlash(draft).slice(0, 6)
   const [rate, setRate] = useState(null) // tok/s, or null when we cannot say honestly
 
@@ -669,6 +700,7 @@ export default function MobileChat ({
     const stamp = Date.now()
     setMessages(prev => [...prev, { id: 'u' + stamp, role: 'user', text: body }])
     setDraft('')
+    setPhoto(null)
     multiline.current = false
     bufRef.current = ''
     run.current = { turnId: 'a' + stamp, chunks: 0, firstAt: 0, stoppedAt: 0, done: false, raf: 0 }
@@ -718,7 +750,7 @@ export default function MobileChat ({
       return
     }
 
-    lm.generate({ id: model.id, prompt }).catch(() => {
+    lm.generate({ id: model.id, prompt, imageB64: model?.vision ? (photo?.b64 || '') : '' }).catch(() => {
       // The rejection and the `failed` event describe the same failure; the
       // event carries the message, so let it do the talking and only clean up
       // here if it never arrives.
@@ -935,7 +967,36 @@ export default function MobileChat ({
             ))}
           </div>
         )}
+        {/* ⚠️ ONLY WHEN THE MODEL CAN SEE. Offering a camera button beside a
+            text-only model is offering something that will be silently thrown
+            away — the model answers confidently about a photo nothing looked
+            at, which is worse than not offering it. */}
+        {model?.vision && photo && (
+          <div className='rx-chat-photo'>
+            <img src={photo.url} alt='' />
+            <span
+              className='rx-chat-photo-x'
+              role='button'
+              aria-label='Remove picture'
+              onClick={() => setPhoto(null)}
+            >×</span>
+          </div>
+        )}
         <div className='rx-chat-composer' ref={composerRef}>
+          {model?.vision && (
+            <>
+              <span
+                className={'rx-chat-photobtn' + (photo ? ' is-on' : '')}
+                role='button'
+                tabIndex={0}
+                aria-label={photo ? 'Change picture' : 'Add a picture'}
+                onClick={() => photoRef.current?.click()}
+              >
+                <PhotoGlyph />
+              </span>
+              <input ref={photoRef} type='file' accept='image/*' hidden onChange={onPhoto} />
+            </>
+          )}
           <textarea
             ref={taRef}
             className='rx-chat-field'
@@ -1254,6 +1315,30 @@ const CSS = `
   font-size: calc(15px * var(--rx-dt)); color: var(--rx-label-2);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+
+/* ── a picture on its way to a vision model ── */
+.rx-chat-photo {
+  position: absolute; z-index: 4; left: 14px;
+  bottom: calc(var(--rx-chat-composerh, 64px) + var(--rx-chat-barh, 0px) + var(--rx-kb) + 6px);
+}
+.rx-chat-photo img {
+  display: block; width: 64px; height: 64px; object-fit: cover;
+  border-radius: 10px; border: 0.5px solid var(--rx-separator);
+}
+.rx-chat-photo-x {
+  position: absolute; top: -7px; right: -7px;
+  width: 22px; height: 22px; border-radius: 999px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--rx-label); color: var(--rx-bg); font-size: 15px; line-height: 1;
+}
+.rx-chat-photobtn {
+  flex: 0 0 auto; align-self: flex-end;
+  width: 36px; height: 36px; border-radius: 999px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--rx-label-2);
+}
+.rx-chat-photobtn.is-on { color: var(--rx-tint); }
+.rx-chat-photobtn:active { opacity: 0.5; }
 
 /* ── composer ── */
 .rx-chat-composer {

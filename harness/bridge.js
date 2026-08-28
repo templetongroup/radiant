@@ -29,12 +29,18 @@ const addListener = (ev, fn) => {
 import swift from '../apps/ios/ios/App/App/plugins/LocalModels.swift?raw'
 
 const CATALOG = [...swift.matchAll(
-  /Entry\(id: "([^"]+)", name: "([^"]+)", maker: "([^"]+)",\s*\n\s*blurb: "([^"]*)",\s*\n\s*gb: ([\d.]+)/g
+  /Entry\(id: "([^"]+)", name: "([^"]+)", maker: "([^"]+)",\s*\n\s*blurb: "([^"]*)",\s*\n\s*gb: ([\d.]+), config: ([^\n]*)/g
 )].map(m => ({
   id: m[1], name: m[2], maker: m[3], blurb: m[4], sizeGB: parseFloat(m[5]),
+  // ⚠️ READ THE FLAGS FROM THE SWIFT, DO NOT LIST THEM HERE. A hand-kept copy
+  // drifts the moment a model is added, and the harness would then be testing a
+  // catalogue the app does not have.
+  vision: /vision: true/.test(m[6]),
+  video: /video: true/.test(m[6]),
   // Two resident models so both the "On this iPhone" group and the catalog
-  // below it render; the rest are what you would actually be browsing.
-  downloaded: m[1] === 'qwen3-1.7b' || m[1] === 'llama3.2-3b'
+  // below it render, plus one that can see so the picture button has something
+  // to appear beside.
+  downloaded: m[1] === 'qwen3-1.7b' || m[1] === 'llama3.2-3b' || m[1] === 'qwen2-vl-2b'
 }))
 if (CATALOG.length < 40) throw new Error(`harness parsed only ${CATALOG.length} models from LocalModels.swift`)
 
@@ -102,8 +108,13 @@ window.Capacitor = {
       // ⚠️ Mirrors the real plugin: one shot, no memory of the conversation.
       // It STREAMS, deliberately — the scroll bug Tony hit only exists while
       // tokens are arriving, so a stub that answers instantly cannot catch it.
-      generate: async ({ prompt }) => {
-        const words = ('Local reply to ' + String(prompt).slice(-16) + ' ' +
+      // ⚠️ ECHO WHETHER A PICTURE ARRIVED. The one thing worth asserting about
+      // vision from the web side is that the image actually reached the native
+      // call — silently dropping it is the failure mode.
+      generate: async ({ prompt, imageB64 }) => {
+        state.lastImageBytes = imageB64 ? imageB64.length : 0
+        const words = ((imageB64 ? 'Looking at your picture. ' : '') +
+          'Local reply to ' + String(prompt).slice(-16) + ' ' +
           'lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod '.repeat(6)).split(' ')
         let i = 0
         const t = setInterval(() => {
