@@ -126,7 +126,12 @@ function Hero ({ model, onOpen, onChoose, canChoose }) {
     () => (resident ? onOpen?.(model.id) : onChoose?.()),
     {
       label: resident
-        ? `${model.name}, ready on this iPhone, ${fmtGB(model.sizeGB)}. Opens the conversation.`
+        // ⚠️ THE LABEL IS A SECOND COPY OF THE SAME SENTENCE. Suppressing the
+        // meaningless "0.0 GB" in the visible text and leaving it here would
+        // have fixed it for everyone except the people using VoiceOver.
+        ? (model.apple
+            ? `${model.name}, built into iOS, nothing to download. Opens the conversation.`
+            : `${model.name}, ready on this iPhone, ${fmtGB(model.sizeGB)}. Opens the conversation.`)
         : 'No model yet. Choose a model to download.'
     }
   )
@@ -147,8 +152,11 @@ function Hero ({ model, onOpen, onChoose, canChoose }) {
       <div className="rx-hero-label">
         <div className="rx-title-2">{resident ? model.name : 'No model yet'}</div>
         <div className={'rx-hero-state rx-footnote' + (resident ? ' rx-tabular' : '')}>
+          {/* ⚠️ APPLE'S MODEL HAS NO SIZE TO REPORT. It was never downloaded and
+              cannot be removed, so the weight was rendering as "0.0 GB" — a
+              number that is not wrong so much as meaningless. */}
           {resident
-            ? `Ready on this iPhone · ${fmtGB(model.sizeGB)}`
+            ? (model.apple ? 'Built into iOS · nothing to download' : `Ready on this iPhone · ${fmtGB(model.sizeGB)}`)
             : 'Choose a model to run on this iPhone'}
           <Chevron />
         </div>

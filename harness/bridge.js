@@ -38,12 +38,46 @@ const CATALOG = [...swift.matchAll(
 }))
 if (CATALOG.length < 40) throw new Error(`harness parsed only ${CATALOG.length} models from LocalModels.swift`)
 
-const state = { models: CATALOG.map(m => ({ ...m })), ram: 6.44e9 }
+// ⚠️ ?empty=1 IS FOR THE ONE CASE THE UI CANNOT REACH CLEANLY. A brand new
+// install has nothing downloaded, and getting there by clicking Remove on every
+// model leaves the navigation stack deep and the assertions fighting pop
+// animations rather than testing the feature. This starts the phone the way it
+// ships.
+const EMPTY = new URLSearchParams(location.search).get('empty') === '1'
+// ?apple=0 is the phone that cannot run Apple's model — an older iPhone, or
+// Apple Intelligence switched off. It is the case that decides whether the app
+// is usable at all on day one.
+const NO_APPLE = new URLSearchParams(location.search).get('apple') === '0'
+const state = {
+  models: CATALOG.map(m => ({ ...m, downloaded: EMPTY ? false : m.downloaded })),
+  ram: 6.44e9
+}
 window.__harness = { state, emit }
 
 window.Capacitor = {
   isNativePlatform: () => true,
   Plugins: {
+    // ⚠️ Mirrors AppleModel.swift. `state.appleAvailable` lets a test drive the
+    // phone that cannot run it — an older iPhone, or Apple Intelligence off —
+    // which is the case that decides whether the app is usable on day one.
+    AppleModel: {
+      addListener: (ev, fn) => Promise.resolve(addListener(ev, fn)),
+      availability: async () => (NO_APPLE || state.appleAvailable === false
+        ? { available: false, reason: 'Turn on Apple Intelligence in Settings to use Apple\u2019s model.' }
+        : { available: true, reason: '' }),
+      send: async ({ prompt }) => {
+        const words = `Apple reply to ${JSON.stringify(prompt).slice(0, 40)}: here is a short answer.`.split(' ')
+        let i = 0
+        const tick = () => {
+          if (i >= words.length) { emit('appleDone', {}); return }
+          emit('appleToken', { text: (i ? ' ' : '') + words[i++] })
+          setTimeout(tick, 25)
+        }
+        setTimeout(tick, 40)
+        return {}
+      },
+      stop: async () => { emit('appleDone', { stopped: true }); return {} }
+    },
     LocalModels: {
       addListener: (ev, fn) => Promise.resolve(addListener(ev, fn)),
       list: async () => ({ models: state.models.map(m => ({ ...m })) }),

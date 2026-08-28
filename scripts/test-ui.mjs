@@ -359,7 +359,13 @@ await page.waitForTimeout(600)
   const home = await homeText()
   is('home stops naming a model that is no longer on the phone',
     /Qwen 3 1\.7B|Llama 3\.2 3B/.test(home), false)
-  is('new chat is disabled once nothing is downloaded', await newChatState(), 'disabled')
+  // ⚠️ THIS USED TO ASSERT "disabled", AND THAT IS NO LONGER THE TRUTH. Apple's
+  // model is always there on a phone that supports it, so an empty phone is
+  // still usable — which is the entire point of adding it. The old guarantee
+  // (never offer a chat with nothing behind it) is checked below on a phone
+  // where Apple's model is unavailable.
+  is('new chat still works, on Apple\u2019s model', await newChatState(), 'enabled')
+  is('and Home names it', /Current model: Apple Intelligence/.test(await homeText()), true)
   await p2.close()
 }
 
@@ -555,6 +561,60 @@ await page.waitForTimeout(600)
   const macErr = await p4.locator('body').innerText()
   ok('and says so plainly when there is no address', /does not look like an address/.test(macErr))
   await p4.close()
+}
+
+// ── ⚠️ THE FIRST CHAT, BEFORE ANYTHING IS DOWNLOADED ─────────────────────
+// Radiant's own models are 0.7–4 GB and until one lands the app can do nothing:
+// New chat disabled, Home saying there is no model. Apple's is already on the
+// phone. Tony: "could be a good option to default to before anyone downloads a
+// model on first chat." This drives the empty phone end to end.
+{
+  const p6 = await browser.newPage({ viewport: { width: 393, height: 852 }, deviceScaleFactor: 3, hasTouch: true })
+  await p6.goto(BASE + '?empty=1', { waitUntil: 'networkidle' })
+  await p6.waitForTimeout(900)
+
+  is('the phone starts with nothing downloaded',
+    await p6.evaluate(() => window.__harness.state.models.filter(m => m.downloaded).length), 0)
+
+  // ⚠️ FIRST RUN IS WHAT A NEW USER ACTUALLY SEES, and it used to offer only
+  // "Choose model" — a download gate in front of an app that could already
+  // answer. Home sits behind it, so clicking Home's button here hits nothing.
+  const intro = await p6.locator('body').innerText()
+  ok('first run offers to start straight away', /Start now with Apple Intelligence/.test(intro))
+  ok('and shows a Start chat button', await p6.locator('text="Start chat"').count() > 0)
+  await p6.locator('text="Start chat"').first().click({ force: true })
+  await p6.waitForTimeout(1000)
+  const ta6 = p6.locator('textarea').first()
+  ok('the chat opens', await ta6.count() > 0)
+  await ta6.fill('Hi there')
+  await p6.locator('button[aria-label="Send"]').first().click({ force: true })
+  await p6.waitForTimeout(1800)
+  ok('and Apple\u2019s model answers', /Apple reply to/.test(await p6.locator('.rx-chat-scroll').innerText()))
+
+  // ⚠️ NEVER "0.0 GB" — it was never downloaded and cannot be removed — and the
+  // spoken label is a SECOND copy of that sentence, which is where the first
+  // fix stopped.
+  const chatScreen = await p6.locator('body').innerText()
+  ok('the chat never claims a weight for it', !/0\.0 GB/.test(chatScreen))
+  const label6 = await p6.locator('[aria-label*="Apple Intelligence"]').last().getAttribute('aria-label').catch(() => '')
+  ok('nor does any label VoiceOver reads', !label6 || !/0\.0 GB/.test(label6))
+  await p6.close()
+}
+
+// ── ⚠️ THE PHONE THAT CANNOT RUN APPLE'S MODEL ──────────────────────────
+// An older iPhone, or Apple Intelligence switched off. The old guarantee has to
+// survive: never offer a chat with nothing behind it, and never name a model
+// that is not there.
+{
+  const p7 = await browser.newPage({ viewport: { width: 393, height: 852 }, deviceScaleFactor: 3, hasTouch: true })
+  await p7.goto(BASE + '?empty=1&apple=0', { waitUntil: 'networkidle' })
+  await p7.waitForTimeout(1000)
+  const t7 = await p7.locator('body').innerText()
+  ok('first run does not promise Apple Intelligence', !/Start now with Apple Intelligence/.test(t7))
+  ok('and offers the download instead', /Choose model/.test(t7))
+  const start7 = p7.locator('text="Start chat"')
+  ok('Start chat is not offered with nothing behind it', await start7.count() === 0)
+  await p7.close()
 }
 
 console.log(results.join('\n'))

@@ -1,4 +1,5 @@
 import { listSkills, getSkill, slashMatches as matchSlash, parseSlash } from './skills.js'
+import { sendApple, stopApple } from './appleModel.js'
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import Gauge from './Gauge.jsx'
 import * as haptics from './haptics.js'
@@ -631,13 +632,19 @@ export default function MobileChat ({
     // Both sources, one set of handlers — the transcript does not care whether
     // the text came from the model on this phone or from a provider.
     const pc = plugins().ProviderChat
+    const am = plugins().AppleModel
     const offs = [
       listen(lm, 'token', onToken),
       listen(lm, 'done', onDone),
       listen(lm, 'failed', onFailed),
       listen(pc, 'cloudToken', onToken),
       listen(pc, 'cloudDone', onDone),
-      listen(pc, 'cloudFailed', onFailed)
+      listen(pc, 'cloudFailed', onFailed),
+      // Apple's framework streams the whole answer so far each time; the plugin
+      // sends only the new part, so from here it is the same shape as the rest.
+      listen(am, 'appleToken', onToken),
+      listen(am, 'appleDone', onDone),
+      listen(am, 'appleFailed', onFailed)
     ]
 
     return () => offs.forEach(off => off())
@@ -702,6 +709,15 @@ export default function MobileChat ({
       }
     }
 
+    // ⚠️ APPLE'S MODEL IS NOT ONE OF LocalModels' WEIGHTS. Handing its id to
+    // lm.generate would look for a download that does not exist and fail with a
+    // message about missing weights.
+    if (model?.apple) {
+      sendApple({ prompt, instructions: (turnSkill || skill)?.body || '' })
+        .catch(() => { /* appleFailed carries the message */ })
+      return
+    }
+
     lm.generate({ id: model.id, prompt }).catch(() => {
       // The rejection and the `failed` event describe the same failure; the
       // event carries the message, so let it do the talking and only clean up
@@ -720,17 +736,29 @@ export default function MobileChat ({
     })
   }, [draft, messages, model, stick])
 
+  // ⚠️ STOP EVERY ENGINE, NOT THE LOCAL ONE. This only ever called
+  // LocalModels.stop, so Stop did nothing at all to a cloud answer — it just
+  // kept arriving — and Apple's would have had the same hole. Which engine is
+  // running is not knowable here after the fact, and stopping one that is idle
+  // is free.
+  const stopAll = () => {
+    const p = plugins()
+    p.LocalModels?.stop?.().catch(() => {})
+    p.ProviderChat?.stop?.().catch(() => {})
+    stopApple().catch(() => {})
+  }
+
   const stop = useCallback(() => {
     const r = run.current
     if (!r) return
     r.stoppedAt = Date.now()
     haptics.impact?.('RIGID')
-    plugins().LocalModels?.stop?.().catch(() => {})
+    stopAll()
   }, [])
 
   // Leaving the screen mid-stream must not leave the phone generating into a
   // component that no longer exists.
-  useEffect(() => () => { if (run.current) plugins().LocalModels?.stop?.().catch(() => {}) }, [])
+  useEffect(() => () => { if (run.current) stopAll() }, [])
 
   const back = usePress(() => onBack?.(), { haptic: 'LIGHT' })
   const menuBtn = usePress(() => { haptics.selection?.(); setMenu(m => !m) })

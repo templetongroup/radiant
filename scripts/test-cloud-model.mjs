@@ -52,8 +52,12 @@ const shell = readFileSync('src/mobile/MobileShell.jsx', 'utf8')
 // a test that only ever cared that the CLOUD model wins. Pin the intent.
 // The rendered half of this claim is covered in test-ui.mjs: "Home names the
 // cloud model, not a local one".
+// ⚠️ AND NOT THE LINE BREAKS EITHER. Adding Apple's model to the fallback chain
+// wrapped the expression across lines, and this failed on a change that left
+// the precedence exactly as it was. Cloud first is the claim; where the `||`
+// sits is not.
 is('the shell prefers the cloud model',
-  /const activeModel = useMemo\(\s*\(\) => cloudModel \|\|/.test(shell), true)
+  /const activeModel = useMemo\(\s*\(\) => cloudModel\s*\|\|/.test(shell), true)
 is('switching to a local model clears the cloud choice', shell.includes('saveChosen(null)'), true)
 is('the switcher includes the cloud model', shell.includes('switchable'), true)
 

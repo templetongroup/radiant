@@ -19,12 +19,17 @@ import { BrandMark } from './BrandSpinner.jsx'
 import wordUrl from '../assets/brand/radiant-wordmark.png'
 import ttUrl from '../assets/brand/templeton-tech-mark.png'
 
-export default function FirstRun ({ onChooseModel, onStartChat, hasModel }) {
+export default function FirstRun ({ onChooseModel, onStartChat, hasModel, appleReady }) {
   // Start Chat leads, but only when there is something to chat WITH. With an
-  // empty phone it would open a conversation with nothing behind it, so it
-  // steps aside and Choose Model takes the primary slot — the screen offers the
-  // action that can actually be completed.
-  const start = usePress(() => onStartChat?.(), { label: 'Start chat', disabled: !hasModel })
+  // empty phone and no Apple Intelligence it would open a conversation with
+  // nothing behind it, so it steps aside and Choose Model takes the primary
+  // slot — the screen offers the action that can actually be completed.
+  //
+  // ⚠️ RENDERING THE BUTTON IS NOT ENABLING IT. Apple's model was added to the
+  // render condition and left out of this one, so the button appeared, looked
+  // fine, and swallowed every press. Both conditions or neither.
+  const canStart = hasModel || appleReady
+  const start = usePress(() => onStartChat?.(), { label: 'Start chat', disabled: !canStart })
   const choose = usePress(() => onChooseModel?.(), { label: 'Choose model' })
 
   return (
@@ -69,21 +74,27 @@ export default function FirstRun ({ onChooseModel, onStartChat, hasModel }) {
         <p className="rx-intro-line">
           Open AI models, running on your iPhone.
         </p>
+        {/* ⚠️ THE PROMISE HAS TO MATCH THE BUTTON. "Download one" was the only
+            thing this screen offered, and on a phone with Apple Intelligence
+            that is a toll gate in front of an app that could already answer.
+            Tony: "could be a good option to default to before anyone downloads
+            a model on first chat." */}
         <p className="rx-intro-sub">
-          Download one and talk to it anywhere. It keeps working with no signal,
-          and nothing you send it leaves this device.
+          {appleReady
+            ? <>Start now with Apple Intelligence, already on this iPhone. Download a model when you want one of your own — it keeps working with no signal, and nothing you send it leaves this device.</>
+            : <>Download one and talk to it anywhere. It keeps working with no signal, and nothing you send it leaves this device.</>}
         </p>
       </div>
 
       <div className="rx-intro-actions">
-        {hasModel && (
+        {canStart && (
           <button type="button" className={'rx-intro-cta' + start.className} {...start.handlers}>
             Start chat
           </button>
         )}
         <button
           type="button"
-          className={(hasModel ? 'rx-intro-second' : 'rx-intro-cta') + choose.className}
+          className={(canStart ? 'rx-intro-second' : 'rx-intro-cta') + choose.className}
           {...choose.handlers}
         >
           Choose model

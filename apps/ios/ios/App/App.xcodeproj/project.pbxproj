@@ -10,6 +10,7 @@
 		E1D481BC15E14381BA3003EA /* LocalModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0ABDDFEC3FD340BAA3089F7C /* LocalModels.swift */; };
 		E1D481BC15E14381BA3003D3 /* DownloadMath.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0ABDDFEC3FD340BAA3089FD3 /* DownloadMath.swift */; };
 		E1D481BC15E14381BA3003C2 /* ProviderChat.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0ABDDFEC3FD340BAA3089FC2 /* ProviderChat.swift */; };
+		E1D481BC15E14381BA3003A11 /* AppleModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0ABDDFEC3FD340BAA3089A11 /* AppleModel.swift */; };
 		E1D481BC15E14381BA3003B1 /* SecureStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0ABDDFEC3FD340BAA3089FF1 /* SecureStore.swift */; };
 		2FAD9763203C412B000D30F8 /* config.xml in Resources */ = {isa = PBXBuildFile; fileRef = 2FAD9762203C412B000D30F8 /* config.xml */; };
 		4D22ABE92AF431CB00220026 /* CapApp-SPM in Frameworks */ = {isa = PBXBuildFile; productRef = 4D22ABE82AF431CB00220026 /* CapApp-SPM */; };
@@ -27,6 +28,7 @@
 		0ABDDFEC3FD340BAA3089F7C /* LocalModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LocalModels.swift; path = App/plugins/LocalModels.swift; sourceTree = "<group>"; };
 		0ABDDFEC3FD340BAA3089FD3 /* DownloadMath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DownloadMath.swift; path = App/plugins/DownloadMath.swift; sourceTree = "<group>"; };
 		0ABDDFEC3FD340BAA3089FC2 /* ProviderChat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ProviderChat.swift; path = App/plugins/ProviderChat.swift; sourceTree = "<group>"; };
+		0ABDDFEC3FD340BAA3089A11 /* AppleModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppleModel.swift; path = App/plugins/AppleModel.swift; sourceTree = "<group>"; };
 		0ABDDFEC3FD340BAA3089FF1 /* SecureStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SecureStore.swift; path = App/plugins/SecureStore.swift; sourceTree = "<group>"; };
 		2FAD9762203C412B000D30F8 /* config.xml */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = config.xml; sourceTree = "<group>"; };
 		50379B222058CBB4000EE86E /* capacitor.config.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = capacitor.config.json; sourceTree = "<group>"; };
@@ -173,6 +175,7 @@
 				E1D481BC15E14381BA3003EA /* LocalModels.swift in Sources */,
 				E1D481BC15E14381BA3003D3 /* DownloadMath.swift in Sources */,
 				E1D481BC15E14381BA3003C2 /* ProviderChat.swift in Sources */,
+				E1D481BC15E14381BA3003A11 /* AppleModel.swift in Sources */,
 				E1D481BC15E14381BA3003B1 /* SecureStore.swift in Sources */,
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
 				RX0000000000000000000004 /* NoZoomViewController.swift in Sources */,
@@ -328,6 +331,10 @@
 				OTHER_SWIFT_FLAGS = "$(inherited) \"-D\" \"COCOAPODS\" \"-DDEBUG\"";
 				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
 				PRODUCT_BUNDLE_IDENTIFIER = com.templetongroup.radiant;
+				OTHER_LDFLAGS = (
+					"-weak_framework",
+					FoundationModels,
+				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_VERSION = 5.0;
@@ -351,6 +358,10 @@
 				MARKETING_VERSION = 1.0;
 				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
 				PRODUCT_BUNDLE_IDENTIFIER = com.templetongroup.radiant;
+				OTHER_LDFLAGS = (
+					"-weak_framework",
+					FoundationModels,
+				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "";
 				SWIFT_VERSION = 5.0;

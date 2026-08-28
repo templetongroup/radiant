@@ -51,6 +51,7 @@ import { listChats, newChatId } from './chats.js'
 import ReadMeScreen from './ReadMeScreen.jsx'
 import ProvidersScreen from './ProvidersScreen.jsx'
 import SkillsScreen from './SkillsScreen.jsx'
+import { appleAsModel, checkApple, onAppleChecked, appleState, APPLE_ID } from './appleModel.js'
 import { loadAppearance, applyAppearance } from './theme.js'
 import * as useLocalModelsMod from './useLocalModels.js'
 import * as hapticsMod from './haptics.js'
@@ -767,6 +768,13 @@ export default function MobileShell () {
   const [cloudModel, setCloudModel] = useState(() => chosenAsModel())
   useEffect(() => onChosenChanged(() => setCloudModel(chosenAsModel())), [])
 
+  // ⚠️ APPLE'S MODEL IS THE FLOOR, NOT A CATALOGUE ENTRY. It is never
+  // downloaded and never removed, so it does not belong in `models`; it is
+  // appended to what the phone can actually run. Asked once per launch.
+  const [apple, setApple] = useState(() => appleState())
+  useEffect(() => { checkApple(); return onAppleChecked(setApple) }, [])
+  const appleModel = useMemo(() => (apple?.available ? appleAsModel() : null), [apple])
+
   // ⚠️ SEARCH `downloaded`, NOT `models`. This read the whole 44-model catalogue,
   // so a model the user had REMOVED still matched by id — it is still in the
   // catalogue, just with downloaded:false. Tony removed every model and Home
@@ -776,15 +784,22 @@ export default function MobileShell () {
   // is the honest answer — Home already handles null by offering the model list
   // and disabling New chat.
   const activeModel = useMemo(
-    () => cloudModel || downloaded.find(m => m.id === activeModelId) || downloaded[0] || null,
-    [cloudModel, activeModelId, downloaded]
+    () => cloudModel
+      || downloaded.find(m => m.id === activeModelId)
+      // ⚠️ APPLE ONLY WINS WHEN IT WAS CHOSEN, OR WHEN THERE IS NOTHING ELSE.
+      // It must not quietly displace a model the user went and downloaded.
+      || (activeModelId === APPLE_ID ? appleModel : null)
+      || downloaded[0]
+      || appleModel
+      || null,
+    [cloudModel, activeModelId, downloaded, appleModel]
   )
 
   // What the switcher offers: everything on the phone, plus the cloud model
   // when one is set, so there is always a way back to on-device.
   const switchable = useMemo(
-    () => (cloudModel ? [cloudModel, ...downloaded] : downloaded),
-    [cloudModel, downloaded]
+    () => [cloudModel, ...downloaded, appleModel].filter(Boolean),
+    [cloudModel, downloaded, appleModel]
   )
 
   const [stack, setStack] = useState(() => {
@@ -1325,8 +1340,9 @@ export default function MobileShell () {
             local={local}
             models={models}
             onChooseModel={() => { finishFirstRun(); presentSheet(null) }}
-            onStartChat={() => { finishFirstRun(); openChat(activeModel?.id || downloaded[0]?.id) }}
+            onStartChat={() => { finishFirstRun(); openChat(activeModel?.id || downloaded[0]?.id || appleModel?.id) }}
             hasModel={downloaded.length > 0}
+            appleReady={Boolean(appleModel)}
           />
         </div>
       )}
