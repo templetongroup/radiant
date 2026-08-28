@@ -13,10 +13,11 @@
  * here in the same change.
  */
 import React from 'react'
+import { deviceWord } from './device.js'
 
 const SECTIONS = [
   {
-    title: 'A model on your iPhone',
+    title: `A model on your ${deviceWord()}`,
     body: [
       'Radiant downloads an open AI model onto this phone and runs it here. There is no account, and once a model has finished downloading it works with no signal at all — on a plane, underground, anywhere.',
       'A model running on the phone answers without a network, and nothing you send it leaves the device. If you add a cloud provider in Settings, chats you send to THAT model go to that company — the name under every chat title tells you which of the two is answering.'
@@ -40,9 +41,9 @@ const SECTIONS = [
     title: 'Choosing a model',
     body: [
       'There are forty-nine to choose from, grouped by who made them — Google, Meta, Mistral, Microsoft, IBM, Alibaba, Apple, NVIDIA and more. Tap a name to open that shelf; tap it again to close it. Five of them can look at pictures, and one of those can watch a short clip.',
-      'Every model is labeled for THIS iPhone. Green runs well. Amber runs, but close to the limit — expect it to be slow, and to reload when you switch apps. Red is not expected to load at all. The label is guidance, not a lock: you can still download a red model and try it.',
-      'That label is about memory, not storage, and they are different questions: a phone can easily have room for a file it cannot then run. Bigger models answer better and use more battery. Qwen 3 1.7B is a good place to start on any recent iPhone.',
-      'The panel above the list shows what this iPhone gives Radiant to work with. It is less than the phone\'s total memory, because iOS limits how much any single app may use.'
+      `Every model is labeled for THIS ${deviceWord()}. Green runs well. Amber runs, but close to the limit — expect it to be slow, and to reload when you switch apps. Red is not expected to load at all. The label is guidance, not a lock: you can still download a red model and try it.`,
+      `That label is about memory, not storage, and they are different questions: a phone can easily have room for a file it cannot then run. Bigger models answer better and use more battery. Qwen 3 1.7B is a good place to start on any recent ${deviceWord()}.`,
+      'The panel above the list shows what this {deviceWord()} gives Radiant to work with. It is less than the phone\'s total memory, because iOS limits how much any single app may use.'
     ]
   },
   {
@@ -63,7 +64,7 @@ const SECTIONS = [
     body: [
       'Settings → Providers connects Radiant to Anthropic, OpenAI, OpenRouter, xAI, Nous, DeepSeek, Kimi, GLM, Groq or Mistral with your own API key. That is how to reach the models too large to run on a phone.',
       'Add a key, search that provider\'s models, and tap one. It becomes the model answering your chats — the name at the top of every chat tells you which model is replying, and tapping that name switches between it and the models on your phone.',
-      'Your key is held in the iPhone Keychain and used by the app itself — it is never stored in the web layer, and never shown again after you enter it. These requests do go over the network, unlike a model running on the phone.'
+      `Your key is held in the ${deviceWord()} Keychain and used by the app itself — it is never stored in the web layer, and never shown again after you enter it. These requests do go over the network, unlike a model running on the phone.`
     ]
   },
   {

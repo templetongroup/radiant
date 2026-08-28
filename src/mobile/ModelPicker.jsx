@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { deviceWord } from './device.js'
 import * as GaugeModule from './Gauge.jsx'
 import BrandSpinner, { BrandMark } from './BrandSpinner.jsx'
 import { fitOf, FIT_LABEL, FITS_NO, ramNeededGB } from './fit.js'
@@ -662,7 +663,7 @@ export default function ModelPicker ({
       <div className="rx-mp" ref={rootRef}>
         <div className="rx-mp-scroll"><div className="rx-mp-inner">
           <h1 className="rx-mp-title">{heading}</h1>
-          <p className="rx-mp-note">Downloading a model needs the Radiant app on iPhone.</p>
+          <p className="rx-mp-note">Downloading a model needs the Radiant app on {deviceWord()}.</p>
         </div></div>
       </div>
     )
@@ -673,7 +674,7 @@ export default function ModelPicker ({
       <div className="rx-mp-scroll" ref={scrollRef}>
         <div className="rx-mp-inner">
           <h1 className="rx-mp-title">{heading}</h1>
-          <p className="rx-mp-lede">It runs on this iPhone — no account, and no network once it&rsquo;s here.</p>
+          <p className="rx-mp-lede">It runs on this {deviceWord()} — no account, and no network once it&rsquo;s here.</p>
 
           {error && <p className="rx-mp-note">{error}</p>}
 
@@ -740,10 +741,10 @@ export default function ModelPicker ({
 
           {list.length > 0 && (
             <p className="rx-mp-secfoot">
-              A model you download runs on this iPhone, and nothing you send it
+              A model you download runs on this {deviceWord()}, and nothing you send it
               leaves the device.
               {memBytes
-                ? ' Each one is labeled against the memory this iPhone can give a single app.'
+                ? ` Each one is labeled against the memory this ${deviceWord()} can give a single app.`
                 : ''}
             </p>
           )}
@@ -852,7 +853,7 @@ function Hero ({ model, Gauge, job, done, busyElsewhere, shortfall, onCommit, on
         <p className="rx-mp-hero-note is-red">{job.message}</p>
       )}
       {blocked && (
-        <p className="rx-mp-hero-note is-amber">Needs {fmtGB(shortfall)} more room on this iPhone.</p>
+        <p className="rx-mp-hero-note is-amber">Needs {fmtGB(shortfall)} more room on this {deviceWord()}.</p>
       )}
     </div>
   )
@@ -874,11 +875,11 @@ function Row ({ model, Gauge, job, done, busyElsewhere, shortfall, fit, onCommit
   const [pressed, handlers] = usePress(
     onCommit, disabled,
     `${model.name}, ${model.sizeGB.toFixed(1)} GB` + (
-      model.downloaded ? ', on this iPhone'
+      model.downloaded ? `, on this ${deviceWord()}`
         : downloading ? ', downloading'
           : failed ? ', that download did not finish'
             : blocked ? ', not enough room'
-              : fit ? `, ${FIT_LABEL[fit].toLowerCase()} on this iPhone` : ''
+              : fit ? `, ${FIT_LABEL[fit].toLowerCase()} on this ${deviceWord()}` : ''
     )
   )
 

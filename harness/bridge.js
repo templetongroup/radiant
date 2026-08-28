@@ -54,6 +54,7 @@ const EMPTY = new URLSearchParams(location.search).get('empty') === '1'
 // Apple Intelligence switched off. It is the case that decides whether the app
 // is usable at all on day one.
 const NO_APPLE = new URLSearchParams(location.search).get('apple') === '0'
+const PAD = new URLSearchParams(location.search).get('idiom') === 'pad'
 const state = {
   models: CATALOG.map(m => ({ ...m, downloaded: EMPTY ? false : m.downloaded })),
   ram: 6.44e9
@@ -89,7 +90,11 @@ window.Capacitor = {
       list: async () => ({ models: state.models.map(m => ({ ...m })) }),
       downloaded: async () => ({ ids: state.models.filter(m => m.downloaded).map(m => m.id) }),
       diskInfo: async () => ({ total: 511e9, free: 48e9, ramTotal: 12.26e9, ramAvailable: state.ram }),
-      deviceInfo: async () => ({ name: 'iPhone 17 Pro Max', identifier: 'iPhone18,2', cores: 6, osVersion: '26.6', ramTotal: 12.26e9, ramAvailable: state.ram }),
+      // ⚠️ THE IDIOM DECIDES FORTY-SIX STRINGS. ?idiom=pad drives the iPad wording
+      // without needing a tablet, and mirrors what UIDevice reports natively.
+      deviceInfo: async () => (PAD
+        ? { idiom: 'pad', name: 'iPad Pro 11-inch (M5)', identifier: 'iPad16,3', cores: 10, osVersion: '26.6', ramTotal: 16e9, ramAvailable: state.ram }
+        : { idiom: 'phone', name: 'iPhone 17 Pro Max', identifier: 'iPhone18,2', cores: 6, osVersion: '26.6', ramTotal: 12.26e9, ramAvailable: state.ram }),
       download: async ({ id }) => {
         emit('downloadStarted', { id })
         let p = 0

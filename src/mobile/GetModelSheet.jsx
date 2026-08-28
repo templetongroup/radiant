@@ -17,6 +17,7 @@
  * under a real thumb.
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { deviceWord } from './device.js'
 import ModelPicker from './ModelPicker.jsx'
 import Gauge from './Gauge.jsx'
 import usePress from './usePress.js'
@@ -31,10 +32,10 @@ const SPEED = {
   'qwen3-4b': 'Steady'
 }
 const NEEDS = {
-  'llama3.2-1b': 'Any iPhone',
+  'llama3.2-1b': `Any ${deviceWord()}`,
   'qwen3-1.7b': 'Recent',
-  'gemma3-1b': 'Any iPhone',
-  'lfm2-1.2b': 'Any iPhone',
+  'gemma3-1b': `Any ${deviceWord()}`,
+  'lfm2-1.2b': `Any ${deviceWord()}`,
   'qwen3-4b': 'Pro'
 }
 

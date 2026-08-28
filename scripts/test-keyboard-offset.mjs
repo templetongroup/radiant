@@ -40,5 +40,28 @@ for (const sel of ['.rx-chat-skillbar', '.rx-chat-slash', '.rx-chat-jump']) {
   ok(`${sel} does NOT count the keyboard twice`, !/--rx-kb/.test(t))
 }
 
+
+// ── ⚠️ NO BACKTICK INSIDE A CSS TEMPLATE LITERAL ────────────────────────────
+// Both phone stylesheets are template literals in .jsx files. A backtick in one
+// of their COMMENTS — writing `margin: auto` or the slash command `/` in prose —
+// closes the literal early, the rest parses as JavaScript, and <style> renders
+// something that is not CSS. It has happened twice in one day, once costing
+// every chat style on the phone. Rule 19, checked instead of remembered.
+for (const file of ['src/mobile/MobileChat.jsx', 'src/mobile/MobileShell.jsx']) {
+  const src = readFileSync(file, 'utf8')
+  const m = /const [A-Z_]*CSS = `/.exec(src)
+  ok(`${file} has a CSS literal`, Boolean(m))
+  if (!m) continue
+  const rest = src.slice(m.index + m[0].length)
+  let i = 0, len = 0
+  while (i < rest.length) {
+    if (rest[i] === '\\') { i += 2; continue }
+    if (rest[i] === '`') break
+    i++; len++
+  }
+  // A CSS block this small means the literal closed on a stray backtick.
+  ok(`${file}'s CSS literal is whole (${len} chars)`, len > 3000)
+}
+
 console.log(`\n${pass}/${pass + fail} passed  ·  the keyboard is counted once`)
 process.exit(fail ? 1 : 0)

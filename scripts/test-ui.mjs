@@ -684,6 +684,74 @@ for (const [query, label, expect] of [['', 'available', /nothing to download/], 
   await p9.close()
 }
 
+// ── ⚠️ iPAD: A READING COLUMN, NOT A STRETCHED PHONE ────────────────────
+// The app is universal now. Nothing broke at tablet size — it just ran edge to
+// edge, which is what compatibility mode looks like and what reviewers punish.
+// The content is capped at a reading measure and centred; the phone must be
+// untouched by it.
+{
+  const measure = async (p, sel) => p.evaluate(s => {
+    const el = document.querySelector(s); const r = el?.getBoundingClientRect()
+    return r ? { x: Math.round(r.x), w: Math.round(r.width) } : null
+  }, sel)
+
+  for (const [w, h, tablet] of [[1194, 834, true], [834, 1194, true], [393, 852, false]]) {
+    const pX = await browser.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: 2, hasTouch: true })
+    await pX.goto(BASE, { waitUntil: 'networkidle' })
+    await pX.waitForTimeout(500)
+    await pX.evaluate(() => { const now = Date.now(); localStorage.setItem('radiant.phone.chats', JSON.stringify(
+      Array.from({ length: 3 }, (_, i) => ({ id: 'c' + i, title: 'Conversation ' + i, updatedAt: now - i * 3600e3, modelName: 'Qwen 3 1.7B', messages: [{ role: 'user', text: 'hi' }] })))) })
+    await pX.reload({ waitUntil: 'networkidle' }); await pX.waitForTimeout(800)
+
+    const card = await measure(pX, '.rx-group')
+    const hdr = await measure(pX, '.rx-section-header')
+    const rowText = await measure(pX, '.rx-group .rx-headline')
+    const label = `${w}x${h}`
+
+    if (tablet) {
+      ok(`${label}: the card stops at a reading width (${card?.w}px)`, card && card.w <= 700)
+      ok(`${label}: and is centred`, card && Math.abs((card.x + card.w / 2) - w / 2) <= 2)
+    } else {
+      ok(`${label}: the phone still runs edge to edge (${card?.w}px)`, card && card.w > w - 60)
+    }
+    // ⚠️ THE RELATIONSHIP, NOT THE POSITION. A section header sits 36 left of the
+    // row text below it — 20 for the card, 16 for the row's own padding. Capping
+    // by centring each child individually breaks exactly this, and it is the
+    // thing that reads as "not designed for iPad".
+    is(`${label}: the header still lines up with the row text`, rowText.x - hdr.x, 36)
+
+    // the chat's chrome is positioned absolutely and needs the same gutter
+    await pX.locator('[aria-label*="New chat"]').last().click({ force: true })
+    await pX.waitForTimeout(700)
+    const nav = await measure(pX, '.rx-chat-nav')
+    const comp = await measure(pX, '.rx-chat-composer')
+    const scroll = await measure(pX, '.rx-chat-scroll')
+    ok(`${label}: nav, composer and transcript share one column`,
+      nav && comp && scroll && nav.x === comp.x && comp.x === scroll.x && nav.w === comp.w)
+    if (tablet) ok(`${label}: and the composer is not edge to edge (${comp?.w}px)`, comp.w <= 700)
+    await pX.close()
+  }
+}
+
+// ── ⚠️ THE DEVICE NAMES ITSELF ──────────────────────────────────────────
+// "iPhone" was hard-coded in forty-six user-facing strings. On an iPad every
+// one of them was untrue, and "running on your iPhone" under a picture of an
+// iPad is what tells someone the app was not really made for their device.
+for (const [idiom, want, wrong] of [['phone', 'iPhone', 'iPad'], ['pad', 'iPad', 'iPhone']]) {
+  const pD = await browser.newPage({ viewport: { width: 834, height: 1194 }, deviceScaleFactor: 2, hasTouch: true })
+  await pD.goto(`${BASE}?idiom=${idiom}`, { waitUntil: 'networkidle' })
+  await pD.waitForTimeout(800)
+  const m = pD.locator('text="Models"').first()
+  if (await m.count()) { await m.click({ force: true }); await pD.waitForTimeout(700) }
+  const t = await pD.locator('body').innerText()
+  ok(`an ${want} calls itself an ${want}`, t.includes(want))
+  ok(`and never calls itself an ${wrong}`, !t.includes(wrong))
+  // ⚠️ A ${'$'}{...} INSIDE A SINGLE-QUOTED STRING RENDERS LITERALLY. One of the
+  // forty-six was quoted that way and would have shipped the source on screen.
+  ok(`no interpolation leaks onto the screen (${want})`, !/\$\{/.test(t))
+  await pD.close()
+}
+
 console.log(results.join('\n'))
 console.log(`${pass}/${pass + fail} passed  ·  the app was RUN, not read`)
 await browser.close()

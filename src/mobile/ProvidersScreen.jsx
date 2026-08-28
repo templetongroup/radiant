@@ -10,6 +10,7 @@
  * one field and one button, and a whole screen for that would be ceremony.
  */
 import React, { useCallback, useEffect, useState } from 'react'
+import { deviceWord } from './device.js'
 import usePress from './usePress.js'
 import {
   PROVIDERS, connectedProviders, saveKey, removeKey, looksWrong,
@@ -204,7 +205,7 @@ export default function ProvidersScreen ({ onStartChat }) {
       )}
 
       <p className="rx-section-footer rx-provider-intro">
-        Keys are held in the iPhone&rsquo;s Keychain, never in the app&rsquo;s own
+        Keys are held in the {deviceWord()}&rsquo;s Keychain, never in the app&rsquo;s own
         storage, and never leave the device except to the provider they belong to.
       </p>
 
@@ -225,7 +226,7 @@ export default function ProvidersScreen ({ onStartChat }) {
       <p className="rx-section-footer">
         ChatGPT Plus and GitHub Copilot sign in through a flow that redirects to
         the machine running it, which a phone cannot answer. Claude Pro and Nous
-        Portal subscriptions can work on iPhone and are not built yet.
+        Portal subscriptions can work on {deviceWord()} and are not built yet.
       </p>
     </>
   )

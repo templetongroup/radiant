@@ -11,6 +11,7 @@
  * want to change something, not the front door.
  */
 import React, { useCallback, useEffect, useState } from 'react'
+import { deviceWord } from './device.js'
 import usePress from './usePress.js'
 import SwipeRow from './SwipeRow.jsx'
 import { BrandMark } from './BrandSpinner.jsx'
@@ -117,7 +118,7 @@ export default function HomeScreen ({
         <p className="rx-home-greeting">{greeting()}</p>
         {!activeModel && (
           <p className="rx-home-empty">
-            No model on this iPhone yet.
+            No model on this {deviceWord()} yet.
             {/* Its own line: the first sentence is the state, the second is
                 what to do about it, and running them together made one long
                 wrap that read as neither. */}

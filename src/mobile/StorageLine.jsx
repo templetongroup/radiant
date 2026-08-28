@@ -9,6 +9,7 @@
  * disk total, and the whole strip hides rather than guessing.
  */
 import React from 'react'
+import { deviceWord } from './device.js'
 import { GB } from './useLocalModels.js'
 
 const fmt = (bytes) => {
@@ -50,7 +51,7 @@ export default function StorageLine ({ downloaded = [], disk, usedBytes = 0, byt
       <div className="rx-storage-label">
         {empty
           ? (free === null
-              ? `No models stored · ${fmt(disk.total)} on this iPhone.`
+              ? `No models stored · ${fmt(disk.total)} on this ${deviceWord()}.`
               : `No models stored · ${fmt(free)} free of ${fmt(disk.total)}.`)
           : `${fmt(usedBytes)} of ${fmt(disk.total)} used by models.`}
       </div>

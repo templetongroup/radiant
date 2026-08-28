@@ -748,6 +748,8 @@
 }
 .is-native .rx-screen-grouped { background: var(--rx-bg-grouped); }
 
+
+
 /* the large title lives inside the scroller, not the bar, so it scrolls away */
 .is-native .rx-title-block {
   padding: var(--rx-sp-8) var(--rx-sp-20) 0;
@@ -1893,6 +1895,17 @@
   opacity: 0.9;
 }
 
+/* ⚠️ FIRST RUN IS A FIXED OVERLAY, NOT A PUSHED SCREEN, so the shell's reading
+   measure never reached it and on an iPad the Choose model button ran the whole
+   width of the display.
+
+   ⚠️ AND PAD THE PARENT, DO NOT max-width THE CHILDREN. Capping
+   .rx-intro-actions changed how it sizes itself — the buttons stopped filling
+   it and collapsed to the width of their own labels, which looked far worse
+   than the problem being fixed. Padding leaves every child's sizing alone. */
+@media (min-width: 768px) {
+  .is-native .rx-intro { padding-inline: calc((100% - 700px) / 2); }
+}
 .is-native .rx-intro-actions {
   position: relative;
   flex: 0 0 auto;
@@ -2472,7 +2485,8 @@
    field, and the picker had never once opened on a phone. Tony: "i dont see
    anywhere in ios to add skills." Same bug, same fix, as the slash list. */
 .is-native .rx-chat-skillbar {
-  position: absolute; z-index: 4; left: 14px; right: 14px;
+  position: absolute; z-index: 4;
+  left: calc(var(--rx-gutter, 0px) + 14px); right: calc(var(--rx-gutter, 0px) + 14px);
   /* ⚠️ THE KEYBOARD IS COUNTED ONCE, IN `bottom`. This also carried the
      composer's translate3d(-kb), so with the keyboard up the bar rose by TWO
      keyboard heights and floated in the middle of the transcript. The composer

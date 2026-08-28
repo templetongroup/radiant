@@ -13,6 +13,7 @@
  * should find it where every other app puts it.
  */
 import React, { useCallback, useState } from 'react'
+import { deviceWord } from './device.js'
 import usePress from './usePress.js'
 import { BrandMark } from './BrandSpinner.jsx'
 import { THEMES, TEXT_SIZES, MODES, OPEN_TO, applyAppearance, swatch } from './theme.js'
@@ -170,7 +171,7 @@ export default function SettingsScreen ({
 
       <h2 className="rx-section-header">Models</h2>
       <div className="rx-group">
-        <Row label="On this iPhone" value={`${downloaded.length} · ${fmt(used)}`} />
+        <Row label={`On this ${deviceWord()}`} value={`${downloaded.length} · ${fmt(used)}`} />
         {/* the way OUT of this screen to the one that adds a model — Settings
             listed what you had and offered no route to getting more */}
         <Row label="Download a model" onTap={onGetModels} />
@@ -209,7 +210,7 @@ export default function SettingsScreen ({
       </div>
       <p className="rx-section-footer">
         Bring your own key for Anthropic, OpenAI, OpenRouter and others. Kept in
-        the iPhone&rsquo;s Keychain.
+        the {deviceWord()}&rsquo;s Keychain.
       </p>
 
       <h2 className="rx-section-header">About</h2>

@@ -51,6 +51,7 @@ export const ramNeededGB = (downloadGB) => downloadGB * 1.05 + 0.35
 // with the Mac app. Do not redefine them here; that is how they drifted before.
 export { FITS_WELL, FITS_TIGHT, FITS_NO, FIT_LABEL, FIT_TONE } from '../fit.js'
 import { verdict, FITS_WELL, FITS_TIGHT, FITS_NO } from '../fit.js'
+import { deviceWord } from './device.js'
 
 /**
  * Runs well / runs tight / won't run, for a model of this download size on a
@@ -74,7 +75,7 @@ export function fitOf (downloadGB, budgetBytes) {
 
 /** The explanation under a row, when someone wants to know why. */
 export const FIT_WHY = {
-  [FITS_WELL]: 'Comfortable on this iPhone.',
+  [FITS_WELL]: `Comfortable on this ${deviceWord()}.`,
   [FITS_TIGHT]: 'Fits, but close to the limit — expect it to be slow, and to reload if you switch apps.',
-  [FITS_NO]: 'Needs more memory than this iPhone can give one app.'
+  [FITS_NO]: `Needs more memory than this ${deviceWord()} can give one app.`
 }

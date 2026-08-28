@@ -1,4 +1,5 @@
 import { listSkills, getSkill, slashMatches as matchSlash, parseSlash } from './skills.js'
+import { deviceWord } from './device.js'
 import { sendApple, stopApple } from './appleModel.js'
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import Gauge from './Gauge.jsx'
@@ -875,7 +876,7 @@ export default function MobileChat ({
             <div className='rx-chat-empty'>
               <BrandMark size={64} />
               <div className='rx-chat-empty-name'>{model?.name || 'No model'}</div>
-              <div className='rx-chat-empty-sub'>Running on this iPhone. Nothing leaves the device.</div>
+              <div className='rx-chat-empty-sub'>Running on this {deviceWord()}. Nothing leaves the device.</div>
               <div className='rx-chat-suggestions'>
                 <Suggestion text='Rewrite this paragraph' onPick={send} />
                 <Suggestion text='Explain a shell command' onPick={send} />
@@ -1142,7 +1143,7 @@ const CSS = `
 
 /* ── nav ── */
 .rx-chat-nav {
-  position: absolute; top: 0; left: 0; right: 0; z-index: 3;
+  position: absolute; top: 0; left: var(--rx-gutter, 0px); right: var(--rx-gutter, 0px); z-index: 3;
   display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px;
   padding: 6px 8px 8px; padding-top: calc(env(safe-area-inset-top) + 6px);
   background: var(--rx-mat);
@@ -1279,6 +1280,20 @@ const CSS = `
   to   { transform: translate(-50%, 0); opacity: 1 }
 }
 
+/* ── iPad ──
+   ⚠️ PADDING DOES NOT INSET AN ABSOLUTE CHILD. An absolutely positioned
+   element's containing block is the padding box, and the padding box INCLUDES
+   the padding — so squeezing .rx-chat moved the transcript (in flow) and left
+   the nav and composer spanning the whole screen. They each need the gutter
+   applied to their own left and right.
+
+   --rx-measure is set by the shell and is 100% on a phone, so every line here
+   computes to zero there and nothing changes. */
+.rx-chat {
+  --rx-gutter: max(0px, calc((100% - var(--rx-measure, 100%)) / 2));
+  padding-inline: var(--rx-gutter);
+}
+
 /* ── the slash list ──
    ⚠️ ABSOLUTE, ABOVE THE COMPOSER, AND ABOVE IT IN THE STACK. In normal flow
    this sat at the same height as the composer, which is position:absolute at
@@ -1286,7 +1301,8 @@ const CSS = `
    instead. It rides on the same bottom offset as the jump button, which is
    already correct for the keyboard. */
 .rx-chat-slash {
-  position: absolute; z-index: 4; left: 14px; right: 14px;
+  position: absolute; z-index: 4;
+  left: calc(var(--rx-gutter, 0px) + 14px); right: calc(var(--rx-gutter, 0px) + 14px);
   bottom: calc(var(--rx-chat-composerh, 64px) + var(--rx-kb) + 8px);
   max-height: 42dvh; overflow-y: auto; -webkit-overflow-scrolling: touch;
   background: var(--rx-mat);
@@ -1318,7 +1334,7 @@ const CSS = `
 
 /* ── a picture on its way to a vision model ── */
 .rx-chat-photo {
-  position: absolute; z-index: 4; left: 14px;
+  position: absolute; z-index: 4; left: calc(var(--rx-gutter, 0px) + 14px);
   bottom: calc(var(--rx-chat-composerh, 64px) + var(--rx-chat-barh, 0px) + var(--rx-kb) + 6px);
 }
 .rx-chat-photo img {
@@ -1342,7 +1358,7 @@ const CSS = `
 
 /* ── composer ── */
 .rx-chat-composer {
-  position: absolute; left: 0; right: 0; bottom: 0; z-index: 3;
+  position: absolute; left: var(--rx-gutter, 0px); right: var(--rx-gutter, 0px); bottom: 0; z-index: 3;
   display: flex; align-items: flex-end; gap: 8px;
   padding: 8px 8px 8px 16px;
   padding-bottom: max(8px, env(safe-area-inset-bottom));

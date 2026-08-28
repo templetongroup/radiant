@@ -60,6 +60,7 @@
  *    the free space instead.
  */
 import React, { useState } from 'react'
+import { deviceWord } from './device.js'
 import Gauge from './Gauge.jsx'
 import BrandSpinner, { BrandMark } from './BrandSpinner.jsx'
 import StorageLine from './StorageLine.jsx'
@@ -131,7 +132,7 @@ function Hero ({ model, onOpen, onChoose, canChoose }) {
         // have fixed it for everyone except the people using VoiceOver.
         ? (model.apple
             ? `${model.name}, built into iOS, nothing to download. Opens the conversation.`
-            : `${model.name}, ready on this iPhone, ${fmtGB(model.sizeGB)}. Opens the conversation.`)
+            : `${model.name}, ready on this ${deviceWord()}, ${fmtGB(model.sizeGB)}. Opens the conversation.`)
         : 'No model yet. Choose a model to download.'
     }
   )
@@ -156,8 +157,8 @@ function Hero ({ model, onOpen, onChoose, canChoose }) {
               cannot be removed, so the weight was rendering as "0.0 GB" — a
               number that is not wrong so much as meaningless. */}
           {resident
-            ? (model.apple ? 'Built into iOS · nothing to download' : `Ready on this iPhone · ${fmtGB(model.sizeGB)}`)
-            : 'Choose a model to run on this iPhone'}
+            ? (model.apple ? 'Built into iOS · nothing to download' : `Ready on this ${deviceWord()} · ${fmtGB(model.sizeGB)}`)
+            : `Choose a model to run on this ${deviceWord()}`}
           <Chevron />
         </div>
       </div>
@@ -190,7 +191,7 @@ function InstalledRow ({ model, active, onOpen, onInfo }) {
           {model.name}
           {active && <span className="rx-installed-now">Current</span>}
         </div>
-        <div className="rx-row-blurb">{fmtGB(model.sizeGB)} on this iPhone</div>
+        <div className="rx-row-blurb">{fmtGB(model.sizeGB)} on this {deviceWord()}</div>
       </div>
       <span className={'rx-row-remove' + manage.className} {...manage.handlers}>Manage</span>
     </div>
@@ -243,10 +244,10 @@ function ModelRow ({ model, state, progress, unavailable, shortBy, fit, failure,
   const pct = progress && typeof progress.pct === 'number' ? Math.round(progress.pct * 100) : null
   const row = usePress(() => onTap?.(model), {
     label: `${model.name}, ${fmtGB(model.sizeGB)}` + (
-      model.downloaded ? ', on this iPhone'
+      model.downloaded ? `, on this ${deviceWord()}`
         : state === 'downloading' ? `, downloading${pct === null ? '' : `, ${pct} percent`}`
           : unavailable ? ', not enough room'
-            : fit ? `, ${FIT_LABEL[fit].toLowerCase()} on this iPhone` : ''
+            : fit ? `, ${FIT_LABEL[fit].toLowerCase()} on this ${deviceWord()}` : ''
     )
   })
   const downloading = state === 'downloading'
@@ -451,7 +452,7 @@ export default function ModelsScreen ({
           section, at the top, and tapping one starts talking to it. */}
       {apple && (
         <div className="rx-section">
-          <div className="rx-section-header">Already on this iPhone</div>
+          <div className="rx-section-header">Already on this {deviceWord()}</div>
           <div className="rx-group">
             <AppleRow
               available={Boolean(apple.available)}
@@ -462,15 +463,15 @@ export default function ModelsScreen ({
           </div>
           <div className="rx-section-footer">
             {apple.available
-              ? 'Apple’s own model, already on the phone. Free, works offline, and nothing is downloaded. The models below are yours to keep and are usually better at longer work.'
-              : 'Radiant can use Apple’s built-in model when it is available. The models below run on this iPhone regardless.'}
+              ? `Apple’s own model, already on this ${deviceWord()}. Free, works offline, and nothing is downloaded. The models below are yours to keep and are usually better at longer work.`
+              : `Radiant can use Apple’s built-in model when it is available. The models below run on this ${deviceWord()} regardless.`}
           </div>
         </div>
       )}
 
       {downloaded.length > 0 && (
         <div className="rx-section">
-          <div className="rx-section-header">On this iPhone</div>
+          <div className="rx-section-header">On this {deviceWord()}</div>
           <div className="rx-group">
             {models.filter(m => m.downloaded).map(m => (
               <InstalledRow
@@ -554,7 +555,7 @@ export default function ModelsScreen ({
         {/* the privacy claim, in the quietest text on the screen. A banner would
             cheapen it, and this one happens to be literally true. */}
         <div className="rx-section-footer">
-          A model you download runs on this iPhone, and nothing you send it leaves
+          A model you download runs on this {deviceWord()}, and nothing you send it leaves
           the device. A provider you add in Settings is a network service, and what
           you send there goes to them.
         </div>

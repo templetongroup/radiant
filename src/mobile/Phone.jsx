@@ -9,11 +9,15 @@
 import React, { useEffect } from 'react'
 import './mobile.css'
 import installBridge from './bridge.js'
+import { resolveDevice } from './device.js'
 import MobileShell from './MobileShell.jsx'
 
 // Before anything renders: the injected native bridge does not populate
 // Capacitor.Plugins by itself, and every screen reads plugins off that object.
 installBridge()
+// ⚠️ ASK BEFORE THE FIRST RENDER. Every screen says "this iPhone" or "this
+// iPad" somewhere; resolving it after paint would flash the wrong word.
+resolveDevice()
 
 export default function Phone () {
   // Dynamic Type: mobile.css cannot test a custom property in a media query, so

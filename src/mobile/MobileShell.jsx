@@ -104,6 +104,19 @@ const haptic = (kind, arg) => {
 const SHELL_CSS = `
 .rx-shell-root, .rx-shell-root * { -webkit-tap-highlight-color: transparent; }
 .rx-shell-scroll::-webkit-scrollbar, .rx-shell-menu::-webkit-scrollbar { display: none; }
+
+/* ── iPad ──
+   ⚠️ PAD THE SCROLLER, DO NOT CAP EACH CHILD. Capping children individually and
+   centring them reads fine until you notice the section headers no longer line
+   up with the text in the cards below: a header is inset 36 (20, plus the row's
+   own 16) and a card 20, and a centred auto margin throws that relationship away.
+   Squeezing the content box instead leaves every inset exactly as it is on a
+   phone, and one rule covers every screen the shell pushes.
+
+   700 is a reading measure, not a round number — much past it and a line of
+   text is long enough that the eye loses the start of the next one. */
+.rx-shell-scroll { padding-inline: max(0px, calc((100% - var(--rx-measure, 100%)) / 2)); }
+@media (min-width: 768px) { .rx-shell-root { --rx-measure: 700px; } }
 /* At rest an iOS bar is not a bar: it is the page, with the large title in the
    scroller under it. The material and the hairline arrive together, the moment
    content slides underneath. A permanently frosted bar reads as a web header

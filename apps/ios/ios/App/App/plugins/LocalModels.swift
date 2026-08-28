@@ -767,8 +767,14 @@ public class LocalModels: CAPPlugin, CAPBridgedPlugin {
             $0.withMemoryRebound(to: CChar.self, capacity: 1) { String(validatingUTF8: $0) ?? "" }
         }
         let p = ProcessInfo.processInfo
+        // ⚠️ THE APP IS UNIVERSAL NOW, SO THE WORD "iPhone" IS A FACT ABOUT THE
+        // DEVICE, NOT A CONSTANT. Forty-six strings in the UI said iPhone; on an
+        // iPad every one of them was wrong. The idiom comes from UIKit and the
+        // fallback name follows it rather than defaulting to a phone.
+        let pad = UIDevice.current.userInterfaceIdiom == .pad
         call.resolve([
-            "name": Self.marketingNames[machine] ?? "iPhone",
+            "idiom": pad ? "pad" : "phone",
+            "name": Self.marketingNames[machine] ?? (pad ? "iPad" : "iPhone"),
             "identifier": machine,
             "cores": p.activeProcessorCount,
             "osVersion": UIDevice.current.systemVersion,

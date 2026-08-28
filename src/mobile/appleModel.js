@@ -1,3 +1,4 @@
+import { deviceWord } from './device.js'
 /**
  * Apple's on-device model — the thing that answers before anything is downloaded.
  *
@@ -24,7 +25,7 @@ export const appleAsModel = () => ({
   id: APPLE_ID,
   name: 'Apple Intelligence',
   maker: 'Apple',
-  blurb: 'Already on this iPhone. Nothing to download.',
+  blurb: `Already on this ${deviceWord()}. Nothing to download.`,
   sizeGB: 0,
   downloaded: true,
   apple: true
@@ -48,7 +49,7 @@ export async function checkApple () {
       const r = await am.availability()
       cached = { available: Boolean(r?.available), reason: r?.reason || '' }
     } catch {
-      cached = { available: false, reason: 'Radiant could not ask iOS about Apple’s model on this iPhone.' }
+      cached = { available: false, reason: `Radiant could not ask iOS about Apple’s model on this ${deviceWord()}.` }
     }
   }
   listeners.forEach(fn => fn(cached))

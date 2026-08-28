@@ -14,6 +14,7 @@
  * not breathe. A phone about to run a language model gets no permanent rAF.
  */
 import React from 'react'
+import { deviceWord } from './device.js'
 import usePress from './usePress.js'
 import { BrandMark } from './BrandSpinner.jsx'
 import wordUrl from '../assets/brand/radiant-wordmark.png'
@@ -67,12 +68,12 @@ export default function FirstRun ({ onChooseModel, onStartChat, hasModel, appleR
         />
 
         {/* Say what the product IS, first. The old line ("A model that lives on
-            your iPhone. No account. No network once it's here.") described a
+            your {deviceWord()}. No account. No network once it's here.") described a
             single model as if the app were one, and led with what it does not
             do — no account, no network — which tells a first-time reader
             nothing about what they are holding. */}
         <p className="rx-intro-line">
-          Open AI models, running on your iPhone.
+          Open AI models, running on your {deviceWord()}.
         </p>
         {/* ⚠️ THE PROMISE HAS TO MATCH THE BUTTON. "Download one" was the only
             thing this screen offered, and on a phone with Apple Intelligence
@@ -81,7 +82,7 @@ export default function FirstRun ({ onChooseModel, onStartChat, hasModel, appleR
             a model on first chat." */}
         <p className="rx-intro-sub">
           {appleReady
-            ? <>Start now with Apple Intelligence, already on this iPhone. Download a model when you want one of your own — it keeps working with no signal, and nothing you send it leaves this device.</>
+            ? <>Start now with Apple Intelligence, already on this {deviceWord()}. Download a model when you want one of your own — it keeps working with no signal, and nothing you send it leaves this device.</>
             : <>Download one and talk to it anywhere. It keeps working with no signal, and nothing you send it leaves this device.</>}
         </p>
       </div>
