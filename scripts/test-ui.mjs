@@ -617,6 +617,23 @@ await page.waitForTimeout(600)
   await p7.close()
 }
 
+// ── ⚠️ APPLE'S MODEL HAS TO BE VISIBLE ON THE MODELS SCREEN ─────────────
+// It was only ever in the in-chat switcher, so with any model downloaded the
+// Models screen never mentioned it. Tony: "I dont see apples model as an
+// option." And on a phone where it is unavailable it existed nowhere at all —
+// nothing to read, nothing to do (rule 12).
+for (const [query, label, expect] of [['', 'available', /nothing to download/], ['?apple=0', 'unavailable', /Turn on Apple Intelligence/]]) {
+  const p8 = await browser.newPage({ viewport: { width: 393, height: 852 }, deviceScaleFactor: 3, hasTouch: true })
+  await p8.goto(BASE + query, { waitUntil: 'networkidle' })
+  await p8.waitForTimeout(800)
+  const m = p8.locator('text="Models"').first()
+  if (await m.count()) { await m.click({ force: true }); await p8.waitForTimeout(700) }
+  const t8 = await p8.locator('body').innerText()
+  ok(`Models lists Apple when ${label}`, /Already on this iPhone/.test(t8) && /Apple Intelligence/.test(t8))
+  ok(`and says what the state is when ${label}`, expect.test(t8))
+  await p8.close()
+}
+
 console.log(results.join('\n'))
 console.log(`${pass}/${pass + fail} passed  ·  the app was RUN, not read`)
 await browser.close()

@@ -37,10 +37,19 @@ const listeners = new Set()
 export async function checkApple () {
   if (cached) return cached
   const am = plugins().AppleModel
+  // ⚠️ THREE DIFFERENT SILENCES, THREE DIFFERENT FIXES. No plugin means an
+  // older build of the app; a throw means the call failed; and everything else
+  // is the framework's own reason. Collapsing them into "unavailable" is what
+  // left Tony looking for an option that was never going to appear.
   if (!am?.availability) {
-    cached = { available: false, reason: 'Apple’s model needs the Radiant app on iOS 26 or later.' }
+    cached = { available: false, reason: 'This build of Radiant does not include Apple’s model. Update the app.' }
   } else {
-    try { cached = await am.availability() } catch { cached = { available: false, reason: 'Apple’s model could not be reached.' } }
+    try {
+      const r = await am.availability()
+      cached = { available: Boolean(r?.available), reason: r?.reason || '' }
+    } catch {
+      cached = { available: false, reason: 'Radiant could not ask iOS about Apple’s model on this iPhone.' }
+    }
   }
   listeners.forEach(fn => fn(cached))
   return cached

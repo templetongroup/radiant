@@ -197,6 +197,43 @@ function InstalledRow ({ model, active, onOpen, onInfo }) {
   )
 }
 
+/**
+ * Apple's model, listed whether or not this iPhone can run it.
+ *
+ * ⚠️ IT WAS ONLY EVER IN THE IN-CHAT SWITCHER. Tony: "I dont see apples model
+ * as an option" — and he was right, because with any model downloaded the
+ * Models screen never mentioned it. Worse, on a phone where Apple Intelligence
+ * is switched off it simply did not exist anywhere, so there was nothing to
+ * read and nothing to do. It is a row now either way: available and tappable,
+ * or dimmed with the reason and the fix.
+ */
+function AppleRow ({ available, reason, active, onOpen }) {
+  const row = usePress(() => { if (available) onOpen?.() }, {
+    label: available
+      ? `Chat with Apple Intelligence${active ? ', current model' : ''}, built into iOS`
+      : `Apple Intelligence unavailable. ${reason}`,
+    disabled: !available
+  })
+  return (
+    <div
+      className={'rx-row rx-row-2line' + (available ? ' rx-pressable' + row.className : '')}
+      data-unavailable={!available}
+      {...(available ? row.handlers : {})}
+    >
+      <span className="rx-row-lead"><BrandMark size={29} /></span>
+      <div className="rx-row-text">
+        <div className="rx-headline">
+          Apple Intelligence
+          {available && active && <span className="rx-installed-now">Current</span>}
+        </div>
+        <div className="rx-row-blurb">
+          {available ? 'Built into iOS · nothing to download' : reason}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function ModelRow ({ model, state, progress, unavailable, shortBy, fit, failure, onTap, onAccessory }) {
   // ⚠️ THE VERDICT LABELS, IT DOES NOT FORBID — see the same note in
   // ModelPicker. Memory is an estimate and downloading is a disk operation;
@@ -366,6 +403,7 @@ export default function ModelsScreen ({
   activeModel,
   onOpenChat,
   onGetModel,
+  apple,
 }) {
   const {
     jobs = {}, failures = {}, progress = {}, disk, downloaded = [], usedBytes = 0,
@@ -411,6 +449,25 @@ export default function ModelsScreen ({
           inside its maker's shelf, among forty-three you do not have, and tap a
           tick. Downloaded models are the ones you own — they get their own
           section, at the top, and tapping one starts talking to it. */}
+      {apple && (
+        <div className="rx-section">
+          <div className="rx-section-header">Already on this iPhone</div>
+          <div className="rx-group">
+            <AppleRow
+              available={Boolean(apple.available)}
+              reason={apple.reason}
+              active={activeModel?.apple === true}
+              onOpen={() => onOpenChat?.('apple-intelligence')}
+            />
+          </div>
+          <div className="rx-section-footer">
+            {apple.available
+              ? 'Apple’s own model, already on the phone. Free, works offline, and nothing is downloaded. The models below are yours to keep and are usually better at longer work.'
+              : 'Radiant can use Apple’s built-in model when it is available. The models below run on this iPhone regardless.'}
+          </div>
+        </div>
+      )}
+
       {downloaded.length > 0 && (
         <div className="rx-section">
           <div className="rx-section-header">On this iPhone</div>

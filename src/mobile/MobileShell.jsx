@@ -1176,6 +1176,7 @@ export default function MobileShell () {
       default:
         return (
           <ModelsScreen
+            apple={apple}
             {...common}
             activeModelId={activeModel?.id || null}
             activeModel={activeModel}
