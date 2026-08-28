@@ -886,6 +886,22 @@
 }
 .is-native .rx-row-2line { min-height: 60px; }
 
+/* ⚠️ COMPACT IS FOR LISTS THAT GROW, NOT FOR EVERY ROW. A Settings row is
+   Apple's 60pt two-line cell and should stay there. The recent-sessions list is
+   the one place the count is unbounded, and at 60pt only about five fit before
+   the fold. Tony: "reduce the size of those chat chips... only a few would
+   fit." One step down the same Apple ramp — subheadline over footnote — so it
+   still tracks Dynamic Type, and 52 keeps it clear of the 44pt tap target. */
+/* ⚠️ THE FLOOR IS THE DELETE CONTROL, NOT THE TEXT. Delete keeps its 44pt tap
+   target — shrinking that to gain pixels is the wrong trade — so the row can
+   only come down by giving back its own padding: 44 + 4 + 4 = 52. Measured at
+   59 before this. */
+.is-native .rx-row-compact { min-height: 52px; padding-top: 4px; padding-bottom: 4px; }
+.is-native .rx-row-compact .rx-headline { font: -apple-system-subheadline; line-height: 1.333; }
+.is-native .rx-row-compact .rx-row-blurb { font: -apple-system-footnote; line-height: 1.385; -webkit-line-clamp: 1; }
+.is-native[data-ax='true'] .rx-row-compact { min-height: 60px; }
+.is-native[data-ax='true'] .rx-row-compact .rx-row-blurb { -webkit-line-clamp: 2; }
+
 /* Inset separators, drawn on the row rather than between elements so the last
    row never needs a special case. The inset is 16pt margin + the leading
    accessory + a 12pt gutter; components set --rx-sep-inset when they carry an

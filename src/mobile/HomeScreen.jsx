@@ -35,7 +35,7 @@ function ChatRow ({ chat, onOpen, onRemove }) {
     label: `Delete ${chat.title}`, haptic: 'MEDIUM'
   })
   return (
-    <div className={'rx-row rx-row-2line' + row.className} {...row.handlers}>
+    <div className={'rx-row rx-row-2line rx-row-compact' + row.className} {...row.handlers}>
       <div className="rx-row-text">
         <div className="rx-headline">{chat.title}</div>
         <div className="rx-row-blurb">
@@ -134,7 +134,7 @@ export default function HomeScreen ({
 
       {chats.length > 0 && (
         <>
-          <h2 className="rx-section-header">Recent</h2>
+          <h2 className="rx-section-header">Recent Sessions</h2>
           <div className="rx-group">
             {chats.map(c => (
               <ChatRow key={c.id} chat={c} onOpen={onOpenChat} onRemove={remove} />

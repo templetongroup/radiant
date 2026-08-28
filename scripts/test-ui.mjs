@@ -407,6 +407,46 @@ await page.waitForTimeout(600)
   await p3.close()
 }
 
+// ── ⚠️ RECENT SESSIONS: DENSER, BUT STILL TAPPABLE ──────────────────────
+// Tony: "reduce the size of those chat chips... only a few would fit." The row
+// came down from 60 to 53, and the floor is Delete's 44pt tap target — which is
+// the thing a future tidy-up would be tempted to shave. It must not move.
+{
+  const p5 = await browser.newPage({ viewport: { width: 393, height: 852 }, deviceScaleFactor: 3 })
+  await p5.goto(BASE, { waitUntil: 'networkidle' })
+  await p5.waitForTimeout(400)
+  await p5.evaluate(() => {
+    const now = Date.now()
+    localStorage.setItem('radiant.phone.chats', JSON.stringify(
+      Array.from({ length: 8 }, (_, i) => ({
+        id: 'c' + i, title: 'Conversation number ' + i, updatedAt: now - i * 3600e3,
+        modelName: 'Qwen 3 1.7B', messages: [{ role: 'user', text: 'hi' }]
+      }))))
+  })
+  await p5.reload({ waitUntil: 'networkidle' })
+  await p5.waitForTimeout(700)
+
+  const home = await p5.locator('body').innerText()
+  ok('the heading says Recent Sessions', /Recent Sessions/.test(home))
+
+  const m = await p5.evaluate(() => {
+    const rows = [...document.querySelectorAll('.rx-row-compact')]
+    if (!rows.length) return null
+    const del = rows[0].querySelector('.rx-row-remove')
+    return {
+      height: Math.round(rows[0].getBoundingClientRect().height),
+      del: del ? Math.round(del.getBoundingClientRect().height) : 0,
+      onScreen: rows.filter(r => r.getBoundingClientRect().bottom <= window.innerHeight).length
+    }
+  })
+  ok('the recent rows render', Boolean(m))
+  ok(`a recent row is compact (${m?.height}px)`, m && m.height <= 56)
+  // ⚠️ NEVER BUY DENSITY WITH THE TAP TARGET.
+  ok(`Delete keeps its 44pt target (${m?.del}px)`, m && m.del >= 44)
+  ok(`more than five fit without scrolling (${m?.onScreen})`, m && m.onScreen >= 6)
+  await p5.close()
+}
+
 // ── ⚠️ GETTING A SKILL ONTO THE PHONE WITHOUT TYPING IT ──────────────────
 // Tony asked for an upload option and got one on the Mac only; the phone could
 // still only be typed into. Three routes now: paste, a file, and the Mac. All
