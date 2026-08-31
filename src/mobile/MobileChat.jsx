@@ -531,11 +531,16 @@ export default function MobileChat ({
       // Move with the keyboard rather than after it: visualViewport only
       // reports the final height, and often only once the animation ends.
       if (e?.keyboardHeight) root.style.setProperty('--rx-kb', e.keyboardHeight + 'px')
-      if (follow.current) stick()
+      // Twice: once now, and once after the keyboard's own animation, because
+      // the first can land before the final height is in the layout.
+      if (follow.current) { stick(); setTimeout(() => { if (follow.current) stick() }, dur(e) + 30) }
     })
     const offHide = listen(kb, 'keyboardWillHide', e => {
       root.style.setProperty('--rx-kb-dur', dur(e) + 'ms')
       root.style.setProperty('--rx-kb', '0px')
+      // The padding shrinks by the keyboard's height, so the bottom moves up
+      // under us. Without this the transcript is left short of the end.
+      if (follow.current) setTimeout(() => { if (follow.current) stick() }, dur(e) + 30)
     })
     return () => { offShow(); offHide() }
   }, [])
@@ -551,7 +556,20 @@ export default function MobileChat ({
     // stop the instant you scroll up. Yanking someone back down mid-read is the
     // most-hated behavior in every chat app ever shipped.
     const near = el.scrollHeight - el.scrollTop - el.clientHeight < 40
-    follow.current = near
+    // ⚠️ ONLY A FINGER TURNS FOLLOWING OFF. This used to be `follow.current =
+    // near` unconditionally, which quietly broke every reply typed with the
+    // keyboard up: opening the keyboard grows this scroller's bottom padding by
+    // the keyboard's height, so scrollHeight jumps ~340px and `near` goes false
+    // with nobody having scrolled. Following switched itself off and the whole
+    // answer then streamed in below the fold — Tony, 2026-08-30: "the message
+    // box doesnt move up when model responds. i have to close text, then scroll
+    // chat up to read it."
+    //
+    // A layout change is not an intent. Reaching the bottom always re-arms
+    // following (however you got there); leaving it only counts when the user
+    // is the one driving.
+    if (near) follow.current = true
+    else if (userDriving.current) follow.current = false
     // Back at the bottom by their own hand: hand control back to autoscroll.
     if (near) userDriving.current = false
     setShowJump(prev => (near ? false : prev || Boolean(run.current)))

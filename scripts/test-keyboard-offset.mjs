@@ -63,5 +63,27 @@ for (const file of ['src/mobile/MobileChat.jsx', 'src/mobile/MobileShell.jsx']) 
   ok(`${file}'s CSS literal is whole (${len} chars)`, len > 3000)
 }
 
+// ── following must survive the keyboard ──────────────────────────────────────
+// ⚠️ THIS SHIPPED TOO. onScroll assigned `follow.current = near` unconditionally.
+// Opening the keyboard grows the transcript's bottom padding by the keyboard's
+// height, so scrollHeight jumps and `near` goes false with nobody having
+// scrolled — following switched itself off and the reply streamed in below the
+// fold. Tony: "the message box doesnt move up when model responds. i have to
+// close text, then scroll chat up to read it."
+//
+// A layout change is not an intent. Only a finger may turn following off.
+const jsx = readFileSync('src/mobile/MobileChat.jsx', 'utf8')
+  .replace(/\/\*[\s\S]*?\*\//g, '')
+  .replace(/^\s*\/\/.*$/gm, '')
+
+ok('following is never assigned straight from `near`',
+   !/follow\.current\s*=\s*near\b/.test(jsx))
+ok('reaching the bottom re-arms following',
+   /if\s*\(\s*near\s*\)\s*follow\.current\s*=\s*true/.test(jsx))
+ok('following is only turned off while the user is driving',
+   /else\s+if\s*\(\s*userDriving\.current\s*\)\s*follow\.current\s*=\s*false/.test(jsx))
+ok('the keyboard hiding re-sticks, because the bottom moves up under us',
+   /keyboardWillHide[\s\S]{0,400}?follow\.current[\s\S]{0,120}?stick\(\)/.test(jsx))
+
 console.log(`\n${pass}/${pass + fail} passed  ·  the keyboard is counted once`)
 process.exit(fail ? 1 : 0)
