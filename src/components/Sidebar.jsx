@@ -235,22 +235,33 @@ export default function Sidebar ({ section = 'chat', onSection, onOpenAgents, se
         </div>
         <span className='session-meta'>{s.model || 'no model'} · {s.messageCount} msg</span>
         <div className='session-actions'>
-          {/* Moving a chat between projects is a one-of-N choice, so it is a
-              <select>, not another icon button. It carries no visible label
-              because the row is 248px wide by default and every pixel of that
-              belongs to the title. */}
+          {/* ⚠️ A FOLDER ICON OVER A REAL <select>, not a menu of my own.
+              Moving a chat is a one-of-N choice, so it stays a select — that is
+              what gives it keyboard support, screen-reader semantics and a menu
+              the platform positions correctly. Only the CHROME changes: the
+              select sits transparent on top of the glyph and fills it, so the
+              row shows one icon instead of a 74px box spelling out a project
+              name. Tony: "the pull down menu on hover on the chats is
+              cumbersome. maybe make it a folder icon". Hand-rolling a menu here
+              would repeat the model-picker bug from the same day, where a
+              hand-positioned menu opened on top of the form that summoned it. */}
           {onMoveSession && projects.length > 0 && (
-            <select
-              className='session-project'
-              title='Move to project'
-              aria-label={`Move "${s.title}" to a project`}
-              value={s.projectId || ''}
-              onClick={e => e.stopPropagation()}
-              onChange={e => { e.stopPropagation(); onMoveSession(s.id, e.target.value || null) }}
+            <span
+              className='session-project-wrap'
+              title={s.projectId ? `In ${projects.find(p => p.id === s.projectId)?.name || 'a project'} — move it` : 'Move to project'}
             >
-              <option value=''>No project</option>
-              {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
+              <span className='session-project-glyph' aria-hidden>{s.projectId ? '🗂' : '🗀'}</span>
+              <select
+                className='session-project'
+                aria-label={`Move "${s.title}" to a project`}
+                value={s.projectId || ''}
+                onClick={e => e.stopPropagation()}
+                onChange={e => { e.stopPropagation(); onMoveSession(s.id, e.target.value || null) }}
+              >
+                <option value=''>No project</option>
+                {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+            </span>
           )}
           <button title={s.pinned ? 'Unpin' : 'Pin to top'} onClick={e => { e.stopPropagation(); onPin(s.id, !s.pinned) }}>{s.pinned ? '★' : '☆'}</button>
           {/* Export one chat. Markdown, not JSON: the reason you export a single

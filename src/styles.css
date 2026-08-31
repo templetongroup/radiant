@@ -613,12 +613,25 @@ code, pre, .mono { font-family: var(--font-mono); }
    itself on hover, so it costs the title nothing at rest. Narrow on purpose:
    the sidebar is 248px by default and the chat's name matters more than the
    project's, which is already the header above it. */
-.session-project {
-  max-width: 74px; font-size: 10px; padding: 1px 2px;
-  background: var(--bg-raised); color: var(--text-muted);
-  border: 1px solid var(--border); border-radius: 5px;
+/* The folder is what you see; the <select> is what you get. Keeping a real
+   select means the platform draws and places the menu, and keyboard and
+   VoiceOver work without any code of ours. */
+.session-project-wrap {
+  position: relative; display: inline-flex; align-items: center;
+  width: 18px; height: 18px; justify-content: center; border-radius: 5px;
 }
-.session-project:hover { border-color: var(--accent-dim); color: var(--accent); }
+.session-project-wrap:hover { background: var(--bg-raised); }
+.session-project-glyph { font-size: 11px; line-height: 1; color: var(--text-muted); pointer-events: none; }
+.session-project-wrap:hover .session-project-glyph { color: var(--accent); }
+.session-project {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  opacity: 0; cursor: pointer; border: 0; padding: 0; margin: 0;
+  -webkit-appearance: none; appearance: none;
+}
+/* The glyph carries no focus ring of its own, so the wrapper wears the select's. */
+.session-project-wrap:has(.session-project:focus-visible) {
+  outline: 2px solid var(--accent); outline-offset: 1px;
+}
 .new-session {
   margin: 2px 12px 10px;
   padding: 8px 12px;
