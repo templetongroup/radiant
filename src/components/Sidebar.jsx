@@ -90,7 +90,7 @@ function UsageChip () {
 const MIN_W = 190
 const MAX_W = 460
 
-export default function Sidebar ({ sessions, activeId, working, onOpen, onNew, onNewGroup, onDelete, onRename, onPin, agents = [], projects = [], projectsError = null, onNewProject, onRenameProject, onDeleteProject, onMoveSession, onSettings, mode, onToggleMode, updateInfo, onUpdate, onCloseNav }) {
+export default function Sidebar ({ section = 'chat', onSection, onOpenAgents, sessions, activeId, working, onOpen, onNew, onNewGroup, onDelete, onRename, onPin, agents = [], projects = [], projectsError = null, onNewProject, onRenameProject, onDeleteProject, onMoveSession, onSettings, mode, onToggleMode, updateInfo, onUpdate, onCloseNav }) {
   const agentOf = id => agents.find(a => a.id === id)
   const [width, setWidth] = useState(() => {
     const saved = Number(localStorage.getItem('radiant.sidebarWidth'))
@@ -272,11 +272,21 @@ export default function Sidebar ({ sessions, activeId, working, onOpen, onNew, o
         <span className='wordmark brand-word'>Radiant</span>
         {onCloseNav && <button className='nav-close' onClick={onCloseNav} title='Close menu' aria-label='Close menu'>✕</button>}
       </div>
+      {/* ⚠️ ONE SWITCHER, NOT TWO. Tasks belongs in the control the sidebar
+          already has. Adding a second row above the brand stacked two segmented
+          controls on top of each other — which is what it looked like the moment
+          I opened the app instead of reading the code.
+          Chats and Agents stay sidebar-local; Tasks swaps the main area, which
+          is why it calls up instead of setView. */}
       <div className='sidebar-switch'>
-        <button className={view === 'chats' ? 'on' : ''} onClick={() => setView('chats')}>Chats</button>
-        <button className={view === 'bots' ? 'on' : ''} onClick={() => setView('bots')}>Agents</button>
+        <button className={section === 'chat' && view === 'chats' ? 'on' : ''}
+          onClick={() => { onSection?.('chat'); setView('chats') }}>Chats</button>
+        <button className={section === 'tasks' ? 'on' : ''}
+          onClick={() => onSection?.('tasks')}>Tasks</button>
+        <button className={section === 'chat' && view === 'bots' ? 'on' : ''}
+          onClick={() => { onSection?.('chat'); setView('bots') }}>Agents</button>
       </div>
-      {view === 'chats' && (
+      {section === 'chat' && view === 'chats' && (
         <input className='session-search' placeholder='Search all sessions…' value={search}
           onChange={e => setSearch(e.target.value)} />
       )}

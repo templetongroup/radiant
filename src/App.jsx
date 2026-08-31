@@ -5,6 +5,7 @@ import Sidebar from './components/Sidebar.jsx'
 import Chat, { GroupPicker } from './components/Chat.jsx'
 import RightPanel from './components/RightPanel.jsx'
 import Settings from './components/Settings.jsx'
+import TaskBoard from './components/TaskBoard.jsx'
 import MotionBackground from './components/MotionBackground.jsx'
 import CommandPalette from './components/CommandPalette.jsx'
 import ComparePanel from './components/ComparePanel.jsx'
@@ -60,6 +61,16 @@ function DesktopApp () {
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [compareOpen, setCompareOpen] = useState(false)
   const [navOpen, setNavOpen] = useState(false) // mobile sidebar drawer
+  // Which top-level place you are in. Chat and Tasks swap the main area; Agents
+  // opens the library that already exists rather than a second copy of it.
+  const [view, setView] = useState('chat')
+  // ⚠️ send() READS `session` FROM ITS CLOSURE, so calling it in the same tick as
+  // openSession() sees the previous session and returns silently. That left a
+  // started task sitting in Working with an empty transcript — a card claiming
+  // progress nothing was making, which is the one thing this board must never
+  // do. Hold the opening message until the session it belongs to is actually
+  // the live one, then send.
+  const [pendingPrompt, setPendingPrompt] = useState(null) // { sessionId, text, taskId }
   const [todos, setTodos] = useState([]) // agent checklist for the active session
   const [question, setQuestion] = useState(null) // { id, question, options } when the agent asks
   const [stats, setStats] = useState(null) // cumulative session stats
@@ -284,6 +295,21 @@ function DesktopApp () {
     refreshSessions()
   }
 
+  useEffect(() => {
+    if (!pendingPrompt || !session || session.id !== pendingPrompt.sessionId) return
+    if (live?.streaming) return
+    const { text, taskId } = pendingPrompt
+    setPendingPrompt(null)
+    // A session with no model cannot run. Put the card back rather than leaving
+    // it in Working forever: the board must not outlive the thing it describes.
+    if (!session.provider || !session.model) {
+      setError('Pick a model for this chat, then start the task again.')
+      api.patchTask(taskId, { state: 'queued' }).catch(() => {})
+      return
+    }
+    send(text)
+  }, [pendingPrompt, session, live])
+
   const send = async content => {
     if (!session || live?.streaming) return
     // content is { text, attachments } from the composer
@@ -418,6 +444,9 @@ function DesktopApp () {
       <MotionBackground kind={config.settings.motionBg} />
       <div className='nav-backdrop' onClick={() => setNavOpen(false)} />
       <Sidebar
+        section={view}
+        onSection={setView}
+        onOpenAgents={() => { setAgentView('library'); setSettingsTab('agents'); setSettingsOpen(true) }}
         sessions={sessions}
         activeId={session?.id}
         working={Boolean(live?.streaming)}
@@ -445,6 +474,22 @@ function DesktopApp () {
         updateInfo={updateInfo}
         onUpdate={() => { setNavOpen(false); if (window.radiantNative?.openSettings) window.radiantNative.openSettings('about'); else { setSettingsTab('about'); setSettingsOpen(true) } }}
       />
+      {view === 'tasks' ? (
+        <TaskBoard
+          agents={config.agents || []}
+          models={models}
+          onError={setError}
+          onOpenTask={async (task, prompt) => {
+            // The board hands the conversation over; chat owns streaming.
+            if (!task.sessionId) return
+            setView('chat')
+            await openSession(task.sessionId)
+            // A freshly started task arrives with its opening message unsent —
+            // send it here, where the streaming machinery lives.
+            if (prompt) setPendingPrompt({ sessionId: task.sessionId, text: prompt, taskId: task.id })
+          }}
+        />
+      ) : (
       <Chat
         skills={config.skills || []}
         onAddSkill={addSkillToChat}
@@ -490,6 +535,7 @@ function DesktopApp () {
         onMoveSession={moveSession}
         onRefreshModels={refreshModels}
       />
+      )}
       {rightOpen && (
         <RightPanel
           tab={rightTab}

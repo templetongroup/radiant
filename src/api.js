@@ -299,6 +299,15 @@ export const api = {
   patchProject: (id, body) => json('PATCH', `/api/projects/${id}`, body),
   deleteProject: id => json('DELETE', `/api/projects/${id}`),
   listSessions: () => json('GET', '/api/sessions'),
+
+  // ---- the board ----
+  listTasks: () => json('GET', '/api/tasks'),
+  createTask: t => json('POST', '/api/tasks', t),
+  // `byUser: true` tells the server a person did this, so it can refuse the
+  // columns the run owns. Without it a UI bug could silently rewrite history.
+  patchTask: (id, patch) => json('PATCH', `/api/tasks/${id}`, { ...patch, byUser: true }),
+  deleteTask: id => json('DELETE', `/api/tasks/${id}`),
+  startTask: id => json('POST', `/api/tasks/${id}/start`),
   searchSessions: q => json('GET', `/api/sessions-search?q=${encodeURIComponent(q)}`),
   createSession: body => json('POST', '/api/sessions', body || {}),
   getSession: id => json('GET', `/api/sessions/${id}`),

@@ -11,7 +11,7 @@ import { fileURLToPath } from 'url'
 import { WebSocketServer } from 'ws'
 import pty from 'node-pty'
 import { execSync, spawn } from 'child_process'
-import { RADIANT_DIR, DIR_POINTER, defaultDataDir, dataDirStatus, loadConfig, saveConfig, publicConfig, listSessions, loadSession, saveSession, deleteSession, searchSessions, upsertCredential, activateAccount, removeAccount, SESSIONS_DIR, listProjects, getProject, saveProject, deleteProject, migrateProjects, agentsStore, skillsStore, recipesStore, cloudStatus, MACHINE_KEYS, saveMachineSettings, skillLibrary, inspectSkillFolder, resolveSkillDir, USER_SKILLS_ROOT, repairCloudFolder
+import { RADIANT_DIR, DIR_POINTER, defaultDataDir, dataDirStatus, loadConfig, saveConfig, publicConfig, listSessions, loadSession, saveSession, deleteSession, searchSessions, upsertCredential, activateAccount, removeAccount, SESSIONS_DIR, listProjects, getProject, saveProject, deleteProject, migrateProjects, agentsStore, skillsStore, recipesStore, cloudStatus, MACHINE_KEYS, saveMachineSettings, skillLibrary, inspectSkillFolder, resolveSkillDir, USER_SKILLS_ROOT, repairCloudFolder, listTasks, loadTask, saveTask, deleteTask, TASK_STATES
 } from './config.js'
 import { runTurn, listModels } from './providers.js'
 import { OAUTH_PROVIDERS, buildAuthUrl, completePaste, startLoopback, validAccessToken, startDevice, pollDevice } from './oauth.js'
@@ -1788,6 +1788,138 @@ app.post('/api/download/cancel', (req, res) => {
 })
 
 // ---------- sessions ----------
+// ---- tasks (the board) ----
+// ⚠️ THE BOARD DOES NOT OWN PROGRESS. A card's state comes from the run it
+// points at: `working` while the agent is going, `blocked` the moment it asks
+// for approval, `review` when it finishes. Only queued/done are a human's to
+// set. A board that let you drag a card to "done" while the agent was still
+// running would be a drawing of work, not a view of it.
+const TASK_ID = () => 'task-' + Math.random().toString(36).slice(2, 10)
+// ⚠️ THE BOARD REFLECTS THE RUN; IT DOES NOT NARRATE IT. Card state is derived
+// from the events a turn already emits, so a card cannot show progress the
+// agent did not make. Attached to emit rather than sprinkled through the turn
+// loop, because every path out of a run — success, approval, error, abort —
+// goes through emit exactly once per event, and a state machine with five
+// hand-placed call sites is a state machine with a missing one.
+function reflectTaskState (sessionId, ev) {
+  if (!sessionId || !ev) return
+  let task
+  try { task = listTasks().find(t => t.sessionId === sessionId) } catch { return }
+  if (!task) return
+  const was = task.state
+  // ⚠️ A QUESTION IS ALSO A BLOCK. `ask_user` ends the turn, so the run emits
+  // question_request and then `done` — and a board that only watched `done`
+  // filed "the agent asked you something" under Review, next to finished work.
+  // It is the same situation as an approval: nothing moves until you answer.
+  // Seen live the first time a task ran: the agent asked "How should we start?"
+  // and the card read Review.
+  if (ev.type === 'approval_request' || ev.type === 'question_request') task.state = 'blocked'
+  else if (ev.type === 'done') {
+    // `done` arrives right after a question. It must not overwrite the block.
+    if (task.state === 'blocked') return
+    task.state = 'review'
+    task.finishedAt = new Date().toISOString()
+  }
+  else if (ev.type === 'error') { task.state = 'blocked'; task.lastError = String(ev.message || 'The run stopped.') }
+  else if (task.state === 'blocked' && !['approval_request', 'question_request'].includes(ev.type)) task.state = 'working'
+  else return
+  if (task.state === was) return
+  if (task.state === 'working') task.lastError = null
+  try { saveTask(task) } catch { /* a board that cannot save must not kill the run */ }
+}
+
+app.get('/api/tasks', (req, res) => res.json(listTasks()))
+
+app.post('/api/tasks', (req, res) => {
+  const b = req.body || {}
+  const title = String(b.title || '').trim()
+  if (!title) return res.status(400).json({ error: 'A task needs a title.' })
+  const task = saveTask({
+    id: TASK_ID(),
+    title,
+    detail: String(b.detail || ''),
+    // Whichever the person picked. An agent carries its own model, so agentId
+    // wins when both are set — the same precedence the composer already uses.
+    agentId: b.agentId || null,
+    model: b.model || null,
+    provider: b.provider || null,
+    cwd: b.cwd || null,
+    projectId: b.projectId || null,
+    state: 'queued',
+    sessionId: null,
+    order: Number.isFinite(b.order) ? b.order : Date.now(),
+    createdAt: new Date().toISOString(),
+    startedAt: null,
+    finishedAt: null,
+    lastError: null
+  })
+  res.json(task)
+})
+
+app.patch('/api/tasks/:id', (req, res) => {
+  const task = loadTask(req.params.id)
+  if (!task) return res.status(404).json({ error: 'No such task.' })
+  const b = req.body || {}
+  if (b.state !== undefined) {
+    if (!TASK_STATES.includes(b.state)) return res.status(400).json({ error: `Unknown state: ${b.state}` })
+    // Dragging cannot fake progress. A person may park a card back in Queued or
+    // accept it into Done; the run owns everything between.
+    if (!['queued', 'done'].includes(b.state) && b.byUser) {
+      return res.status(409).json({ error: 'That column is set by the run, not by hand.' })
+    }
+    task.state = b.state
+    if (b.state === 'done') task.finishedAt = new Date().toISOString()
+  }
+  for (const k of ['title', 'detail', 'agentId', 'model', 'provider', 'cwd', 'projectId', 'order', 'sessionId']) {
+    if (b[k] !== undefined) task[k] = b[k]
+  }
+  res.json(saveTask(task))
+})
+
+app.delete('/api/tasks/:id', (req, res) => { deleteTask(req.params.id); res.json({ ok: true }) })
+// Starting a task creates the session it will live in, and hands the id back so
+// the client streams the turn exactly as it does for a chat. No second run
+// engine: a task IS a conversation, opened with the goal as its first message.
+app.post('/api/tasks/:id/start', (req, res) => {
+  const task = loadTask(req.params.id)
+  if (!task) return res.status(404).json({ error: 'No such task.' })
+  if (task.sessionId && loadSession(task.sessionId)) {
+    // Resuming: the conversation already exists, so continue it rather than
+    // starting a second one and orphaning the first.
+    task.state = 'working'
+    task.lastError = null
+    saveTask(task)
+    return res.json({ task, sessionId: task.sessionId, resumed: true })
+  }
+  const config = loadConfig()
+  const project = task.projectId ? getProject(task.projectId) : null
+  const agent = task.agentId ? agentsStore.get(task.agentId) : null
+  const session = {
+    id: crypto.randomUUID(),
+    title: task.title,
+    autoTitle: false,          // the task named it; do not let the first turn rename it
+    agentId: agent ? agent.id : null,
+    projectId: project ? project.id : null,
+    provider: task.provider || (agent && agent.provider) || (project && project.provider) || config.settings.defaultProvider || null,
+    model: task.model || (agent && agent.model) || (project && project.model) || config.settings.defaultModel,
+    cwd: task.cwd || (project && project.cwd) || config.settings.defaultCwd || os.homedir(),
+    useTools: agent ? agent.useTools !== false : true,
+    computerControl: Boolean(agent && agent.computerControl),
+    taskId: task.id,           // so the transcript can point back at its card
+    createdAt: new Date().toISOString(),
+    messages: []
+  }
+  saveSession(session)
+  task.sessionId = session.id
+  task.state = 'working'
+  task.startedAt = task.startedAt || new Date().toISOString()
+  task.lastError = null
+  saveTask(task)
+  // The opening message: the goal, plus any detail the person wrote.
+  const prompt = task.detail ? `${task.title}\n\n${task.detail}` : task.title
+  res.json({ task, sessionId: session.id, prompt, resumed: false })
+})
+
 app.get('/api/sessions', (req, res) => res.json(listSessions()))
 
 app.post('/api/sessions', (req, res) => {
@@ -1915,7 +2047,7 @@ app.post('/api/chat', async (req, res) => {
       'cache-control': 'no-cache',
       connection: 'keep-alive'
     })
-    const emit = ev => res.write(`data: ${JSON.stringify(ev)}\n\n`)
+    const emit = ev => { reflectTaskState(sessionId, ev); res.write(`data: ${JSON.stringify(ev)}\n\n`) }
     const text = typeof content === 'string' ? content : (content.text || '')
     const attachments = (typeof content === 'object' && content.attachments) || []
     session.messages.push({ role: 'user', text, attachments })
@@ -1981,7 +2113,7 @@ app.post('/api/chat', async (req, res) => {
     'cache-control': 'no-cache',
     connection: 'keep-alive'
   })
-  const emit = ev => res.write(`data: ${JSON.stringify(ev)}\n\n`)
+  const emit = ev => { reflectTaskState(sessionId, ev); res.write(`data: ${JSON.stringify(ev)}\n\n`) }
 
   // content is either a string or { text, attachments:[{name,mime,dataB64,kind}] }
   const text = typeof content === 'string' ? content : (content.text || '')

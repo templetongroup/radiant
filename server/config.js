@@ -89,6 +89,7 @@ function resolveDataDir () {
 export const RADIANT_DIR = resolveDataDir()
 export const SESSIONS_DIR = path.join(RADIANT_DIR, 'sessions')
 export const PROJECTS_DIR = path.join(RADIANT_DIR, 'projects')
+export const TASKS_DIR = path.join(RADIANT_DIR, 'tasks')
 const CONFIG_PATH = path.join(RADIANT_DIR, 'config.json')
 
 /** What the UI needs to describe the current location honestly. */
@@ -370,6 +371,7 @@ const DEFAULT_CONFIG = {
 function ensureDirs () {
   fs.mkdirSync(SESSIONS_DIR, { recursive: true })
   fs.mkdirSync(PROJECTS_DIR, { recursive: true })
+  fs.mkdirSync(TASKS_DIR, { recursive: true })
 }
 
 // ⚠️ A HALF-WRITTEN FILE IN A CLOUD FOLDER GETS SYNCED AS-IS. writeFileSync
@@ -822,6 +824,50 @@ export function saveSession (session) {
   ensureDirs()
   session.updatedAt = new Date().toISOString()
   fs.writeFileSync(path.join(SESSIONS_DIR, session.id + '.json'), JSON.stringify(session, null, 2))
+}
+
+// ---- tasks ----
+// ⚠️ ONE FILE PER TASK, like sessions. Two Macs both editing a shared board file
+// would lose cards outright: iCloud Drive has no merge, it picks a winner. A
+// card moved on the laptop and a card added on the desktop must both survive.
+//
+// A task is NOT a parallel world. It is a goal plus a lifecycle, pointing at an
+// ordinary session — so the agent's own checklist, its approvals, its model and
+// its transcript are the same objects the rest of the app already uses. The
+// board reads state that exists; it does not keep a second copy of the truth.
+//
+// State is one of: queued | working | blocked | review | done.
+// Only `queued` and `done` are set by a person. `working`, `blocked` and
+// `review` are set by the run itself, from events the server already emits, so
+// a card cannot claim progress that did not happen.
+export const TASK_STATES = ['queued', 'working', 'blocked', 'review', 'done']
+
+export function listTasks () {
+  ensureDirs()
+  return fs.readdirSync(TASKS_DIR)
+    .filter(f => f.endsWith('.json'))
+    .map(f => { try { return JSON.parse(fs.readFileSync(path.join(TASKS_DIR, f), 'utf8')) } catch { return null } })
+    .filter(Boolean)
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || (b.createdAt || '').localeCompare(a.createdAt || ''))
+}
+
+export function loadTask (id) {
+  if (!/^[a-z0-9-]+$/.test(id)) return null
+  try { return JSON.parse(fs.readFileSync(path.join(TASKS_DIR, id + '.json'), 'utf8')) } catch { return null }
+}
+
+export function saveTask (task) {
+  ensureDirs()
+  if (!/^[a-z0-9-]+$/.test(task.id)) throw new Error('bad task id')
+  if (!TASK_STATES.includes(task.state)) throw new Error(`unknown task state: ${task.state}`)
+  task.updatedAt = new Date().toISOString()
+  writeJsonAtomic(path.join(TASKS_DIR, task.id + '.json'), task)
+  return task
+}
+
+export function deleteTask (id) {
+  if (!/^[a-z0-9-]+$/.test(id)) return
+  try { fs.unlinkSync(path.join(TASKS_DIR, id + '.json')) } catch {}
 }
 
 export function deleteSession (id) {

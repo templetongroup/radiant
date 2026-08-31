@@ -1829,3 +1829,99 @@ button.hf-head:hover { background: var(--bg-hover); }
 /* An update that is downloaded and waiting only needs one more click. */
 .update-pill-ready { background: var(--accent-wash); border-color: var(--accent); color: var(--accent); font-weight: 600; }
 .update-pill-progress { opacity: 0.75; cursor: default; }
+
+/* ── the view switcher ─────────────────────────────────────────────────────
+   Sits above the brand, because navigation belongs where navigation already
+   lives. Uses the same tokens as everything else so the accent and the theme
+   carry through without a second palette. */
+.view-switch {
+  display: flex; gap: 2px; margin: 8px 10px 0;
+  padding: 2px; border-radius: 9px; background: var(--bg-input);
+}
+.view-tab {
+  flex: 1; padding: 5px 0; border: 0; border-radius: 7px;
+  background: transparent; color: var(--text-muted);
+  font: inherit; font-size: 12px; cursor: pointer;
+  transition: background .15s ease, color .15s ease;
+}
+.view-tab:hover { color: var(--text); }
+.view-tab.is-on { background: var(--bg-raised); color: var(--text); }
+.view-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+/* ── the board ─────────────────────────────────────────────────────────────
+   Columns scroll independently; the board itself scrolls sideways when the
+   window is narrow, rather than squeezing five columns into an unreadable
+   width. */
+.tb { flex: 1; min-width: 0; display: flex; flex-direction: column; background: var(--bg); }
+.tb-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 18px 10px; gap: 12px;
+}
+.tb-title { margin: 0; font-size: 15px; font-weight: 600; color: var(--text); }
+.tb-new, .tb-add {
+  padding: 6px 12px; border-radius: 8px; border: 1px solid var(--line, transparent);
+  background: var(--bg-raised); color: var(--text); font: inherit; font-size: 12px; cursor: pointer;
+}
+.tb-new:hover, .tb-add:hover { background: var(--bg-hover); }
+.tb-add:disabled { opacity: .45; cursor: default; }
+
+.tb-compose { display: flex; flex-direction: column; gap: 8px; padding: 0 18px 12px; }
+.tb-input {
+  width: 100%; padding: 8px 10px; border-radius: 8px;
+  border: 1px solid var(--bg-hover); background: var(--bg-input);
+  color: var(--text); font: inherit; font-size: 13px;
+}
+.tb-area { resize: vertical; min-height: 44px; }
+.tb-input:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
+.tb-compose-foot { display: flex; gap: 8px; align-items: center; }
+.tb-select {
+  flex: 1; padding: 7px 10px; border-radius: 8px;
+  border: 1px solid var(--bg-hover); background: var(--bg-input);
+  color: var(--text); font: inherit; font-size: 12px;
+}
+
+.tb-cols { flex: 1; min-height: 0; display: flex; gap: 10px; padding: 0 18px 18px; overflow-x: auto; }
+.tb-col {
+  flex: 1 0 210px; min-width: 210px; display: flex; flex-direction: column;
+  border-radius: 12px; background: var(--bg-panel); padding: 10px;
+  transition: background .15s ease, box-shadow .15s ease;
+}
+.tb-col.is-over { box-shadow: inset 0 0 0 2px var(--accent); }
+.tb-col-head { display: flex; align-items: baseline; justify-content: space-between; }
+.tb-col-label { font-size: 12px; font-weight: 600; color: var(--text); }
+.tb-col-count { font-size: 11px; color: var(--text-faint); }
+.tb-col-hint { font-size: 10.5px; color: var(--text-faint); margin: 2px 0 8px; }
+.tb-col-body { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+.tb-empty { margin: 0; font-size: 11.5px; color: var(--text-faint); line-height: 1.5; }
+
+.tb-card {
+  border-radius: 10px; background: var(--bg-raised); padding: 9px 10px;
+  cursor: pointer; border: 1px solid transparent;
+}
+.tb-card:hover { background: var(--bg-hover); }
+.tb-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.tb-card.is-draggable { cursor: grab; }
+.tb-card.is-orphan { border-color: color-mix(in oklch, var(--accent) 40%, transparent); }
+.tb-card-title { margin: 0 0 3px; font-size: 12.5px; font-weight: 600; color: var(--text); line-height: 1.35; }
+.tb-card-who { font-size: 11px; color: var(--text-muted); }
+.tb-warn { color: var(--accent); }
+.tb-card-flag { margin-top: 6px; font-size: 11px; color: var(--accent); line-height: 1.4; }
+
+.tb-steps { margin-top: 7px; }
+.tb-steps-bar { height: 3px; border-radius: 2px; background: var(--bg-input); overflow: hidden; }
+.tb-steps-bar > i { display: block; height: 100%; background: var(--accent); transition: width .3s ease; }
+.tb-steps-text { margin-top: 4px; font-size: 10.5px; color: var(--text-muted); line-height: 1.4; }
+
+.tb-card-foot { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
+.tb-card-time { flex: 1; font-size: 10.5px; color: var(--text-faint); }
+.tb-mini {
+  padding: 3px 8px; border-radius: 6px; border: 0;
+  background: var(--bg-input); color: var(--text); font: inherit; font-size: 11px; cursor: pointer;
+}
+.tb-mini:hover { background: var(--bg); }
+.tb-mini-quiet { color: var(--text-faint); background: transparent; }
+.tb-mini-quiet:hover { color: var(--text); background: var(--bg-input); }
+
+@media (prefers-reduced-motion: reduce) {
+  .view-tab, .tb-col, .tb-steps-bar > i { transition: none; }
+}
