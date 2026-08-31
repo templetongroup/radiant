@@ -478,6 +478,7 @@ function DesktopApp () {
         <TaskBoard
           agents={config.agents || []}
           models={models}
+          onRefreshModels={refreshModels}
           onError={setError}
           onOpenTask={async (task, prompt) => {
             // The board hands the conversation over; chat owns streaming.

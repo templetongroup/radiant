@@ -344,7 +344,13 @@ const readPins = () => {
   } catch { return [] }
 }
 
-function ModelPicker ({ session, models, onPick, onRefresh }) {
+// ⚠️ EXPORTED SO THE BOARD USES THIS ONE, not a second picker. Tasks first
+// shipped with a plain <select> holding every model — Tony: "that model list is
+// overwhelming. it needs to have the same collapsible list as the model list in
+// the chat window." Two pickers would also mean two behaviours to keep in step.
+// `session` is only read for the current model/provider, so any { model,
+// provider } shape works — the board passes the task's own choice.
+export function ModelPicker ({ session, models, onPick, onRefresh }) {
   const [open, setOpen] = useState(false)
   const [q, setQ] = useState('')
   const [collapsed, setCollapsed] = useState({}) // providerName -> explicit collapse override

@@ -72,5 +72,30 @@ ok('it can be deleted', !gone.body.some(t => t.id === id))
      /That column is set by the run, not by hand/.test(src))
 }
 
+
+// ── one picker, not two ──────────────────────────────────────────────────────
+// The board first shipped a flat <select> holding every model. Tony: "that model
+// list is overwhelming. it needs to have the same collapsible list as the model
+// list in the chat window." With OpenRouter alone at 424 entries and the agent
+// library at 142, a flat list was never browsable.
+{
+  const fs = await import('node:fs')
+  const board = fs.readFileSync('src/components/TaskBoard.jsx', 'utf8')
+  const chat = fs.readFileSync('src/components/Chat.jsx', 'utf8')
+  const css = fs.readFileSync('src/styles.css', 'utf8')
+
+  ok('the board uses the chat picker rather than its own',
+     /import \{ ModelPicker \} from '\.\/Chat\.jsx'/.test(board) && /<ModelPicker/.test(board))
+  ok('and there is no flat select left in it', !/<select/.test(board))
+  ok('the picker is exported so there is one copy', /export function ModelPicker/.test(chat))
+  ok('agents are offered through the same grouped list',
+     /providerName: 'Agents'/.test(board))
+  // ⚠️ .model-menu carries no position of its own — only `.composer-box
+  // .model-menu` gives it one. Outside the composer it falls into normal flow
+  // and lands on top of the form, which is what happened.
+  ok('the menu is positioned where the board puts it',
+     /\.tb-who-pick \.model-menu \{[^}]*position: absolute/s.test(css))
+}
+
 console.log(`\n  ${pass}/${pass + fail} passed`)
 process.exit(fail ? 1 : 0)

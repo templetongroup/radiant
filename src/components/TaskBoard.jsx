@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../api.js'
+import { ModelPicker } from './Chat.jsx'
 
 /**
  * The board.
@@ -106,13 +107,17 @@ function Card ({ task, agents, live, onOpen, onStart, onDelete, onDragStart }) {
   )
 }
 
-export default function TaskBoard ({ agents = [], models = [], liveByTask = {}, onOpenTask, onError }) {
+export default function TaskBoard ({ agents = [], models = [], liveByTask = {}, onOpenTask, onError, onRefreshModels }) {
   const [tasks, setTasks] = useState([])
   const [loading, setLoading] = useState(true)
   const [composing, setComposing] = useState(false)
   const [title, setTitle] = useState('')
   const [detail, setDetail] = useState('')
-  const [who, setWho] = useState('')          // "agent:<id>" or "model:<provider>/<id>"
+  // What the picker understands: { model, provider }. An agent is carried in the
+  // same shape with provider 'agent', so ONE list covers agents and models — the
+  // agent library runs to 142 entries, which is no more browsable as a flat list
+  // than the models were.
+  const [who, setWho] = useState({ model: null, provider: null })
   const [dragOver, setDragOver] = useState(null)
   const dragged = useRef(null)
   const titleRef = useRef(null)
@@ -138,19 +143,28 @@ export default function TaskBoard ({ agents = [], models = [], liveByTask = {}, 
     return map
   }, [tasks])
 
+  // Agents ride in the models list as their own provider group, so the picker
+  // groups, collapses and searches them exactly as it does everything else.
+  const pickable = useMemo(() => [
+    ...agents.map(a => ({ id: a.name, provider: 'agent', providerName: 'Agents', agentId: a.id })),
+    ...models
+  ], [agents, models])
+
   const create = async e => {
     e?.preventDefault?.()
     const t = title.trim()
     if (!t) return
     const body = { title: t, detail: detail.trim() }
-    if (who.startsWith('agent:')) body.agentId = who.slice(6)
-    else if (who.startsWith('model:')) {
-      const m = models.find(x => `${x.provider}/${x.id}` === who.slice(6))
-      if (m) { body.model = m.id; body.provider = m.provider }
+    if (who.provider === 'agent') {
+      const a = agents.find(x => x.name === who.model)
+      if (a) body.agentId = a.id
+    } else if (who.model) {
+      body.model = who.model
+      body.provider = who.provider
     }
     try {
       await api.createTask(body)
-      setTitle(''); setDetail(''); setComposing(false)
+      setTitle(''); setDetail(''); setWho({ model: null, provider: null }); setComposing(false)
       refresh()
     } catch (err) { onError?.(err.message) }
   }
@@ -214,21 +228,14 @@ export default function TaskBoard ({ agents = [], models = [], liveByTask = {}, 
             rows={2}
           />
           <div className='tb-compose-foot'>
-            <select className='tb-select' value={who} onChange={e => setWho(e.target.value)} aria-label='Who should do it'>
-              <option value=''>Default model</option>
-              {agents.length > 0 && (
-                <optgroup label='Agents'>
-                  {agents.map(a => <option key={a.id} value={`agent:${a.id}`}>{a.name}</option>)}
-                </optgroup>
-              )}
-              {models.length > 0 && (
-                <optgroup label='Models'>
-                  {models.map(m => (
-                    <option key={`${m.provider}/${m.id}`} value={`model:${m.provider}/${m.id}`}>{m.id}</option>
-                  ))}
-                </optgroup>
-              )}
-            </select>
+            <div className='tb-who-pick'>
+              <ModelPicker
+                session={who}
+                models={pickable}
+                onPick={m => setWho({ model: m.id, provider: m.provider })}
+                onRefresh={() => onRefreshModels?.()}
+              />
+            </div>
             <button className='tb-add' type='submit' disabled={!title.trim()}>Add task</button>
           </div>
         </form>

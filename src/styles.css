@@ -1925,3 +1925,16 @@ button.hf-head:hover { background: var(--bg-hover); }
 @media (prefers-reduced-motion: reduce) {
   .view-tab, .tb-col, .tb-steps-bar > i { transition: none; }
 }
+
+/* The board reuses the chat's model picker, whose button and menu are absolutely
+   positioned against their container — so give it one. Without this the menu
+   anchors to the page and opens away from the control that summoned it. */
+.tb-who-pick { position: relative; display: flex; align-items: center; flex: 1; min-width: 0; }
+.tb-who-pick .model-menu {
+  /* ⚠️ THE POSITION LIVES ON THE PARENT, NOT THE MENU. .model-menu itself has no
+     `position`; only `.composer-box .model-menu` gives it one. Outside the
+     composer it therefore fell into normal flow and sat on top of the form —
+     visible the moment the menu was opened, invisible from the source. */
+  position: absolute; top: calc(100% + 6px); left: 0; bottom: auto;
+  transform-origin: top left;   /* it opens downward here, so grow from the top */
+}
