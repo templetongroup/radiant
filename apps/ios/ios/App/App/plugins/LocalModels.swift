@@ -582,6 +582,7 @@ public class LocalModels: CAPPlugin, CAPBridgedPlugin {
             let poller = Task { [weak self] in
                 var lastPct = -1
                 var lastMB: Int64 = -1
+                var announcedPreparing = false
                 while !Task.isCancelled {
                     try? await Task.sleep(nanoseconds: 500_000_000)
                     if Task.isCancelled { break }
@@ -607,6 +608,18 @@ public class LocalModels: CAPPlugin, CAPBridgedPlugin {
                         "id": id, "progress": f,
                         "completedBytes": done, "totalBytes": expected
                     ])
+                    // ⚠️ THE BYTES FINISHING IS NOT THE DOWNLOAD FINISHING.
+                    // loadModelContainer fetches the weights AND THEN loads
+                    // them, and only the fetch reports progress. On a 5 GB
+                    // model the load reads every byte back off disk in silence,
+                    // so the bar sits at its last percent long enough to look
+                    // dead — Tony, 2026-08-30: "its hanging at 99%". It was
+                    // not; it had nothing left to say. Announce the handover
+                    // once so the UI can name what it is waiting for.
+                    if f >= 0.995 && !announcedPreparing {
+                        announcedPreparing = true
+                        self.notifyListeners("downloadPreparing", data: ["id": id])
+                    }
                 }
             }
             do {

@@ -133,6 +133,13 @@ export function useLocalModels () {
           : null
         setProgress(p => ({ ...p, [id]: { pct, done: Number(completedBytes) || 0, total: Number(totalBytes) || 0 } }))
       },
+      // The bytes are in; loadModelContainer is now reading them back off disk
+      // and laying the model out, which reports nothing. On a 5 GB model that
+      // silence lasts long enough that a bar parked at 99% reads as a hang —
+      // Tony, 2026-08-30: "its hanging at 99%". Name the wait instead.
+      downloadPreparing: ({ id }) => {
+        setJobs(j => (j[id] === 'preparing' ? j : { ...j, [id]: 'preparing' }))
+      },
       downloadDone: ({ id }) => {
         setJobs(j => { const n = { ...j }; delete n[id]; return n })
         setProgress(p => { if (!(id in p)) return p; const n = { ...p }; delete n[id]; return n })

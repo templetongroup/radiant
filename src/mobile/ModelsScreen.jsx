@@ -245,21 +245,25 @@ function ModelRow ({ model, state, progress, unavailable, shortBy, fit, failure,
   const row = usePress(() => onTap?.(model), {
     label: `${model.name}, ${fmtGB(model.sizeGB)}` + (
       model.downloaded ? `, on this ${deviceWord()}`
-        : state === 'downloading' ? `, downloading${pct === null ? '' : `, ${pct} percent`}`
+        : state === 'preparing' ? ', downloaded, preparing the model'
+          : state === 'downloading' ? `, downloading${pct === null ? '' : `, ${pct} percent`}`
           : unavailable ? ', not enough room'
             : fit ? `, ${FIT_LABEL[fit].toLowerCase()} on this ${deviceWord()}` : ''
     )
   })
-  const downloading = state === 'downloading'
+  const preparing = state === 'preparing'
+  const downloading = state === 'downloading' || preparing
   const acc = usePress((e) => { e.stopPropagation?.(); onAccessory?.(model) }, {
     haptic: 'MEDIUM',
     // the trailing control is a glyph; without this it is announced as
     // "button" five times down the screen
     label: model.downloaded
       ? `Chat with ${model.name}`
-      : downloading
-        ? `Stop downloading ${model.name}${shown === null ? '' : `, ${shown} done`}`
-        : `Download ${model.name}`
+      : preparing
+        ? `${model.name} is preparing`
+        : downloading
+          ? `Stop downloading ${model.name}${shown === null ? '' : `, ${shown} done`}`
+          : `Download ${model.name}`
   })
 
   // The trailing column is ONE fixed-width glyph and nothing else, so every
@@ -342,7 +346,12 @@ function ModelRow ({ model, state, progress, unavailable, shortBy, fit, failure,
                 // replaces a blurb nobody is reading at that moment: a
                 // determinate arc still does not answer "how much longer".
                 ? <span className="rx-tabular" aria-hidden="true">
-                    {shown ? `Downloading… ${shown}` : 'Downloading…'}
+                    {preparing
+                      // Not "Downloading… 99%". The bytes are in; this is the
+                      // model being read back off disk, and on a 5 GB model it
+                      // is a long silent minute. Say so, or it reads as a hang.
+                      ? 'Preparing the model…'
+                      : shown ? `Downloading… ${shown}` : 'Downloading…'}
                   </span>
                 // ⚠️ THE SIZE LIVES HERE. Tony, scanning the catalog: "models
                 // have no sizes. no way to tell whats small." The weight used
@@ -422,8 +431,13 @@ export default function ModelsScreen ({
   })
   const shortBy = (m) => (typeof shortfall === 'function' ? shortfall(m) : 0)
 
+  // 'preparing' is the stretch AFTER the bytes land, while the model is read
+  // back off disk and laid out. It reports no progress, so without its own
+  // state the bar parks at 99% and reads as a hang.
   const stateOf = (m) => (
-    jobs[m.id] === 'downloading' ? 'downloading' : failures[m.id] ? 'failed' : 'idle'
+    jobs[m.id] === 'downloading' ? 'downloading'
+      : jobs[m.id] === 'preparing' ? 'preparing'
+        : failures[m.id] ? 'failed' : 'idle'
   )
 
   const pick = recommend(models)
@@ -531,6 +545,7 @@ export default function ModelsScreen ({
                           if (stopped) return
                           if (m.downloaded) onOpenChat?.(m.id)
                           else if (stateOf(m) === 'downloading') cancel?.(m.id)
+                          else if (stateOf(m) === 'preparing') { /* not cancellable: the bytes are already in */ }
                           else download?.(m.id)
                         }}
                       />
