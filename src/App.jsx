@@ -288,6 +288,16 @@ function DesktopApp () {
     refreshSessions()
   }
 
+  // Archiving is what the sidebar's ✕ does. It hides the session and nothing
+  // more — the transcript stays on disk and stays searchable, so getting it
+  // back is one click rather than impossible. Deleting is a separate act,
+  // reachable only from inside the archive.
+  const archiveSession = async (id, archived) => {
+    await api.patchSession(id, { archived })
+    if (archived && session?.id === id) setSession(null)
+    refreshSessions()
+  }
+
   const patchSession = async patch => {
     if (!session) return
     const s = await api.patchSession(session.id, patch)
@@ -461,6 +471,7 @@ function DesktopApp () {
         onNewGroup={() => { setGroupPickerOpen(true); setNavOpen(false) }}
         onCloseNav={() => setNavOpen(false)}
         onDelete={removeSession}
+        onArchive={archiveSession}
         onRename={renameSession}
         onPin={pinSession}
         agents={config.agents || []}

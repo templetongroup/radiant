@@ -1920,7 +1920,15 @@ app.post('/api/tasks/:id/start', (req, res) => {
   res.json({ task, sessionId: session.id, prompt, resumed: false })
 })
 
-app.get('/api/sessions', (req, res) => res.json(listSessions()))
+// `active` reports whether a turn is streaming for this session right now.
+// activeTurns is in-memory, so until this landed nothing outside the process
+// could tell a working session from an idle one — a status board could list
+// every session but not which of them were actually running.
+app.get('/api/sessions', (req, res) => res.json(listSessions().map(s => ({ ...s, active: activeTurns.has(s.id) }))))
+
+// Just the live set, for pollers that want a cheap answer rather than every
+// session on disk. Reading it costs nothing, so it is safe on a short interval.
+app.get('/api/active', (req, res) => res.json({ active: [...activeTurns.keys()], count: activeTurns.size }))
 
 app.post('/api/sessions', (req, res) => {
   const project = req.body.projectId ? getProject(req.body.projectId) : null
@@ -1996,7 +2004,7 @@ app.patch('/api/sessions/:id', (req, res) => {
   // every conversation (the Settings checkbox) or bound to an agent — so a skill
   // you want occasionally had to live in every chat's system prompt. This is the
   // third source: skills the user added to THIS chat, and only this chat.
-  for (const k of ['title', 'model', 'provider', 'cwd', 'useTools', 'computerControl', 'agentId', 'projectId', 'pinned', 'planMode', 'skillIds']) {
+  for (const k of ['title', 'model', 'provider', 'cwd', 'useTools', 'computerControl', 'agentId', 'projectId', 'pinned', 'archived', 'planMode', 'skillIds']) {
     if (k in req.body) s[k] = req.body[k]
   }
   if ('title' in req.body) s.autoTitle = false // manual rename pins the title

@@ -782,11 +782,11 @@ export function listSessions () {
     .map(f => {
       try {
         const s = JSON.parse(fs.readFileSync(path.join(SESSIONS_DIR, f), 'utf8'))
-        return { id: s.id, title: s.title, model: s.model, provider: s.provider, cwd: s.cwd, agentId: s.agentId || null, projectId: s.projectId || null, pinned: Boolean(s.pinned), updatedAt: s.updatedAt, messageCount: s.messages.length }
+        return { id: s.id, title: s.title, model: s.model, provider: s.provider, cwd: s.cwd, agentId: s.agentId || null, projectId: s.projectId || null, pinned: Boolean(s.pinned), archived: Boolean(s.archived), updatedAt: s.updatedAt, messageCount: s.messages.length }
       } catch { return null }
     })
     .filter(Boolean)
-    .sort((a, b) => (b.pinned - a.pinned) || (b.updatedAt || '').localeCompare(a.updatedAt || ''))
+    .sort((a, b) => (a.archived - b.archived) || (b.pinned - a.pinned) || (b.updatedAt || '').localeCompare(a.updatedAt || ''))
 }
 
 // Full-text search across all past sessions (title + message text).
@@ -870,6 +870,9 @@ export function deleteTask (id) {
   try { fs.unlinkSync(path.join(TASKS_DIR, id + '.json')) } catch {}
 }
 
+// Permanent: unlinks the transcript, every message and every tool call with it.
+// There is no undo and no trash. The sidebar reaches this only from the archive,
+// behind its own confirm — archiving is what a session row's ✕ does.
 export function deleteSession (id) {
   if (!/^[a-z0-9-]+$/.test(id)) return
   try { fs.unlinkSync(path.join(SESSIONS_DIR, id + '.json')) } catch {}

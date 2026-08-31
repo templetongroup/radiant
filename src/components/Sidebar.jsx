@@ -90,7 +90,7 @@ function UsageChip () {
 const MIN_W = 190
 const MAX_W = 460
 
-export default function Sidebar ({ section = 'chat', onSection, onOpenAgents, sessions, activeId, working, onOpen, onNew, onNewGroup, onDelete, onRename, onPin, agents = [], projects = [], projectsError = null, onNewProject, onRenameProject, onDeleteProject, onMoveSession, onSettings, mode, onToggleMode, updateInfo, onUpdate, onCloseNav }) {
+export default function Sidebar ({ section = 'chat', onSection, onOpenAgents, sessions, activeId, working, onOpen, onNew, onNewGroup, onDelete, onArchive, onRename, onPin, agents = [], projects = [], projectsError = null, onNewProject, onRenameProject, onDeleteProject, onMoveSession, onSettings, mode, onToggleMode, updateInfo, onUpdate, onCloseNav }) {
   const agentOf = id => agents.find(a => a.id === id)
   const [width, setWidth] = useState(() => {
     const saved = Number(localStorage.getItem('radiant.sidebarWidth'))
@@ -165,16 +165,21 @@ export default function Sidebar ({ section = 'chat', onSection, onOpenAgents, se
     return () => clearTimeout(t)
   }, [search])
 
+  // Archived sessions leave every normal list and gather in their own section.
+  const live = React.useMemo(() => sessions.filter(s => !s.archived), [sessions])
+  const archived = React.useMemo(() => sessions.filter(s => s.archived), [sessions])
+  const [showArchive, setShowArchive] = useState(false)
+
   // Grouped once per render rather than filtered inside the map, so a sidebar
   // with a few hundred chats does not walk the list once per project.
   const projectGroups = React.useMemo(() => {
     const byId = new Map(projects.map(p => [p.id, []]))
-    for (const s of sessions) if (s.projectId && byId.has(s.projectId)) byId.get(s.projectId).push(s)
+    for (const s of live) if (s.projectId && byId.has(s.projectId)) byId.get(s.projectId).push(s)
     return projects.map(p => ({ project: p, rows: byId.get(p.id) || [] }))
-  }, [projects, sessions])
+  }, [projects, live])
   const loose = React.useMemo(
-    () => sessions.filter(s => !s.projectId || !projects.some(p => p.id === s.projectId)),
-    [sessions, projects]
+    () => live.filter(s => !s.projectId || !projects.some(p => p.id === s.projectId)),
+    [live, projects]
   )
 
   // ⚠️ NEVER window.prompt() IN THIS APP. It is a no-op in Electron — the
@@ -259,7 +264,14 @@ export default function Sidebar ({ section = 'chat', onSection, onOpenAgents, se
             } catch (err) { window.alert(`Could not export: ${err.message}`) }
           }}>⤓</button>
           <button title='Rename' onClick={e => { e.stopPropagation(); setEditing({ kind: 'session', id: s.id, value: s.title }) }}>✎</button>
-          <button title='Delete' onClick={e => { e.stopPropagation(); if (window.confirm(`Delete "${s.title}"?`)) onDelete(s.id) }}>✕</button>
+          {s.archived
+            ? <>
+                <button title='Restore from archive' onClick={e => { e.stopPropagation(); onArchive(s.id, false) }}>⤺</button>
+                {/* The only route to a real delete. Everything it removes is
+                    unrecoverable, so it says so and names the session. */}
+                <button title='Delete permanently' onClick={e => { e.stopPropagation(); if (window.confirm(`Permanently delete "${s.title}"?\n\nThis erases the whole transcript — every message and tool call — from disk. It cannot be undone.`)) onDelete(s.id) }}>🗑</button>
+              </>
+            : <button title='Archive' onClick={e => { e.stopPropagation(); onArchive(s.id, true) }}>✕</button>}
         </div>
       </div>
     )
@@ -281,10 +293,10 @@ export default function Sidebar ({ section = 'chat', onSection, onOpenAgents, se
       <div className='sidebar-switch'>
         <button className={section === 'chat' && view === 'chats' ? 'on' : ''}
           onClick={() => { onSection?.('chat'); setView('chats') }}>Chats</button>
-        <button className={section === 'tasks' ? 'on' : ''}
-          onClick={() => onSection?.('tasks')}>Tasks</button>
         <button className={section === 'chat' && view === 'bots' ? 'on' : ''}
           onClick={() => { onSection?.('chat'); setView('bots') }}>Agents</button>
+        <button className={section === 'tasks' ? 'on' : ''}
+          onClick={() => onSection?.('tasks')}>Tasks</button>
       </div>
       {section === 'chat' && view === 'chats' && (
         <input className='session-search' placeholder='Search all sessions…' value={search}
@@ -378,17 +390,32 @@ export default function Sidebar ({ section = 'chat', onSection, onOpenAgents, se
             )}
             {/* Before the first project exists there is nothing to group by, so
                 the list stays exactly as it was. */}
-            {!projects.length && sessions.map(s => <SessionRow key={s.id} s={s} />)}
+            {!projects.length && live.map(s => <SessionRow key={s.id} s={s} />)}
             {/* Only when there are no shelves to speak for themselves. With
                 projects present each one already says "No chats yet.", and this
                 line underneath them said the same thing a third time. */}
-            {!sessions.length && !projects.length && <div style={{ padding: '10px 12px', color: 'var(--text-faint)', fontSize: 12 }}>No sessions yet.</div>}
+            {!live.length && !projects.length && <div style={{ padding: '10px 12px', color: 'var(--text-faint)', fontSize: 12 }}>No sessions yet.</div>}
+            {/* Archive: collapsed by default and last in the list, so it stays
+                out of the way but the sessions remain reachable — and remain
+                findable by search, which reads from disk regardless. */}
+            {archived.length > 0 && (
+              <div className='bot-group'>
+                <div className='bot-head'>
+                  <button className='bot-head-toggle' onClick={() => setShowArchive(v => !v)} title={showArchive ? 'Hide archived' : 'Show archived'}>
+                    <span className='bot-head-caret'>{showArchive ? '▾' : '▸'}</span>
+                    <span className='bot-head-name' style={{ color: 'var(--text-faint)' }}>Archived</span>
+                    <span className='bot-head-count'>{archived.length}</span>
+                  </button>
+                </div>
+                {showArchive && archived.map(s => <SessionRow key={s.id} s={s} />)}
+              </div>
+            )}
           </>}
         </div>
       ) : (
         <div className='session-list'>
           {[...agents].sort((x, y) => Number(isImported(x)) - Number(isImported(y))).map((a, i, list) => {
-            const own = sessions.filter(s => s.agentId === a.id)
+            const own = live.filter(s => s.agentId === a.id)
             const isCollapsed = collapsed[a.id]
             // first imported agent in the list opens the "from other apps" group
             const startsImported = isImported(a) && !(i > 0 && isImported(list[i - 1]))
@@ -419,7 +446,7 @@ export default function Sidebar ({ section = 'chat', onSection, onOpenAgents, se
               </React.Fragment>
             )
           })}
-          {(() => { const orphans = sessions.filter(s => !agentOf(s.agentId)); return orphans.length > 0 && (
+          {(() => { const orphans = live.filter(s => !agentOf(s.agentId)); return orphans.length > 0 && (
             <div className='bot-group'>
               <div className='bot-head'><span className='bot-head-name' style={{ color: 'var(--text-faint)' }}>No agent</span><span className='bot-head-count'>{orphans.length}</span></div>
               {orphans.map(s => <SessionRow key={s.id} s={s} />)}
