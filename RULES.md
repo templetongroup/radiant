@@ -70,3 +70,5 @@ Short on purpose. Every line is something that already cost Tony time.
     no error. `test-ui` now checks the stylesheet arrived.
 22. **A skill is read, never run.** Nothing installable may contain an
     executable file, and the refusal names the file.
+
+23. The iPhone app is with Apple (v1.0 build 2) and a push to `master` does NOT reach it. Read the submission block at the top of AGENTS.md before touching anything iOS.

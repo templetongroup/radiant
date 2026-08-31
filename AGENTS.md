@@ -1,5 +1,35 @@
 # Radiant — read this first, every turn
 
+## ⚠️ THE iPHONE APP IS WITH APPLE RIGHT NOW — v1.0, build 2
+
+Submitted 2026-08-24 from `~/Library/Developer/Xcode/Archives/2026-08-24/`.
+Apple has this binary; the App Store is the one place Radiant ships where a
+push to `master` does NOT reach the user.
+
+**That build carries a known defect.** Its catalogue points Gemma 4 E4B and E2B
+at `mlx-community/gemma-4-E*B-it-qat-mobile`, whose weights are packed 4-bit
+while their config.json declares no quantization. MLX builds a dense model, the
+tensor shapes disagree, and the user gets `mismatched parameters` — but only
+after downloading 3.5 GB. Fixed on `master` in `e3595d1` (both entries now use
+`LLMRegistry.gemma4_e{4,2}b_it_4bit`); the fix is NOT in the build under review.
+A reviewer who taps Google's newest model hits it.
+
+**To iterate on what Apple has:** a submitted binary cannot be edited. Raise
+`CURRENT_PROJECT_VERSION` (currently 2 — the next upload must be 3 or higher,
+App Store Connect rejects a repeat), archive, upload, then in App Store Connect
+attach the new build to the submission. While the state is *Waiting for Review*
+or *In Review*, use **Remove this version from review** first, swap the build,
+and submit again — that keeps the same version 1.0 listing. Once it is
+*Pending Developer Release* or on sale, the new build becomes an update instead.
+Only Tony can drive App Store Connect; prepare the archive, never assume the
+upload happened.
+
+**Before any future submission, run `scripts/catalog-verify.py`.** It now fails
+any repo under ~1.2 bytes per parameter that declares no quantization — the
+exact defect above, which shipped because the old check only asked whether MLX
+implemented the architecture.
+
+
 Radiant is Tony's own coding harness: an Electron app wrapping a local node
 server (`server/index.js`, port 5834) and a React UI (`src/`). It is a public,
 MIT-licensed repo, signed and notarized, and it auto-updates from GitHub
