@@ -25,7 +25,22 @@ def check(row):
     stop=None
     for t in ("<turn|>","<end_of_turn>","<|end|>","<|im_end|>","<|eot_id|>"):
         if t in toks and t!=eos: stop=t; break
-    return {**row,"gb":gb,"arch":arch,"ok":arch in ARCHS,"eos":eos,"stop":stop,
+    # ⚠️ A REPO CAN NAME AN ARCHITECTURE MLX IMPLEMENTS AND STILL NOT LOAD.
+    # MLX builds the model from config.json, so if the weights are quantized but
+    # config.json declares no `quantization`, it constructs a dense model and the
+    # tensor shapes disagree — MLX raises "mismatched parameters" only once the
+    # user has finished downloading gigabytes. Google's gemma-4-*-qat-mobile
+    # repos are exactly this, and both shipped in the catalogue.
+    # Detected by weight density: under ~1.2 bytes per parameter the file IS
+    # quantized, so config.json must say so.
+    quant = cfg.get("quantization") or (cfg.get("text_config") or {}).get("quantization")
+    params = ((meta.get("safetensors") or {}).get("total")) or 0
+    bpp = (gb*1e9/params) if params else None
+    packed_but_undeclared = bool(bpp and bpp < 1.2 and not quant)
+    return {**row,"gb":gb,"arch":arch,"eos":eos,"stop":stop,
+            "quant":bool(quant),"bpp":round(bpp,2) if bpp else None,
+            "ok":(arch in ARCHS) and not packed_but_undeclared,
+            "err":"quantized weights but config.json declares no quantization -> MLX will fail with 'mismatched parameters'" if packed_but_undeclared else None,
             "dl":meta.get("downloads",0)}
 out=[]
 with cf.ThreadPoolExecutor(10) as ex:
