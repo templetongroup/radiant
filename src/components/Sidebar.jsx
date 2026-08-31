@@ -281,14 +281,22 @@ export default function Sidebar ({ section = 'chat', onSection, onOpenAgents, se
             } catch (err) { window.alert(`Could not export: ${err.message}`) }
           }}>⤓</button>
           <button title='Rename' onClick={e => { e.stopPropagation(); setEditing({ kind: 'session', id: s.id, value: s.title }) }}>✎</button>
+          {/* ⚠️ THE ICON HAS TO MEAN WHAT THE BUTTON DOES. Archiving shipped
+              behind a ✕, which every interface on earth uses for delete — so the
+              one control that keeps your chat looked like the one that destroys
+              it. Tony: "To me an X means delete." A box with an arrow going in
+              archives; a bin, and only inside the archive, deletes. */}
           {s.archived
             ? <>
-                <button title='Restore from archive' onClick={e => { e.stopPropagation(); onArchive(s.id, false) }}>⤺</button>
+                <button title='Restore from archive' aria-label={`Restore "${s.title}" from the archive`}
+                  onClick={e => { e.stopPropagation(); onArchive(s.id, false) }}><Icon.unarchive size={13} /></button>
                 {/* The only route to a real delete. Everything it removes is
                     unrecoverable, so it says so and names the session. */}
-                <button title='Delete permanently' onClick={e => { e.stopPropagation(); if (window.confirm(`Permanently delete "${s.title}"?\n\nThis erases the whole transcript — every message and tool call — from disk. It cannot be undone.`)) onDelete(s.id) }}>🗑</button>
+                <button title='Delete permanently' aria-label={`Delete "${s.title}" permanently`}
+                  onClick={e => { e.stopPropagation(); if (window.confirm(`Permanently delete "${s.title}"?\n\nThis erases the whole transcript — every message and tool call — from disk. It cannot be undone.`)) onDelete(s.id) }}><Icon.trash size={13} /></button>
               </>
-            : <button title='Archive' onClick={e => { e.stopPropagation(); onArchive(s.id, true) }}>✕</button>}
+            : <button title='Archive' aria-label={`Archive "${s.title}"`}
+                onClick={e => { e.stopPropagation(); onArchive(s.id, true) }}><Icon.archive size={13} /></button>}
         </div>
       </div>
     )

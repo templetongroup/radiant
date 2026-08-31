@@ -39,6 +39,12 @@ export const Icon = {
   bot: p => <Svg {...p}><rect x='4' y='8' width='16' height='12' rx='3' /><path d='M12 4v4M8.5 13.5h.01M15.5 13.5h.01M9.5 17h5' /></Svg>,
   branch: p => <Svg {...p}><circle cx='6' cy='6' r='2.5' /><circle cx='6' cy='18' r='2.5' /><circle cx='18' cy='8' r='2.5' /><path d='M6 8.5v7M8.5 6.6c5 .6 6.5 2 7 4.4' /></Svg>,
   folder: p => <Svg {...p}><path d='M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z' /></Svg>,
+  // Lid, box, arrow in — the shape everyone reads as "archive". Paired with
+  // trash below: ✕ used to do the archiving, and ✕ means delete. Tony: "To me
+  // an X means delete."
+  archive: p => <Svg {...p}><rect x='3' y='4' width='18' height='4' rx='1' /><path d='M5 8v11a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8M12 11v6M9 14l3 3 3-3' /></Svg>,
+  // Out of the box again.
+  unarchive: p => <Svg {...p}><rect x='3' y='4' width='18' height='4' rx='1' /><path d='M5 8v11a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8M12 18v-6M9 15l3-3 3 3' /></Svg>,
   trash: p => <Svg {...p}><path d='M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M6 6l1 14a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-14' /></Svg>,
   mic: p => <Svg {...p}><rect x='9' y='2' width='6' height='12' rx='3' /><path d='M5 11a7 7 0 0 0 14 0M12 18v4' /></Svg>,
   target: p => <Svg {...p}><circle cx='12' cy='12' r='7' /><path d='M12 2v3M12 19v3M2 12h3M19 12h3' /><circle cx='12' cy='12' r='1.5' /></Svg>

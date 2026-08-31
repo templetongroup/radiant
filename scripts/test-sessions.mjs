@@ -75,6 +75,28 @@ ok('the sidebar splits live from archived', /const live = React\.useMemo/.test(s
 ok('and no view reads the raw list',
    !/(sessions\.filter\(s => s\.agentId|sessions\.map\(s => <SessionRow)/.test(sidebar))
 ok('the row archives rather than deletes', /title='Archive'/.test(sidebar))
+// ⚠️ THE ICON MUST MEAN WHAT THE BUTTON DOES. Archiving shipped behind a ✕,
+// which every interface uses for delete — so the one control that KEEPS your
+// chat looked like the one that destroys it. Tony: "To me an X means delete."
+ok('archiving is not a ✕', !/onArchive\(s\.id, true\) \}\}>✕/.test(sidebar))
+ok('archiving uses the archive icon', /onArchive\(s\.id, true\)[\s\S]{0,80}Icon\.archive/.test(sidebar))
+ok('restoring uses the unarchive icon', /onArchive\(s\.id, false\)[\s\S]{0,120}Icon\.unarchive/.test(sidebar))
+ok('permanent delete uses the bin', /Delete permanently[\s\S]{0,400}Icon\.trash/.test(sidebar))
+// Unicode glyphs render as tofu or the wrong picture; the app has its own set.
+// Scoped to the CHAT row's controls only: the project row's ✕ is a real delete
+// and should stay a ✕.
+{
+  // ⚠️ STRIP COMMENTS FIRST — the same trap test-keyboard-offset documents. The
+  // rule this guards is explained in a comment that NAMES the glyphs it forbids,
+  // so reading the raw source failed on correct code.
+  const rowActions = sidebar
+    .slice(sidebar.indexOf("className='session-actions'"), sidebar.indexOf('</div>', sidebar.indexOf('Delete permanently')))
+    .replace(/\{\/\*[\s\S]*?\*\/\}/g, '')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+  ok('no Unicode glyphs left on the chat row controls', !/[✕🗑⤺🗀🗂]/.test(rowActions))
+}
+const icons = await import('node:fs').then(m => m.readFileSync('src/components/Icons.jsx', 'utf8'))
+ok('the icon set actually defines them', /archive:/.test(icons) && /unarchive:/.test(icons) && /trash:/.test(icons))
 ok('and a permanent delete lives only in the archive', /Delete permanently/.test(sidebar))
 
 console.log(`\n  ${pass}/${pass + fail} passed  ·  its own data directory, not yours`)
