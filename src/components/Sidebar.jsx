@@ -250,7 +250,13 @@ export default function Sidebar ({ section = 'chat', onSection, onOpenAgents, se
               className='session-project-wrap'
               title={s.projectId ? `In ${projects.find(p => p.id === s.projectId)?.name || 'a project'} — move it` : 'Move to project'}
             >
-              <span className='session-project-glyph' aria-hidden>{s.projectId ? '🗂' : '🗀'}</span>
+              {/* ⚠️ THE APP'S OWN FOLDER, not a Unicode glyph. The first cut used
+                  🗀 and 🗂 — U+1F5C0 and U+1F5C2, which macOS renders as an empty
+                  box and a set of card dividers rather than folders. Tony: "i
+                  dont know what that icone is you put in there." Icon.folder is
+                  what the project rows already draw, so a chat's folder now
+                  matches the folders it can be put into. */}
+              <span className={'session-project-glyph' + (s.projectId ? ' is-filed' : '')} aria-hidden><Icon.folder size={13} /></span>
               <select
                 className='session-project'
                 aria-label={`Move "${s.title}" to a project`}
