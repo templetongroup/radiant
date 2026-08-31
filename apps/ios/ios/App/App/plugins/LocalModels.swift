@@ -787,6 +787,14 @@ public class LocalModels: CAPPlugin, CAPBridgedPlugin {
         let pad = UIDevice.current.userInterfaceIdiom == .pad
         call.resolve([
             "idiom": pad ? "pad" : "phone",
+            // ⚠️ THE npm VERSION CANNOT TELL TWO BUILDS APART. The UI shows
+            // __APP_VERSION__ (0.6.177), which is identical in every iOS build
+            // cut from the same commit — so after installing a fix Tony had no
+            // way to know whether the app in his hand contained it, and
+            // reasonably reported the bug as still present. This is the number
+            // that actually changes per upload, and the one App Store Connect
+            // enforces.
+            "build": Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "",
             "name": Self.marketingNames[machine] ?? (pad ? "iPad" : "iPhone"),
             "identifier": machine,
             "cores": p.activeProcessorCount,

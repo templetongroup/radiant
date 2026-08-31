@@ -18,6 +18,12 @@ const listeners = new Set()
 export const deviceWord = () => word
 export const isPad = () => word === 'iPad'
 
+// The native build number (CFBundleVersion). The npm version is the same in
+// every build cut from one commit, so it cannot tell two installs apart — which
+// is how a fixed app got reported as still broken. Null off-device.
+let build = null
+export const buildNumber = () => build
+
 /** Ask the device. Safe to call repeatedly; it only asks once. */
 let asked = false
 export async function resolveDevice () {
@@ -26,6 +32,7 @@ export async function resolveDevice () {
   try {
     const info = await plugins().LocalModels?.deviceInfo?.()
     if (info?.idiom === 'pad') word = 'iPad'
+    if (info?.build) build = String(info.build)
   } catch { /* the default already holds */ }
   listeners.forEach(fn => fn(word))
   return word

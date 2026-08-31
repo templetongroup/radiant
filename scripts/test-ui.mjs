@@ -147,12 +147,17 @@ await page.waitForTimeout(120)
 const held = await page.evaluate(async () => {
   const el = document.querySelector('.rx-chat-scroll')
   if (!el) return null
-  // Touch first, the way a finger does — the app decides who is driving from
-  // the touch, not from the scroll event alone.
-  el.dispatchEvent(new TouchEvent('touchstart', {
+  // Drag, the way a finger does — touchstart THEN touchmove. This used to
+  // dispatch touchstart alone, which encoded the very bug it was meant to
+  // guard: the app treated a bare touch as scrolling, so a single TAP on the
+  // transcript switched autoscroll off for the rest of the conversation and
+  // every reply streamed in below the fold. A tap is not a scroll; a drag is.
+  const touch = (type, y) => el.dispatchEvent(new TouchEvent(type, {
     bubbles: true,
-    touches: [new Touch({ identifier: 1, target: el, clientX: 100, clientY: 400 })]
+    touches: [new Touch({ identifier: 1, target: el, clientX: 100, clientY: y })]
   }))
+  touch('touchstart', 400)
+  touch('touchmove', 460)
   el.scrollTop = 0
   el.dispatchEvent(new Event('scroll', { bubbles: true }))
   const parked = el.scrollTop

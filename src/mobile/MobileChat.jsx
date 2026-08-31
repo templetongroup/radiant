@@ -586,12 +586,31 @@ export default function MobileChat ({
   // It now only fires when the transcript CANNOT scroll any further up, which
   // is the moment a downward drag has no other meaning. Same idea as UIKit's
   // interactive dismissal, and 48px so a stray flick does not trigger it.
+  // A wheel or trackpad scroll is driving as much as a finger is. The comment
+  // above claimed this was handled; nothing implemented it, and touchstart was
+  // quietly carrying the whole job. Once a tap stopped counting, that gap became
+  // reachable — so close it here rather than leaning on the touch path.
+  const onTranscriptWheel = () => { userDriving.current = true }
+
   const dragStart = useRef(0)
   const onTranscriptTouchStart = e => {
     dragStart.current = e.touches[0].clientY
-    userDriving.current = true   // a finger on the transcript outranks autoscroll
+    // ⚠️ A TAP IS NOT A SCROLL, and this used to set userDriving here — before
+    // the finger had moved at all. So one tap anywhere on the transcript
+    // switched autoscroll off for good (it only returns by scrolling all the
+    // way back to the bottom), and every reply after that streamed in below the
+    // fold. Tony, with the keyboard up: "the message box doesnt move up when
+    // model responds."
+    //
+    // Driving is now claimed on MOVEMENT, in touchmove, where it can be told
+    // apart from a tap.
   }
   const onTranscriptTouchMove = e => {
+    // 8px of slack so a tap that trembles is still a tap. This runs before the
+    // dismissal logic below, which has its own, narrower conditions.
+    if (Math.abs(e.touches[0].clientY - dragStart.current) > 8) {
+      userDriving.current = true   // a finger DRAGGING outranks autoscroll
+    }
     if (document.activeElement !== taRef.current) return
     const el = scrollRef.current
     if (el && el.scrollTop > 0) return          // still scrollable — this is a scroll
@@ -887,6 +906,7 @@ export default function MobileChat ({
           onScroll={onScroll}
           onTouchStart={onTranscriptTouchStart}
           onTouchMove={onTranscriptTouchMove}
+          onWheel={onTranscriptWheel}
         >
           <div ref={sentinelRef} className='rx-chat-sentinel' />
 

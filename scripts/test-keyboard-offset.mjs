@@ -85,5 +85,17 @@ ok('following is only turned off while the user is driving',
 ok('the keyboard hiding re-sticks, because the bottom moves up under us',
    /keyboardWillHide[\s\S]{0,400}?follow\.current[\s\S]{0,120}?stick\(\)/.test(jsx))
 
+// A TAP MUST NOT DISABLE FOLLOWING. touchstart used to claim driving before the
+// finger had moved, so one tap on the transcript switched autoscroll off for the
+// rest of the conversation.
+const tStart = jsx.slice(jsx.indexOf('onTranscriptTouchStart'), jsx.indexOf('onTranscriptTouchMove'))
+ok('touchstart does not claim driving', !/userDriving\.current\s*=\s*true/.test(tStart))
+ok('movement claims driving instead',
+   /onTranscriptTouchMove[\s\S]{0,320}?userDriving\.current\s*=\s*true/.test(jsx))
+// Without a touchmove there is no other signal on a trackpad, and the comment
+// claiming a wheel was handled was not backed by any handler.
+ok('a wheel claims driving too', /onTranscriptWheel\s*=\s*\(\)\s*=>\s*\{\s*userDriving\.current\s*=\s*true/.test(jsx))
+ok('and the wheel handler is actually wired up', /onWheel=\{onTranscriptWheel\}/.test(jsx))
+
 console.log(`\n${pass}/${pass + fail} passed  ·  the keyboard is counted once`)
 process.exit(fail ? 1 : 0)

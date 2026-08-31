@@ -48,6 +48,7 @@ import * as FirstRunMod from './FirstRun.jsx'
 import SettingsScreen from './SettingsScreen.jsx'
 import HomeScreen from './HomeScreen.jsx'
 import { listChats, newChatId } from './chats.js'
+import { buildNumber } from './device.js'
 import ReadMeScreen from './ReadMeScreen.jsx'
 import ProvidersScreen from './ProvidersScreen.jsx'
 import SkillsScreen from './SkillsScreen.jsx'
@@ -1182,7 +1183,12 @@ export default function MobileShell () {
             onProviders={() => push('providers', {})}
             onSkills={() => push('skills', {})}
             onGetModels={() => push('models', {})}
-            version={typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : null}
+            version={(() => {
+              const v = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : null
+              const b = buildNumber()
+              // "0.6.177 (3)" — the part in brackets is what changes per install.
+              return v && b ? `${v} (${b})` : v
+            })()}
           />
         )
       case 'models':
