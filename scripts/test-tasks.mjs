@@ -198,8 +198,22 @@ ok('it can be deleted', !gone.body.some(t => t.id === id))
   const board = fs.readFileSync('src/components/TaskBoard.jsx', 'utf8')
 
   // ⚠️ nth-child(3) is only "Needs you" until somebody reorders COLUMNS.
+  // This check used to name ONE positional selector (`.tb-col:nth-child(3) .tb-card`)
+  // and so reported green while the COLUMN itself was styled by position. Ban the
+  // whole shape instead of the one instance that happened to exist.
   ok('the blocked accent is keyed to state, not column position',
-     /\.tb-card\.is-blocked/.test(css) && !/\.tb-col:nth-child\(3\) \.tb-card \{/.test(css))
+     /\.tb-card\.is-blocked/.test(css) && !/\.tb-col:nth-child\(/.test(css))
+  ok('and the column is reached by its id', /\.tb-col-blocked/.test(css))
+  ok('the column carries its id as a class', /'tb-col tb-col-' \+ col\.id/.test(board))
+
+  // ⚠️ AN EMPTY COLUMN MUST NOT GLOW. "Needs you" lit up whether or not anything
+  // was waiting, so the one signal on the board that means "stop and look" was on
+  // permanently — and a signal that is always on is not a signal. Tony, seeing it
+  // over an empty column: "why is there blue highlight on Needs You?"
+  ok('the column only lights up when something is in it',
+     /\.tb-col-blocked\.has-work \{/.test(css) && !/\.tb-col-blocked \{/.test(css))
+  ok('and has-work is set from the count, not guessed',
+     /byColumn\[col\.id\]\.length \? ' has-work'/.test(board))
   ok('and the card carries its state as a class', /'tb-card is-' \+ task\.state/.test(board))
   // A blocked card has three buttons and a time in a ~210px column.
   ok('the card footer wraps rather than crushing its buttons',

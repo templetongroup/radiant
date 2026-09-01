@@ -2101,14 +2101,18 @@ button.hf-head:hover { background: var(--bg-hover); }
     var(--bg-panel);
   box-shadow: inset 0 1px 0 color-mix(in oklch, var(--text) 7%, transparent);
 }
-/* The one column where nothing moves until you act. A wash, not a shout. */
-.tb-col:nth-child(3) {
+/* The one column where nothing moves until you act. A wash, not a shout.
+   ⚠️ ONLY WHEN SOMETHING IS ACTUALLY IN IT. A column headed "Needs you" that
+   glows while it holds nothing is making a claim that is not true, and once the
+   glow is always on it stops meaning anything on the day it matters. Keyed to
+   the column's own id, never :nth-child — position changes, meaning does not. */
+.tb-col-blocked.has-work {
   background:
     linear-gradient(to bottom, color-mix(in oklch, var(--accent) 9%, transparent), transparent 140px),
     var(--bg-panel);
   box-shadow: inset 0 1px 0 color-mix(in oklch, var(--accent) 22%, transparent);
 }
-.tb-col:nth-child(3) .tb-col-label { color: var(--accent); }
+.tb-col-blocked.has-work .tb-col-label { color: var(--accent); }
 
 .tb-card {
   box-shadow: 0 1px 2px oklch(0 0 0 / 0.22), 0 0 0 1px color-mix(in oklch, var(--text) 5%, transparent);

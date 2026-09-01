@@ -20,6 +20,12 @@ import { ModelPicker } from './Chat.jsx'
 // Ordered left to right the way work actually moves. "Needs you" sits in the
 // middle because it is the column that should catch your eye: it is the only
 // one where nothing happens until you act.
+//
+// ⚠️ EACH COLUMN CARRIES ITS OWN ID AS A CLASS, and `has-work` only when it
+// holds something. Styling used to reach the accented column by :nth-child(3),
+// which lit it up whether or not anything was in it — an empty column claiming
+// your attention — and would have lit the WRONG column the moment this list was
+// reordered. Never style a column by position.
 const COLUMNS = [
   { id: 'queued', label: 'Queued', hint: 'Not started' },
   { id: 'working', label: 'Working', hint: 'The agent is going' },
@@ -283,7 +289,7 @@ export default function TaskBoard ({ agents = [], models = [], liveByTask = {}, 
         {COLUMNS.map(col => (
           <div
             key={col.id}
-            className={'tb-col' + (dragOver === col.id ? ' is-over' : '') + (HUMAN_COLUMNS.has(col.id) ? '' : ' is-run-owned')}
+            className={'tb-col tb-col-' + col.id + (dragOver === col.id ? ' is-over' : '') + (HUMAN_COLUMNS.has(col.id) ? '' : ' is-run-owned') + (byColumn[col.id].length ? ' has-work' : '')}
             onDragOver={e => { if (HUMAN_COLUMNS.has(col.id)) { e.preventDefault(); setDragOver(col.id) } }}
             onDragLeave={() => setDragOver(d => (d === col.id ? null : d))}
             onDrop={e => drop(e, col.id)}
