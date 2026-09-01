@@ -351,9 +351,22 @@ export const api = {
   externalAgents: () => json('GET', '/api/external-agents'),
   addAgent: agent => json('POST', '/api/agents', agent),
   updateAgent: (id, patch) => json('PATCH', `/api/agents/${id}`, patch),
-  deleteAgent: id => json('DELETE', `/api/agents/${id}`),
+  // ⚠️ ANNOUNCE AGENT CHANGES TOO. Settings runs in its own Electron window with
+  // its own copy of the config, so removing an agent there updated that window
+  // and nothing else — the sidebar, the pickers and the task board kept showing
+  // it. Tony: "im removing agents in settings and nothings happening." Only
+  // saveSettings announced; every agent mutation has to.
+  deleteAgent: async id => {
+    const cfg = await json('DELETE', `/api/agents/${id}`)
+    try { window.radiantNative?.notifyConfigChanged?.() } catch {}
+    return cfg
+  },
   // Putting a removed built-in back. The removal is recorded, not destructive.
-  restoreAgent: id => json('POST', `/api/agents/restore/${id}`),
+  restoreAgent: async id => {
+    const cfg = await json('POST', `/api/agents/restore/${id}`)
+    try { window.radiantNative?.notifyConfigChanged?.() } catch {}
+    return cfg
+  },
   mcpStatus: () => json('GET', '/api/mcp/status'),
   addMcp: server => json('POST', '/api/mcp', server),
   updateMcp: (id, patch) => json('PATCH', `/api/mcp/${id}`, patch),

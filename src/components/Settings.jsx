@@ -694,11 +694,14 @@ function AgentEditor ({ agent, skills, models, onSave, onDelete, onClose, onDupl
           </div>
         </div>
       )}
-      <div className='agent-field-row'>
+      {/* These two are not skills — they are what the agent is ALLOWED to do —
+          so they sit apart rather than at the end of the skill grid, where they
+          read as two more skills. */}
+      <div className='agent-field-row agent-caps'>
         <label className='agent-skill-chk'><input type='checkbox' checked={a.useTools !== false} onChange={e => set({ useTools: e.target.checked })} /> Agent tools</label>
         <label className='agent-skill-chk'><input type='checkbox' checked={Boolean(a.computerControl)} onChange={e => set({ computerControl: e.target.checked })} /> Computer control</label>
       </div>
-      <div className='row' style={{ marginTop: 10 }}>
+      <div className='row agent-editor-actions'>
         <button className='small-btn primary' onClick={() => onSave(a)} disabled={!a.name?.trim()}>Save</button>
         <button className='small-btn' onClick={onClose}>Cancel</button>
         {agent.id && onDuplicate && <button className='small-btn' onClick={() => onDuplicate(a)} title='Make an editable copy of this agent'>Duplicate</button>}

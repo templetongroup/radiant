@@ -1432,9 +1432,29 @@ input[type='range']::-webkit-slider-thumb {
 .agent-field .text-input, .agent-field textarea, .agent-field select { margin-top: 5px; width: 100%; }
 .agent-field-row { display: flex; gap: 18px; margin: 4px 0 4px; }
 .agent-field-hint { display: block; font-size: 11.5px; color: var(--text-faint); margin-top: 3px; line-height: 1.4; }
-.agent-skills { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 6px; }
-.agent-skill-chk { display: inline-flex; align-items: flex-start; gap: 9px; font-size: 12.5px; color: var(--text); }
-.skill-global-tag { font-size: 9.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--accent); background: var(--accent-wash); border-radius: 999px; padding: 1px 7px; }
+/* ⚠️ A WRAPPING FLEX ROW IS NOT A LIST. These were inline-flex items of wildly
+   different widths flowing across the pane, so three or four landed per line at
+   ragged intervals with the "all agents" badges shunting the next name along.
+   Tony: "this layout is also incrediblt jumbled and clunky. skills piled up and
+   buttons too close to other text." A grid puts the boxes in columns, so the eye
+   has one edge to run down instead of hunting. */
+.agent-skills {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 2px 18px;
+  margin-top: 8px;
+}
+.agent-skill-chk {
+  display: flex; align-items: center; gap: 9px;
+  font-size: 12.5px; color: var(--text);
+  padding: 5px 6px; border-radius: 6px;
+  min-width: 0;                      /* long skill names must ellipsis, not push */
+}
+.agent-skills .agent-skill-chk:hover { background: var(--bg-hover); }
+/* The name takes the room; the badge keeps its own and never wraps under. */
+.agent-skill-chk > span:not(.skill-global-tag) { min-width: 0; }
+.agent-skills .agent-skill-chk { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.skill-global-tag { flex: none; margin-left: auto; font-size: 9.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--accent); background: var(--accent-wash); border-radius: 999px; padding: 1px 7px; }
 
 /* welcome-screen agent gallery */
 /* splash: two primary choices */
@@ -2034,3 +2054,17 @@ button.hf-head:hover { background: var(--bg-hover); }
   letter-spacing: .04em; cursor: pointer;
 }
 .hud-open:hover { color: var(--accent); border-color: var(--accent-dim); }
+
+/* What the agent may do, kept clear of the skill grid above it. */
+.agent-caps {
+  display: flex; gap: 20px; align-items: center;
+  margin-top: 14px; padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+/* ⚠️ THE BUTTONS NEED AIR. They sat 10px under the last checkbox, so Save was
+   crowded against a row of skill names and Remove was adrift on the right. */
+.agent-editor-actions {
+  display: flex; align-items: center; gap: 8px;
+  margin-top: 18px; padding-top: 14px;
+  border-top: 1px solid var(--border);
+}

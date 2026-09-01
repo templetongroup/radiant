@@ -70,6 +70,30 @@ ok('a removed built-in can be restored', res.status === 200)
 ok('and it really comes back', back.agents.some(a => a.id === 'agent-finance'))
 ok('with the record cleared', !(back.removedAgents || []).includes('agent-finance'))
 
+
+// ── the editor's layout ─────────────────────────────────────────────────────
+// Tony, with a screenshot: "this layout is also incrediblt jumbled and clunky.
+// skills piled up and buttons too close to other text."
+{
+  const fs = await import('node:fs')
+  const css = fs.readFileSync('src/styles.css', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+  const jsx = fs.readFileSync('src/components/Settings.jsx', 'utf8')
+
+  // A wrapping flex row of differently sized items is not a list — it lands
+  // three or four per line at ragged intervals.
+  const skills = /\.agent-skills \{([^}]*)\}/.exec(css)?.[1] || ''
+  ok('skills are a grid, not a wrapping flex row', /display:\s*grid/.test(skills))
+  ok('and the columns are sized, so names line up', /grid-template-columns/.test(skills))
+  // The badge must keep its own space or it pushes the next name along.
+  ok('the "all agents" badge is pinned right', /\.skill-global-tag \{[^}]*margin-left:\s*auto/.test(css))
+  // Buttons sat 10px under the last checkbox.
+  const actions = /\.agent-editor-actions \{([^}]*)\}/.exec(css)?.[1] || ''
+  ok('the action row is separated from the fields', /border-top/.test(actions) && /margin-top/.test(actions))
+  ok('and the editor uses it', /className='row agent-editor-actions'/.test(jsx))
+  // Tools and computer control are permissions, not skills.
+  ok('capabilities sit apart from the skill grid', /\.agent-caps \{[^}]*border-top/.test(css))
+}
+
 console.log(`\n  ${pass}/${pass + fail} passed  ·  its own data directory, not yours`)
 stop()
 process.exit(fail ? 1 : 0)
