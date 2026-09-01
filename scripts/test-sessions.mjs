@@ -114,6 +114,21 @@ const icons = await import('node:fs').then(m => m.readFileSync('src/components/I
 ok('the icon set actually defines them', /archive:/.test(icons) && /unarchive:/.test(icons) && /trash:/.test(icons))
 ok('and a permanent delete lives only in the archive', /Delete permanently/.test(sidebar))
 
+
+// ⚠️ THE DEVICES SCREEN DESCRIBES WHICHEVER MAC IS ANSWERING. When the window is
+// borrowing another Mac, /api/share is answered by THAT Mac — so its sharing
+// state, address and token rendered under the heading "This Mac does the work".
+// Tony, connected to dev-mbp: "it says This mac does the work, but its connected
+// to the Dev MBP." The checkbox would also have switched sharing off on the very
+// Mac the window depends on.
+{
+  const settings = await import('node:fs').then(m => m.readFileSync('src/components/Settings.jsx', 'utf8'))
+  const role = settings.slice(settings.indexOf('This Mac does the work'), settings.indexOf('This Mac is a window onto another'))
+  ok('the "does the work" half is guarded on linked', /\{linked\s*\n?\s*\?/.test(role))
+  ok('and it names the Mac actually answering', /server\.base/.test(role))
+  ok('the share controls are inside the not-linked branch', role.indexOf('type=\'checkbox\'') > role.indexOf('{linked'))
+}
+
 console.log(`\n  ${pass}/${pass + fail} passed  ·  its own data directory, not yours`)
 stop()
 process.exit(fail ? 1 : 0)

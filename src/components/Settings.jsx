@@ -2084,8 +2084,27 @@ function DevicesPane () {
           </div>
         </div>
 
-        <div className='dev-role'>
-          <div className='dev-role-title'>This Mac does the work</div>
+          <div className='dev-role'>
+            <div className='dev-role-title'>This Mac does the work</div>
+            {/* ⚠️ EVERY READING BELOW COMES FROM WHICHEVER MAC IS ANSWERING. When
+                this window is borrowing another Mac, /api/share is answered by
+                THAT Mac — so its sharing state, its address and its token were
+                rendered under the heading "This Mac does the work". Tony,
+                connected to dev-mbp: "it says This mac does the work, but its
+                connected to the Dev MBP."
+                Worse than a wrong label: the checkbox would have switched
+                sharing off on the very Mac this window depends on, cutting the
+                connection that draws the screen. So while linked, this half
+                states whose settings these are and offers no controls. */}
+            {linked
+              ? <p className='hint' style={{ marginTop: 2 }}>
+                  These settings belong to <code className='mono'>{server.base}</code>, not to this
+                  Mac — this window is showing that Mac, so it is the one answering. It is already
+                  doing the work; that is what you are looking at.
+                  <br /><br />
+                  To make <b>this</b> Mac do the work instead, disconnect below first.
+                </p>
+              : <>
           <p className='hint' style={{ marginTop: 2 }}>
             Turn this on for the Mac that stays awake. You will get an address and a token
             to type into your other Macs.
@@ -2152,7 +2171,8 @@ function DevicesPane () {
             </div>
           )
         })()}
-      </div>
+              </>}
+          </div>
 
         <div className='dev-role'>
           <div className='dev-role-title'>This Mac is a window onto another</div>
@@ -2185,6 +2205,7 @@ const GUIDE = [
   {
     title: 'Chat & agents',
     items: [
+      ['Devices no longer describes the wrong Mac', 'When this Mac is showing another Mac\u2019s Radiant, Settings \u2192 Devices used to fill in \u201cThis Mac does the work\u201d with the OTHER Mac\u2019s address, token and sharing switch \u2014 because that Mac is the one answering. It read as a contradiction, and the switch would have turned off sharing on the very Mac you were connected to, cutting your own connection. That half now says plainly whose settings you are looking at and offers no controls until you disconnect.'],
       ['Move a chat to a project from its row', 'Hover any chat and the first control is a folder. Click it and pick a project \u2014 or \u201cNo project\u201d to take it out of one. It used to be a drop-down box wide enough to spell out the project\u2019s name, which ate most of a 248px row and left the chat title squeezed. The folder is the same one the project rows use, and it picks up your accent color when the chat is already in a project \u2014 so you can see where a chat lives without opening anything.'],
       ['Closing a chat archives it now', 'The button at the end of a chat row is an archive box \u2014 a box with an arrow going into it \u2014 because that is what it does. It used to be a \u2715, which every app on earth uses for delete, so the one control that KEEPS your chat looked like the one that destroys it. Inside the archive the buttons are a box with an arrow coming out (restore) and a bin (delete for good). The \u2715 used to delete outright \u2014 every message and tool call gone, behind one confirm, on a button sitting next to rename. It now archives instead: the chat leaves the sidebar and collects in an Archived group at the bottom, one click from coming back. It stays searchable the whole time, so an agent looking through your past work still finds it. Deleting permanently still exists, but only from inside the archive, and it says plainly what it erases. Thanks to Justin Sail, who noticed after leaving a multi-hour review in a chat and seeing how close that \u2715 was to the paperclip.'],
       ['A board for work you hand off', 'Tasks, next to Chats in the sidebar. Write what needs doing, pick an agent or a model, and it runs as its own chat \u2014 so everything you already know about chats applies to it. The columns are Queued, Working, Needs you, Review and Done. Only the first and last are yours to drag: the middle three are set by the run itself, so a card cannot claim progress the agent did not make. A card in Working shows the agent\u2019s own checklist and the step it is on, and one lands in Needs you the moment the agent asks a question or wants permission. That column is the point of the board \u2014 until now, work waiting on you was invisible unless you happened to be looking at that chat. Choosing who does it uses the same list as the chat composer: grouped by provider, collapsed until you open one, and searchable, with your agents as their own group at the top. The sidebar switcher reads Chats \u00b7 Agents \u00b7 Tasks.'],
