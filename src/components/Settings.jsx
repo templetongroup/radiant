@@ -635,13 +635,15 @@ function AgentEditor ({ agent, skills, models, onSave, onDelete, onClose, onDupl
   const [a, setA] = useState({ ...agent })
   const set = patch => setA(prev => ({ ...prev, ...patch }))
   // Two clicks in our own UI, because a native confirm is swallowed here.
+  //
+  // ⚠️ IT DOES NOT TIME OUT. It used to disarm itself after four seconds, which
+  // is less time than it takes to read the sentence it puts on screen — so the
+  // prompt quietly turned back into a plain Remove button and the second click
+  // re-armed it instead of removing anything. Tony: "Yes, but the second click
+  // does nothing." It did do something; it did the wrong thing, invisibly.
+  // Cancelling is Keep, or closing the editor. A prompt that moves while you are
+  // deciding is worse than one that waits.
   const [confirmRemove, setConfirmRemove] = useState(false)
-  useEffect(() => {
-    if (!confirmRemove) return
-    // Re-arm, so a stray click does not leave a live delete sitting on screen.
-    const t = setTimeout(() => setConfirmRemove(false), 4000)
-    return () => clearTimeout(t)
-  }, [confirmRemove])
   const accentHue = Math.round(Number(getComputedStyle(document.documentElement).getPropertyValue('--accent-h')) || 258)
   const toggleSkill = id => set({ skills: (a.skills || []).includes(id) ? a.skills.filter(s => s !== id) : [...(a.skills || []), id] })
   return (

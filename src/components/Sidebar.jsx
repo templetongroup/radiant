@@ -170,12 +170,10 @@ export default function Sidebar ({ section = 'chat', onSection, onOpenAgents, se
   const archived = React.useMemo(() => sessions.filter(s => s.archived), [sessions])
   const [showArchive, setShowArchive] = useState(false)
   // Which archived chat's bin is armed. A native confirm is swallowed here.
+  // ⚠️ NO TIMEOUT — see the note in Settings.jsx. A four-second disarm turned the
+  // second click into a re-arm, which looks exactly like nothing happening.
+  // Clicking any other row's bin moves the arm; nothing else cancels it.
   const [armedDelete, setArmedDelete] = useState(null)
-  useEffect(() => {
-    if (!armedDelete) return
-    const t = setTimeout(() => setArmedDelete(null), 4000)
-    return () => clearTimeout(t)
-  }, [armedDelete])
 
   // Grouped once per render rather than filtered inside the map, so a sidebar
   // with a few hundred chats does not walk the list once per project.

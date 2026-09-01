@@ -115,11 +115,27 @@ ok('with the record cleared', !(back.removedAgents || []).includes('agent-financ
   ok('removing an agent does not depend on a native dialog', !/window\.confirm/.test(editor))
   ok('it asks in our own UI instead', /confirm-inline/.test(editor) && /setConfirmRemove/.test(editor))
   // An armed delete that stays armed is a trap for the next stray click.
-  ok('and it disarms itself', /setConfirmRemove\(false\), 4000/.test(editor))
+  // ⚠️ IT MUST NOT TIME OUT. A four-second disarm is less time than it takes to
+  // read the sentence it puts on screen, so the prompt reverted to a plain
+  // Remove button and the second click RE-ARMED it. Tony: "Yes, but the second
+  // click does nothing." It did something — the wrong thing, invisibly.
+  // ⚠️ DO NOT WRITE /setTimeout\([^)]*X/. `[^)]*` stops at the ')' inside `() =>`,
+  // so it never matches an arrow callback — it has silently passed on broken
+  // code FOUR times in one session. Ask whether the two words appear near each
+  // other instead.
+  {
+    const timers = [...editor.matchAll(/setTimeout/g)].map(m => editor.slice(m.index, m.index + 120))
+    ok('the confirm does not disarm on a timer', !timers.some(t => /setConfirmRemove/.test(t)))
+  }
+  ok('and Keep is how you back out', /setConfirmRemove\(false\)[\s\S]{0,120}Keep/.test(editor))
 
   const row = sidebar.slice(sidebar.indexOf("className='session-actions'"), sidebar.indexOf('</div>', sidebar.indexOf('Delete permanently')))
   ok('deleting an archived chat does not either', !/window\.confirm/.test(row))
   ok('it arms on the first click', /armedDelete === s\.id/.test(row))
+  {
+    const timers = [...sidebar.matchAll(/setTimeout/g)].map(m => sidebar.slice(m.index, m.index + 120))
+    ok('and that arm does not time out either', !timers.some(t => /setArmedDelete/.test(t)))
+  }
   ok('and shows that it is armed', /is-armed/.test(row))
 }
 
