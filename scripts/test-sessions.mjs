@@ -129,6 +129,18 @@ ok('and a permanent delete lives only in the archive', /Delete permanently/.test
   ok('the share controls are inside the not-linked branch', role.indexOf('type=\'checkbox\'') > role.indexOf('{linked'))
 }
 
+
+// ⚠️ THE ROW'S TOOLTIPS CANNOT BE CENTRED. The controls sit hard against the
+// right edge of a 248px sidebar, and .session-list scrolls — which clips
+// horizontally too. A centred tooltip on the last button is cut in half; Tony's
+// screenshot showed "Delete perma…". They must grow inward.
+{
+  const css = await import('node:fs').then(m => m.readFileSync('src/styles.css', 'utf8')).then(t => t.replace(/\/\*[\s\S]*?\*\//g, ''))
+  const rule = /\.session-actions \[data-tip\]:hover::after \{([^}]*)\}/.exec(css)?.[1] || ''
+  ok('row tooltips are anchored, not centred', /right:\s*0/.test(rule) && /transform:\s*none/.test(rule))
+  ok('and they are capped to fit the sidebar', /max-width/.test(rule))
+}
+
 console.log(`\n  ${pass}/${pass + fail} passed  ·  its own data directory, not yours`)
 stop()
 process.exit(fail ? 1 : 0)

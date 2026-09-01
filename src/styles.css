@@ -697,6 +697,16 @@ code, pre, .mono { font-family: var(--font-mono); }
 .session-item:has(:focus-visible) .session-actions { opacity: 1; pointer-events: auto; }
 .session-actions button { border: none; background: none; color: var(--text-faint); font-size: 12px; padding: 2px 4px; border-radius: 4px; line-height: 1; }
 .session-actions button:hover { color: var(--text); background: var(--bg-raised); }
+/* ⚠️ THESE TOOLTIPS CANNOT BE CENTRED. The row's controls sit hard against the
+   right edge of a 248px sidebar, and .session-list scrolls — which clips
+   horizontally as well as vertically. A centred tooltip on the last button runs
+   past that edge and is cut in half: Tony's screenshot showed "Delete perma…".
+   Anchor them to the button's right edge so they grow INWARD, where there is
+   always room. The arrow stays centred on the button it belongs to. */
+.session-actions [data-tip]:hover::after {
+  left: auto; right: 0; transform: none;
+  max-width: 210px;   /* still fits inside the narrowest sidebar */
+}
 
 .update-pill {
   margin: 8px 12px 0; padding: 7px 12px;
