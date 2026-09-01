@@ -150,6 +150,44 @@ ok('it can be deleted', !gone.body.some(t => t.id === id))
      /if \(kind !== 'steer'\) api\.patchTask\(taskId, \{ state: 'queued' \}\)/.test(app))
 }
 
+
+// ── the HUD ─────────────────────────────────────────────────────────────────
+// Tony: "How about a HUD mode like Hermes Mac app has?" — a small window that
+// floats above other apps showing what the agents are doing.
+{
+  const fs = await import('node:fs')
+  const hud = fs.readFileSync('src/components/Hud.jsx', 'utf8')
+  const main = fs.readFileSync('electron/main.cjs', 'utf8')
+  const entry = fs.readFileSync('src/main.jsx', 'utf8')
+
+  // Only what is happening NOW. A HUD listing everything is a second sidebar.
+  ok('the HUD shows only running and blocked tasks',
+     /state === 'working' \|\| t\.state === 'blocked'/.test(hud))
+  ok('and blocked sorts first, being the only row that needs you',
+     /ORDER = \{ blocked: 0, working: 1 \}/.test(hud))
+  // An empty panel reads as "nothing running", which is a claim — so a lost
+  // connection has to say so rather than look idle.
+  ok('a lost connection is shown, not mistaken for idle', /hud-err/.test(hud) && /setErr/.test(hud))
+
+  ok('it is its own route, not the whole app', /route === 'hud'/.test(entry))
+  ok('the window floats above other apps', /setAlwaysOnTop\(true, 'floating'\)/.test(main))
+  ok('and is visible over full-screen apps', /visibleOnFullScreenUI: true/.test(main))
+  // ⚠️ window-all-closed quits Radiant and the embedded server dies with it, so
+  // a HUD outliving the main window would hold a dead app open.
+  // Read the handler's BODY rather than pattern-matching across it: `[^)]*`
+  // stops at the ')' inside `() =>`, which is how this check first failed on
+  // correct code — the same trap as regexing a JSX tag.
+  {
+    const at = main.indexOf("win.on('closed'")
+    const body = at === -1 ? '' : main.slice(at, at + 220)
+    ok('the HUD closes with the main window', /hudWin/.test(body) && /close\(\)/.test(body))
+  }
+  ok('a hotkey is registered and released on quit',
+     /globalShortcut\.register/.test(main) && /globalShortcut\.unregisterAll/.test(main))
+  // The HUD owns no conversations; it asks the main window to open one.
+  ok('clicking a row asks the main window to open the chat', /rad:hud-open/.test(main))
+}
+
 console.log(`\n  ${pass}/${pass + fail} passed`)
 stop()
 process.exit(fail ? 1 : 0)

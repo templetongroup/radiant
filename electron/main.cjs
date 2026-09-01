@@ -1,4 +1,4 @@
-const { app, BrowserWindow, shell, ipcMain, nativeTheme, dialog, screen, session } = require('electron')
+const { app, BrowserWindow, shell, ipcMain, nativeTheme, dialog, screen, session, globalShortcut } = require('electron')
 const path = require('path')
 const fs = require('fs')
 const os = require('os')
@@ -159,7 +159,13 @@ async function createWindow () {
     }
   })
   windowState.track(win, 'main', state)
-  win.on('closed', () => { win = null })
+  // ⚠️ THE HUD MUST NOT OUTLIVE THE MAIN WINDOW. `window-all-closed` quits
+  // Radiant and the embedded server dies with the process, so a HUD left open
+  // would hold a half-dead app on screen with no way back into it.
+  win.on('closed', () => {
+    win = null
+    if (hudWin && !hudWin.isDestroyed()) hudWin.close()
+  })
   // external links go to the real browser, not new Electron windows
   win.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url)
@@ -172,7 +178,71 @@ async function createWindow () {
   updater.startAutoCheck()
 }
 
-app.whenReady().then(createWindow)
+// ---- the HUD ----
+// A small window that floats above whatever you are working in and says what
+// your agents are doing. It is a second view of the board's state, not a second
+// source of it: the same tasks, polled from the same server.
+//
+// ⚠️ IT MUST NOT KEEP THE APP ALIVE. `window-all-closed` quits Radiant, and the
+// embedded server dies with the process — so a HUD left open after the main
+// window closed would hold a dead-ish app open with no way back to it. It closes
+// with the main window.
+let hudWin = null
+
+async function toggleHud () {
+  if (hudWin && !hudWin.isDestroyed()) { hudWin.close(); return }
+  const port = await ensureServer()
+  const display = screen.getDisplayNearestPoint(screen.getCursorScreenPoint())
+  const { x, y, width } = display.workArea
+  const W = 320
+  const H = 240
+  hudWin = new BrowserWindow({
+    width: W,
+    height: H,
+    // Top-right of the screen it was summoned on, clear of the menu bar.
+    x: x + width - W - 24,
+    y: y + 24,
+    frame: false,
+    resizable: true,
+    minWidth: 260,
+    minHeight: 120,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    // A HUD that steals focus interrupts the thing you are doing, which is the
+    // opposite of its job. It shows itself without taking the keyboard.
+    focusable: true,
+    show: false,
+    backgroundColor: lastBg || (nativeTheme.themeSource === 'light' ? '#f5f5f6' : '#141517'),
+    webPreferences: { contextIsolation: true, nodeIntegration: false, preload: path.join(__dirname, 'preload.cjs') }
+  })
+  // Above full-screen apps too, or it is invisible exactly when you are heads-down.
+  hudWin.setAlwaysOnTop(true, 'floating')
+  hudWin.setVisibleOnAllWorkspaces(true, { visibleOnFullScreenUI: true })
+  hudWin.on('closed', () => { hudWin = null })
+  hudWin.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: 'deny' } })
+  await hudWin.loadURL(`http://127.0.0.1:${port}/#hud`)
+  hudWin.showInactive()
+}
+
+// Clicking a row asks the MAIN window to open that chat — the HUD owns no
+// conversations, it only points at them.
+ipcMain.on('rad:hud-open', (e, sessionId) => {
+  if (!win || win.isDestroyed()) return
+  if (win.isMinimized()) win.restore()
+  win.show()
+  win.focus()
+  if (sessionId) win.webContents.send('rad:open-session', sessionId)
+})
+
+ipcMain.on('rad:hud-toggle', () => { toggleHud() })
+
+app.whenReady().then(async () => {
+  await createWindow()
+  // ⌥⌘R — near ⌘R but not it, and unlikely to collide with an editor.
+  try { globalShortcut.register('Alt+Command+R', toggleHud) } catch { /* a taken shortcut is not fatal */ }
+})
+
+app.on('will-quit', () => { try { globalShortcut.unregisterAll() } catch {} })
 
 app.on('activate', () => {
   if (app.isReady() && !win) createWindow()

@@ -324,6 +324,17 @@ export default function Sidebar ({ section = 'chat', onSection, onOpenAgents, se
           I opened the app instead of reading the code.
           Chats and Agents stay sidebar-local; Tasks swaps the main area, which
           is why it calls up instead of setView. */}
+      {/* The hotkey is the fast way in; a visible control is the discoverable
+          one. Electron-only — there is no floating window in a browser tab. */}
+      {typeof window !== 'undefined' && window.radiantNative?.toggleHud && (
+        <button
+          className='hud-open'
+          data-tip={'Float a small window above your other apps\nshowing what your agents are doing  (\u2325\u2318R)'}
+          data-tip-below
+          title='Show the HUD'
+          onClick={() => window.radiantNative.toggleHud()}
+        >HUD</button>
+      )}
       <div className='sidebar-switch'>
         <button className={section === 'chat' && view === 'chats' ? 'on' : ''}
           onClick={() => { onSection?.('chat'); setView('chats') }}>Chats</button>

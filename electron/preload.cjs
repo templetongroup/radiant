@@ -19,6 +19,14 @@ contextBridge.exposeInMainWorld('radiantNative', {
     const h = () => cb()
     ipcRenderer.on('rad:settings-closed', h)
     return () => ipcRenderer.removeListener('rad:settings-closed', h)
+  },
+  // The HUD points at conversations; the main window owns them.
+  hudOpenTask: sessionId => ipcRenderer.send('rad:hud-open', sessionId),
+  toggleHud: () => ipcRenderer.send('rad:hud-toggle'),
+  onOpenSession: cb => {
+    const h = (_e, id) => cb(id)
+    ipcRenderer.on('rad:open-session', h)
+    return () => ipcRenderer.removeListener('rad:open-session', h)
   }
 })
 

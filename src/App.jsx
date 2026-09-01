@@ -305,6 +305,17 @@ function DesktopApp () {
     refreshSessions()
   }
 
+  // The HUD floats above other apps and points at conversations; when a row is
+  // clicked, the main window is the one that opens it.
+  useEffect(() => {
+    const off = window.radiantNative?.onOpenSession?.(id => {
+      if (!id) return
+      setView('chat')
+      openSession(id)
+    })
+    return () => { if (typeof off === 'function') off() }
+  }, [])
+
   useEffect(() => {
     if (!pendingPrompt || !session || session.id !== pendingPrompt.sessionId) return
     if (live?.streaming) return
