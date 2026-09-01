@@ -2072,9 +2072,16 @@ button.hf-head:hover { background: var(--bg-hover); }
 /* ⚠️ THE BUTTONS NEED AIR. They sat 10px under the last checkbox, so Save was
    crowded against a row of skill names and Remove was adrift on the right. */
 .agent-editor-actions {
-  display: flex; align-items: center; gap: 8px;
+  display: flex; align-items: center; flex-wrap: wrap;
+  gap: 8px; row-gap: 10px;
   margin-top: 18px; padding-top: 14px;
   border-top: 1px solid var(--border);
+  /* ⚠️ HOLD THE HEIGHT THE EXPANDED STATE NEEDS. Clicking Remove swaps one
+     button for a sentence and two more, and without this the row grows and
+     everything under it jumps at the exact moment the user is aiming at a
+     second click. Reserve the taller state up front so nothing moves. */
+  min-height: 62px;
+  align-content: center;
 }
 
 /* ── depth on the board and the HUD ────────────────────────────────────────

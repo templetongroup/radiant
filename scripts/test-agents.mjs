@@ -109,6 +109,7 @@ ok('with the record cleared', !(back.removedAgents || []).includes('agent-financ
   // time this exact trap has bitten in one session.
   const strip = t => t.replace(/\{\/\*[\s\S]*?\*\/\}/g, '').replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
   const settings = strip(fs.readFileSync('src/components/Settings.jsx', 'utf8'))
+  const css = fs.readFileSync('src/styles.css', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
   const sidebar = strip(fs.readFileSync('src/components/Sidebar.jsx', 'utf8'))
 
   const editor = settings.slice(settings.indexOf('function AgentEditor'), settings.indexOf('function AgentsPane'))
@@ -129,6 +130,18 @@ ok('with the record cleared', !(back.removedAgents || []).includes('agent-financ
   }
   ok('and Keep is how you back out', /setConfirmRemove\(false\)[\s\S]{0,120}Keep/.test(editor))
 
+
+  // ⚠️ REMOVE SITS WITH THE OTHER BUTTONS, and the row holds the taller state's
+  // height. Tony: "move the remove button next the otehrs on the left. make sure
+  // to make room for when it expands on click." It was alone on the far right,
+  // and arming it grew the row so everything below jumped at the exact moment
+  // you were aiming at the second click.
+  ok('Remove is not pushed to the far right', !/marginLeft: 'auto'[\s\S]{0,200}setConfirmRemove/.test(settings))
+  {
+    const actions = /\.agent-editor-actions \{([^}]*)\}/.exec(css)?.[1] || ''
+    ok('the action row reserves its expanded height', /min-height/.test(actions))
+    ok('and wraps rather than overflowing', /flex-wrap:\s*wrap/.test(actions))
+  }
   const row = sidebar.slice(sidebar.indexOf("className='session-actions'"), sidebar.indexOf('</div>', sidebar.indexOf('Delete permanently')))
   ok('deleting an archived chat does not either', !/window\.confirm/.test(row))
   ok('it arms on the first click', /armedDelete === s\.id/.test(row))

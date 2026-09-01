@@ -728,7 +728,7 @@ function AgentEditor ({ agent, skills, models, onSave, onDelete, onClose, onDupl
             first click does not sit there armed. */}
         {agent.id && (
           confirmRemove
-            ? <span className='confirm-inline' style={{ marginLeft: 'auto' }}>
+            ? <span className='confirm-inline'>
                 <span className='confirm-inline-q'>
                   {agent.builtin ? 'Remove it? You can add it back from the library.' : 'Delete for good?'}
                 </span>
@@ -739,7 +739,6 @@ function AgentEditor ({ agent, skills, models, onSave, onDelete, onClose, onDupl
               </span>
             : <button
                 className='small-btn danger'
-                style={{ marginLeft: 'auto' }}
                 onClick={() => setConfirmRemove(true)}
               >{agent.builtin ? 'Remove' : 'Delete'}</button>
         )}
