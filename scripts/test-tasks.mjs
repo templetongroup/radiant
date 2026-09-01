@@ -1,5 +1,35 @@
-// The board's server side, exercised against a running Radiant.
-const B = 'http://127.0.0.1:5834'
+// The board's server side, exercised against a Radiant this script starts.
+//
+// ⚠️ IT MUST NOT USE PORT 5834. Radiant.app owns that whenever it is open, so a
+// gate pointed there runs against the INSTALLED build and writes into the user's
+// real chats — every run of this file used to leave a "Board smoke test" chat in
+// Tony's sidebar, and one run reported the board missing entirely because it was
+// talking to a release that predated it. Own server, own data directory, same as
+// test-sessions.mjs.
+import { spawn } from 'node:child_process'
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+
+const dir = mkdtempSync(join(tmpdir(), 'radiant-tasks-'))
+const PORT = 5848
+const B = `http://127.0.0.1:${PORT}`
+const server = spawn('node', ['server/index.js'], {
+  env: { ...process.env, RADIANT_DIR: dir, RADIANT_PORT: String(PORT) },
+  stdio: 'ignore'
+})
+const stop = () => { try { server.kill() } catch {} ; try { rmSync(dir, { recursive: true, force: true }) } catch {} }
+process.on('exit', stop)
+// Wait for a real answer, not merely for fetch to stop throwing.
+let ready = false
+for (let i = 0; i < 120; i++) {
+  try {
+    const r = await fetch(B + '/api/version')
+    if (r.ok && (await r.json())?.version) { ready = true; break }
+  } catch { /* not listening yet */ }
+  await new Promise(r => setTimeout(r, 250))
+}
+if (!ready) { console.log('  the test server never came up'); stop(); process.exit(1) }
 let pass = 0, fail = 0
 const ok = (n, c, extra='') => { if (c) { pass++ } else { fail++; console.log(`  FAIL ${n} ${extra}`) } }
 const j = async (m, p, b) => {
@@ -98,4 +128,5 @@ ok('it can be deleted', !gone.body.some(t => t.id === id))
 }
 
 console.log(`\n  ${pass}/${pass + fail} passed`)
+stop()
 process.exit(fail ? 1 : 0)

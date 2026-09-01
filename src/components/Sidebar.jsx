@@ -269,33 +269,42 @@ export default function Sidebar ({ section = 'chat', onSection, onOpenAgents, se
               </select>
             </span>
           )}
-          <button title={s.pinned ? 'Unpin' : 'Pin to top'} onClick={e => { e.stopPropagation(); onPin(s.id, !s.pinned) }}>{s.pinned ? '★' : '☆'}</button>
+          <button data-tip={s.pinned ? 'Unpin' : 'Pin to top'} data-tip-below title={s.pinned ? 'Unpin' : 'Pin to top'} onClick={e => { e.stopPropagation(); onPin(s.id, !s.pinned) }}>{s.pinned ? '★' : '☆'}</button>
           {/* Export one chat. Markdown, not JSON: the reason you export a single
               conversation is to show it to somebody. The JSON archive lives in
               Settings, where you go to move everything at once. */}
-          <button title='Export as Markdown' onClick={async e => {
+          <button data-tip='Export as Markdown' data-tip-below title='Export as Markdown' onClick={async e => {
             e.stopPropagation()
             try {
               const r = await api.exportChat(s.id, 'md')
               await saveToFile(r.filename, r.mime, r.content)
             } catch (err) { window.alert(`Could not export: ${err.message}`) }
           }}>⤓</button>
-          <button title='Rename' onClick={e => { e.stopPropagation(); setEditing({ kind: 'session', id: s.id, value: s.title }) }}>✎</button>
-          {/* ⚠️ THE ICON HAS TO MEAN WHAT THE BUTTON DOES. Archiving shipped
+          <button data-tip='Rename' data-tip-below title='Rename' onClick={e => { e.stopPropagation(); setEditing({ kind: 'session', id: s.id, value: s.title }) }}>✎</button>
+          {/* ⚠️ data-tip, NOT title alone. styles.css has said since it was
+              written that "Electron's native title tooltips are slow/flaky" and
+              ships a CSS tooltip for exactly that reason — but these buttons
+              were still on title, so six icon-only controls explained themselves
+              nowhere. Tony: "theres no tooltips with the session tools including
+              the new archive button". title stays for screen readers and the web
+              build; data-tip is what a person sees. data-tip-below because the
+              actions sit at the TOP of the row, where a tooltip above is clipped.
+
+              ⚠️ THE ICON HAS TO MEAN WHAT THE BUTTON DOES. Archiving shipped
               behind a ✕, which every interface on earth uses for delete — so the
               one control that keeps your chat looked like the one that destroys
               it. Tony: "To me an X means delete." A box with an arrow going in
               archives; a bin, and only inside the archive, deletes. */}
           {s.archived
             ? <>
-                <button title='Restore from archive' aria-label={`Restore "${s.title}" from the archive`}
+                <button data-tip='Restore from archive' data-tip-below title='Restore from archive' aria-label={`Restore "${s.title}" from the archive`}
                   onClick={e => { e.stopPropagation(); onArchive(s.id, false) }}><Icon.unarchive size={13} /></button>
                 {/* The only route to a real delete. Everything it removes is
                     unrecoverable, so it says so and names the session. */}
-                <button title='Delete permanently' aria-label={`Delete "${s.title}" permanently`}
+                <button data-tip='Delete permanently' data-tip-below title='Delete permanently' aria-label={`Delete "${s.title}" permanently`}
                   onClick={e => { e.stopPropagation(); if (window.confirm(`Permanently delete "${s.title}"?\n\nThis erases the whole transcript — every message and tool call — from disk. It cannot be undone.`)) onDelete(s.id) }}><Icon.trash size={13} /></button>
               </>
-            : <button title='Archive' aria-label={`Archive "${s.title}"`}
+            : <button data-tip='Archive' data-tip-below title='Archive' aria-label={`Archive "${s.title}"`}
                 onClick={e => { e.stopPropagation(); onArchive(s.id, true) }}><Icon.archive size={13} /></button>}
         </div>
       </div>

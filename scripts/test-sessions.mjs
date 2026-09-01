@@ -75,6 +75,21 @@ ok('the sidebar splits live from archived', /const live = React\.useMemo/.test(s
 ok('and no view reads the raw list',
    !/(sessions\.filter\(s => s\.agentId|sessions\.map\(s => <SessionRow)/.test(sidebar))
 ok('the row archives rather than deletes', /title='Archive'/.test(sidebar))
+// ⚠️ TOOLTIPS COME FROM data-tip, NOT title. styles.css has said since it was
+// written that "Electron's native title tooltips are slow/flaky" and ships a CSS
+// tooltip for that reason — but the chat row's six icon-only controls were still
+// on title alone, so none of them explained itself. Tony: "theres no tooltips
+// with the session tools including the new archive button".
+{
+  const rowBtns = sidebar.slice(sidebar.indexOf("className='session-actions'"), sidebar.indexOf('</div>', sidebar.indexOf('Delete permanently')))
+  const withTitle = (rowBtns.match(/<button[^]*?title=/g) || []).length
+  const withTip = (rowBtns.match(/data-tip=/g) || []).length
+  ok('every chat-row control has a data-tip', withTip >= withTitle, `${withTip} tips for ${withTitle} buttons`)
+  // The controls sit at the TOP of the row; a tooltip above them is clipped.
+  ok('and they open downward', (rowBtns.match(/data-tip-below/g) || []).length >= withTip)
+  ok('title stays too, for screen readers and the web build', withTitle >= 6)
+}
+
 // ⚠️ THE ICON MUST MEAN WHAT THE BUTTON DOES. Archiving shipped behind a ✕,
 // which every interface uses for delete — so the one control that KEEPS your
 // chat looked like the one that destroys it. Tony: "To me an X means delete."
