@@ -634,6 +634,14 @@ function McpPane ({ config, onConfigChange }) {
 function AgentEditor ({ agent, skills, models, onSave, onDelete, onClose, onDuplicate }) {
   const [a, setA] = useState({ ...agent })
   const set = patch => setA(prev => ({ ...prev, ...patch }))
+  // Two clicks in our own UI, because a native confirm is swallowed here.
+  const [confirmRemove, setConfirmRemove] = useState(false)
+  useEffect(() => {
+    if (!confirmRemove) return
+    // Re-arm, so a stray click does not leave a live delete sitting on screen.
+    const t = setTimeout(() => setConfirmRemove(false), 4000)
+    return () => clearTimeout(t)
+  }, [confirmRemove])
   const accentHue = Math.round(Number(getComputedStyle(document.documentElement).getPropertyValue('--accent-h')) || 258)
   const toggleSkill = id => set({ skills: (a.skills || []).includes(id) ? a.skills.filter(s => s !== id) : [...(a.skills || []), id] })
   return (
@@ -705,20 +713,33 @@ function AgentEditor ({ agent, skills, models, onSave, onDelete, onClose, onDupl
         <button className='small-btn primary' onClick={() => onSave(a)} disabled={!a.name?.trim()}>Save</button>
         <button className='small-btn' onClick={onClose}>Cancel</button>
         {agent.id && onDuplicate && <button className='small-btn' onClick={() => onDuplicate(a)} title='Make an editable copy of this agent'>Duplicate</button>}
-        {/* ⚠️ A BUILT-IN CAN BE REMOVED NOW, and the wording says what that
-            means. Fourteen ship by default and most people use two or three;
-            the rest were permanent furniture, because the server refused to
-            delete them at all. Removing one is undoable from the library, so
-            this reads as tidying rather than destruction. */}
+        {/* ⚠️ NO NATIVE DIALOG. This was `if (window.confirm(…)) onDelete(…)`,
+            and in the packaged app the click did nothing at all — Tony, twice:
+            "im removing agents in settings and nothings happening", then "agents
+            are sstill not removing from the list when I click remove." Driven in
+            a browser with confirm forced to true the code path is fine: 13 → 12,
+            recorded, editor closed. So the dialog was the whole failure, and
+            this app has been burned by a native dialog before — window.prompt is
+            a no-op here, which is why the folder picker is native code.
+            Two clicks in our own UI instead, which cannot be swallowed by the
+            host: Remove, then Confirm. It re-arms after four seconds so a stray
+            first click does not sit there armed. */}
         {agent.id && (
-          <button
-            className='small-btn danger'
-            style={{ marginLeft: 'auto' }}
-            onClick={() => {
-              if (!agent.builtin) return onDelete(agent.id)
-              if (window.confirm(`Remove "${agent.name}" from your agents?\n\nIt is one of Radiant's built-in agents, so you can put it back any time from the agent library. Chats you had with it are not touched.`)) onDelete(agent.id)
-            }}
-          >{agent.builtin ? 'Remove' : 'Delete'}</button>
+          confirmRemove
+            ? <span className='confirm-inline' style={{ marginLeft: 'auto' }}>
+                <span className='confirm-inline-q'>
+                  {agent.builtin ? 'Remove it? You can add it back from the library.' : 'Delete for good?'}
+                </span>
+                <button className='small-btn danger' onClick={() => { setConfirmRemove(false); onDelete(agent.id) }}>
+                  {agent.builtin ? 'Remove' : 'Delete'}
+                </button>
+                <button className='small-btn' onClick={() => setConfirmRemove(false)}>Keep</button>
+              </span>
+            : <button
+                className='small-btn danger'
+                style={{ marginLeft: 'auto' }}
+                onClick={() => setConfirmRemove(true)}
+              >{agent.builtin ? 'Remove' : 'Delete'}</button>
         )}
       </div>
     </div>

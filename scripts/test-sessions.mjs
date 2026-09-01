@@ -96,7 +96,13 @@ ok('the row archives rather than deletes', /title='Archive'/.test(sidebar))
 ok('archiving is not a ✕', !/onArchive\(s\.id, true\) \}\}>✕/.test(sidebar))
 ok('archiving uses the archive icon', /onArchive\(s\.id, true\)[\s\S]{0,80}Icon\.archive/.test(sidebar))
 ok('restoring uses the unarchive icon', /onArchive\(s\.id, false\)[\s\S]{0,120}Icon\.unarchive/.test(sidebar))
-ok('permanent delete uses the bin', /Delete permanently[\s\S]{0,400}Icon\.trash/.test(sidebar))
+// The button grew when its native confirm was replaced by a two-click arm, so
+// read its element rather than a fixed window of characters after the label.
+{
+  const at = sidebar.indexOf('Delete permanently')
+  const el = at === -1 ? '' : sidebar.slice(at, sidebar.indexOf('</button>', at))
+  ok('permanent delete uses the bin', /Icon\.trash/.test(el))
+}
 // Unicode glyphs render as tofu or the wrong picture; the app has its own set.
 // Scoped to the CHAT row's controls only: the project row's ✕ is a real delete
 // and should stay a ✕.

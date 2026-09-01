@@ -94,6 +94,35 @@ ok('with the record cleared', !(back.removedAgents || []).includes('agent-financ
   ok('capabilities sit apart from the skill grid', /\.agent-caps \{[^}]*border-top/.test(css))
 }
 
+
+// ── the confirm that ate the click ──────────────────────────────────────────
+// Tony, twice: "im removing agents in settings and nothings happening", then
+// "agents are sstill not removing from the list when I click remove." Driven in
+// a browser with confirm forced true, the code path was fine — 13 → 12,
+// recorded, editor closed. The native dialog was the entire failure. This app
+// has been burned by one before: window.prompt is a no-op here, which is why
+// the folder picker is native code.
+{
+  const fs = await import('node:fs')
+  // ⚠️ STRIP COMMENTS. The rule is explained in a comment that NAMES
+  // window.confirm, so reading the raw source fails on correct code — the third
+  // time this exact trap has bitten in one session.
+  const strip = t => t.replace(/\{\/\*[\s\S]*?\*\/\}/g, '').replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+  const settings = strip(fs.readFileSync('src/components/Settings.jsx', 'utf8'))
+  const sidebar = strip(fs.readFileSync('src/components/Sidebar.jsx', 'utf8'))
+
+  const editor = settings.slice(settings.indexOf('function AgentEditor'), settings.indexOf('function AgentsPane'))
+  ok('removing an agent does not depend on a native dialog', !/window\.confirm/.test(editor))
+  ok('it asks in our own UI instead', /confirm-inline/.test(editor) && /setConfirmRemove/.test(editor))
+  // An armed delete that stays armed is a trap for the next stray click.
+  ok('and it disarms itself', /setConfirmRemove\(false\), 4000/.test(editor))
+
+  const row = sidebar.slice(sidebar.indexOf("className='session-actions'"), sidebar.indexOf('</div>', sidebar.indexOf('Delete permanently')))
+  ok('deleting an archived chat does not either', !/window\.confirm/.test(row))
+  ok('it arms on the first click', /armedDelete === s\.id/.test(row))
+  ok('and shows that it is armed', /is-armed/.test(row))
+}
+
 console.log(`\n  ${pass}/${pass + fail} passed  ·  its own data directory, not yours`)
 stop()
 process.exit(fail ? 1 : 0)

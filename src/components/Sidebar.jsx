@@ -169,6 +169,13 @@ export default function Sidebar ({ section = 'chat', onSection, onOpenAgents, se
   const live = React.useMemo(() => sessions.filter(s => !s.archived), [sessions])
   const archived = React.useMemo(() => sessions.filter(s => s.archived), [sessions])
   const [showArchive, setShowArchive] = useState(false)
+  // Which archived chat's bin is armed. A native confirm is swallowed here.
+  const [armedDelete, setArmedDelete] = useState(null)
+  useEffect(() => {
+    if (!armedDelete) return
+    const t = setTimeout(() => setArmedDelete(null), 4000)
+    return () => clearTimeout(t)
+  }, [armedDelete])
 
   // Grouped once per render rather than filtered inside the map, so a sidebar
   // with a few hundred chats does not walk the list once per project.
@@ -301,8 +308,22 @@ export default function Sidebar ({ section = 'chat', onSection, onOpenAgents, se
                   onClick={e => { e.stopPropagation(); onArchive(s.id, false) }}><Icon.unarchive size={13} /></button>
                 {/* The only route to a real delete. Everything it removes is
                     unrecoverable, so it says so and names the session. */}
-                <button data-tip='Delete permanently' data-tip-below title='Delete permanently' aria-label={`Delete "${s.title}" permanently`}
-                  onClick={e => { e.stopPropagation(); if (window.confirm(`Permanently delete "${s.title}"?\n\nThis erases the whole transcript — every message and tool call — from disk. It cannot be undone.`)) onDelete(s.id) }}><Icon.trash size={13} /></button>
+                {/* ⚠️ NO NATIVE CONFIRM. The same window.confirm that made the
+                    agent Remove button do nothing also guards this, so the
+                    archive could never be emptied. Two clicks in our own UI: the
+                    bin arms, and disarms again after four seconds. */}
+                <button
+                  data-tip={armedDelete === s.id ? 'Click again — this cannot be undone' : 'Delete permanently'}
+                  data-tip-below
+                  title={armedDelete === s.id ? 'Click again to delete for good' : 'Delete permanently'}
+                  aria-label={armedDelete === s.id ? `Confirm deleting "${s.title}" permanently` : `Delete "${s.title}" permanently`}
+                  className={armedDelete === s.id ? 'is-armed' : ''}
+                  onClick={e => {
+                    e.stopPropagation()
+                    if (armedDelete === s.id) { setArmedDelete(null); onDelete(s.id) }
+                    else setArmedDelete(s.id)
+                  }}
+                ><Icon.trash size={13} /></button>
               </>
             : <button data-tip='Archive' data-tip-below title='Archive' aria-label={`Archive "${s.title}"`}
                 onClick={e => { e.stopPropagation(); onArchive(s.id, true) }}><Icon.archive size={13} /></button>}

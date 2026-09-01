@@ -2162,3 +2162,13 @@ button.hf-head:hover { background: var(--bg-hover); }
   .tb-card:hover { transform: none; }
   .hud-row.is-blocked .hud-dot { animation: none; }
 }
+
+/* Asking before something irreversible, without a native dialog — this app has
+   twice shipped a control that did nothing because the host swallowed one. */
+.confirm-inline { display: inline-flex; align-items: center; gap: 8px; }
+.confirm-inline-q { font-size: 11.5px; color: var(--text-muted); }
+
+/* An armed delete looks armed. Without this the second click is a guess. */
+.session-actions button.is-armed {
+  color: var(--danger); background: color-mix(in oklch, var(--danger) 18%, transparent);
+}
