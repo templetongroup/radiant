@@ -1961,8 +1961,16 @@ button.hf-head:hover { background: var(--bg-hover); }
 .tb-steps-bar > i { display: block; height: 100%; background: var(--accent); transition: width .3s ease; }
 .tb-steps-text { margin-top: 4px; font-size: 10.5px; color: var(--text-muted); line-height: 1.4; }
 
-.tb-card-foot { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
-.tb-card-time { flex: 1; font-size: 10.5px; color: var(--text-faint); }
+/* ⚠️ A BLOCKED CARD HAS THREE BUTTONS AND A TIME IN A 210px COLUMN. Without
+   wrapping they crush each other and the timestamp breaks over two lines —
+   which is exactly the crowding Tony called out in the agent editor. Let them
+   fall to the next line instead. */
+.tb-card-foot {
+  display: flex; align-items: center; flex-wrap: wrap;
+  gap: 6px; row-gap: 7px; margin-top: 10px;
+}
+.tb-card-time { flex: none; }
+.tb-card-time { font-size: 10.5px; color: var(--text-faint); margin-right: auto; }
 .tb-mini {
   padding: 3px 8px; border-radius: 6px; border: 0;
   background: var(--bg-input); color: var(--text); font: inherit; font-size: 11px; cursor: pointer;
@@ -2067,4 +2075,90 @@ button.hf-head:hover { background: var(--bg-hover); }
   display: flex; align-items: center; gap: 8px;
   margin-top: 18px; padding-top: 14px;
   border-top: 1px solid var(--border);
+}
+
+/* ── depth on the board and the HUD ────────────────────────────────────────
+   ⚠️ THE POINT IS TO MAKE ONE THING OBVIOUS, NOT TO DECORATE FIVE. The only
+   state that needs a person is "Needs you", so that is the only place colour is
+   spent. Everything else gets depth — a lit top edge, a real shadow, a hover
+   that lifts — so the board reads as objects rather than boxes, without a
+   second accent competing for the eye.
+
+   All of it is built from the tokens the themes already define, so it follows
+   whatever accent and mode are set rather than pinning a colour. */
+
+/* Columns: lit along the top edge, like a surface catching light. */
+.tb-col {
+  background:
+    linear-gradient(to bottom, color-mix(in oklch, var(--bg-raised) 55%, transparent), transparent 120px),
+    var(--bg-panel);
+  box-shadow: inset 0 1px 0 color-mix(in oklch, var(--text) 7%, transparent);
+}
+/* The one column where nothing moves until you act. A wash, not a shout. */
+.tb-col:nth-child(3) {
+  background:
+    linear-gradient(to bottom, color-mix(in oklch, var(--accent) 9%, transparent), transparent 140px),
+    var(--bg-panel);
+  box-shadow: inset 0 1px 0 color-mix(in oklch, var(--accent) 22%, transparent);
+}
+.tb-col:nth-child(3) .tb-col-label { color: var(--accent); }
+
+.tb-card {
+  box-shadow: 0 1px 2px oklch(0 0 0 / 0.22), 0 0 0 1px color-mix(in oklch, var(--text) 5%, transparent);
+  transition: transform .14s ease, box-shadow .14s ease, background .14s ease;
+}
+.tb-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px oklch(0 0 0 / 0.3), 0 0 0 1px color-mix(in oklch, var(--text) 9%, transparent);
+}
+.tb-card:active { transform: translateY(0); }
+
+/* A blocked card carries the accent on its edge — visible while scanning the
+   board from across the room, which is the whole job.
+   ⚠️ KEYED TO THE CARD'S STATE, NOT THE COLUMN'S POSITION. nth-child(3) is only
+   "Needs you" until somebody reorders COLUMNS, and then the accent quietly
+   lands on the wrong pile of work. */
+.tb-card.is-blocked {
+  border-left: 2px solid var(--accent);
+  padding-left: 8px;
+}
+
+/* Progress that looks like it is moving, because it is. */
+.tb-steps-bar > i {
+  background: linear-gradient(90deg, var(--accent-dim), var(--accent));
+  box-shadow: 0 0 8px color-mix(in oklch, var(--accent) 45%, transparent);
+}
+
+/* ── the HUD ───────────────────────────────────────────────────────────────
+   It floats over other apps, so it needs an edge of its own — a real shadow and
+   a lit rim, or it reads as a hole cut in the screen. */
+.hud {
+  box-shadow: 0 18px 48px oklch(0 0 0 / 0.45), 0 0 0 1px color-mix(in oklch, var(--text) 8%, transparent);
+}
+.hud-head {
+  background: linear-gradient(to bottom, color-mix(in oklch, var(--bg-raised) 100%, transparent), var(--bg-panel));
+  box-shadow: inset 0 1px 0 color-mix(in oklch, var(--text) 9%, transparent);
+}
+/* The blocked row glows faintly. This is the one thing the HUD exists to catch
+   your eye with, and it is above every other window when it does. */
+.hud-row.is-blocked {
+  background: linear-gradient(90deg, color-mix(in oklch, var(--accent) 13%, transparent), transparent 70%);
+}
+.hud-row.is-blocked:hover { background: linear-gradient(90deg, color-mix(in oklch, var(--accent) 20%, transparent), transparent 70%); }
+.hud-row.is-blocked .hud-dot {
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--accent) 20%, transparent);
+  animation: hud-pulse 2.4s ease-in-out infinite;
+}
+@keyframes hud-pulse {
+  0%, 100% { box-shadow: 0 0 0 3px color-mix(in oklch, var(--accent) 18%, transparent); }
+  50%      { box-shadow: 0 0 0 5px color-mix(in oklch, var(--accent) 6%, transparent); }
+}
+.hud-row { transition: background .14s ease; }
+
+/* ⚠️ EVERY MOVING PART ABOVE IS OPTIONAL. Reduce Motion turns the lot off; the
+   colour and depth stay, because those carry the meaning. */
+@media (prefers-reduced-motion: reduce) {
+  .tb-card, .hud-row, .tb-steps-bar > i { transition: none; }
+  .tb-card:hover { transform: none; }
+  .hud-row.is-blocked .hud-dot { animation: none; }
 }

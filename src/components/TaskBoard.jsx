@@ -73,7 +73,7 @@ function Card ({ task, agents, live, onOpen, onStart, onSteer, onDelete, onDragS
 
   return (
     <article
-      className={'tb-card' + (draggable ? ' is-draggable' : '') + (who.missing ? ' is-orphan' : '')}
+      className={'tb-card is-' + task.state + (draggable ? ' is-draggable' : '') + (who.missing ? ' is-orphan' : '')}
       draggable={draggable}
       onDragStart={e => draggable && onDragStart(e, task)}
       onClick={() => onOpen(task)}

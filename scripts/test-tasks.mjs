@@ -188,6 +188,34 @@ ok('it can be deleted', !gone.body.some(t => t.id === id))
   ok('clicking a row asks the main window to open the chat', /rad:hud-open/.test(main))
 }
 
+
+// ── the visual pass ─────────────────────────────────────────────────────────
+// Colour is spent on ONE thing — the state that needs a person. Everything else
+// gets depth. Two rules here exist because breaking them is silent:
+{
+  const fs = await import('node:fs')
+  const css = fs.readFileSync('src/styles.css', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+  const board = fs.readFileSync('src/components/TaskBoard.jsx', 'utf8')
+
+  // ⚠️ nth-child(3) is only "Needs you" until somebody reorders COLUMNS.
+  ok('the blocked accent is keyed to state, not column position',
+     /\.tb-card\.is-blocked/.test(css) && !/\.tb-col:nth-child\(3\) \.tb-card \{/.test(css))
+  ok('and the card carries its state as a class', /'tb-card is-' \+ task\.state/.test(board))
+  // A blocked card has three buttons and a time in a ~210px column.
+  ok('the card footer wraps rather than crushing its buttons',
+     /\.tb-card-foot \{[^}]*flex-wrap:\s*wrap/s.test(css))
+  // Motion is decoration; colour and depth carry the meaning and must survive.
+  // Read the block's body rather than pattern-matching across it — the keyframe
+  // is DEFINED above, so looking for its name inside the guard fails on correct
+  // code. Third time today a regex over source has done that.
+  {
+    const at = css.lastIndexOf('prefers-reduced-motion')
+    const body = at === -1 ? '' : css.slice(at, at + 400)
+    ok('every moving part is dropped under Reduce Motion',
+       /\.hud-dot \{[^}]*animation:\s*none/.test(body) && /transform:\s*none/.test(body))
+  }
+}
+
 console.log(`\n  ${pass}/${pass + fail} passed`)
 stop()
 process.exit(fail ? 1 : 0)
