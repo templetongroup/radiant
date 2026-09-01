@@ -15,6 +15,7 @@ run "read me"        node scripts/test-readme.mjs
 run "plugin bridge"  node scripts/test-bridge.mjs
 run "cloud model"    node scripts/test-cloud-model.mjs
 run "electron-safe"  node scripts/test-electron-safe.mjs
+run "agents"          node scripts/test-agents.mjs
 run "the task board"  node scripts/test-tasks.mjs
 run "sessions"       node scripts/test-sessions.mjs
 run "the running app" bash scripts/test-ui.sh

@@ -11,7 +11,7 @@ import { fileURLToPath } from 'url'
 import { WebSocketServer } from 'ws'
 import pty from 'node-pty'
 import { execSync, spawn } from 'child_process'
-import { RADIANT_DIR, DIR_POINTER, defaultDataDir, dataDirStatus, loadConfig, saveConfig, publicConfig, listSessions, loadSession, saveSession, deleteSession, searchSessions, upsertCredential, activateAccount, removeAccount, SESSIONS_DIR, listProjects, getProject, saveProject, deleteProject, migrateProjects, agentsStore, skillsStore, recipesStore, cloudStatus, MACHINE_KEYS, saveMachineSettings, skillLibrary, inspectSkillFolder, resolveSkillDir, USER_SKILLS_ROOT, repairCloudFolder, listTasks, loadTask, saveTask, deleteTask, TASK_STATES
+import { RADIANT_DIR, DIR_POINTER, defaultDataDir, dataDirStatus, loadConfig, saveConfig, publicConfig, listSessions, loadSession, saveSession, deleteSession, searchSessions, upsertCredential, activateAccount, removeAccount, SESSIONS_DIR, listProjects, getProject, saveProject, deleteProject, migrateProjects, agentsStore, skillsStore, recipesStore, cloudStatus, MACHINE_KEYS, saveMachineSettings, skillLibrary, inspectSkillFolder, resolveSkillDir, USER_SKILLS_ROOT, repairCloudFolder, builtinAgent, listTasks, loadTask, saveTask, deleteTask, TASK_STATES
 } from './config.js'
 import { runTurn, listModels } from './providers.js'
 import { OAUTH_PROVIDERS, buildAuthUrl, completePaste, startLoopback, validAccessToken, startDevice, pollDevice } from './oauth.js'
@@ -913,8 +913,31 @@ app.delete('/api/projects/:id', (req, res) => {
 
 app.delete('/api/agents/:id', (req, res) => {
   const a = agentsStore.get(req.params.id)
-  if (a && a.builtin) return res.status(400).json({ error: 'built-in agents cannot be deleted' })
+  // A built-in is seeded on every load, so removing one means recording that you
+  // removed it. Refusing outright was the old answer, and it left fourteen
+  // agents in the menu that nobody could clear.
+  if (a && a.builtin) {
+    if (!Array.isArray(config.removedAgents)) config.removedAgents = []
+    if (!config.removedAgents.includes(a.id)) config.removedAgents.push(a.id)
+  }
   agentsStore.remove(req.params.id)
+  saveConfig(config)
+  res.json(publicConfig(config))
+})
+
+// Putting one back. The library lists every built-in that has been removed, so
+// this is not a one-way door — the whole point of recording the removal.
+app.post('/api/agents/restore/:id', (req, res) => {
+  const id = req.params.id
+  // ⚠️ AGENTS LIVE IN THEIR OWN FILES. Clearing the removal record is not enough
+  // — nothing re-seeds the store, so the agent has to be written back from its
+  // original definition. The first version of this only edited the record and
+  // silently restored nothing.
+  const def = builtinAgent(id)
+  if (!def) return res.status(404).json({ error: 'not a built-in agent' })
+  agentsStore.save(def)
+  config.removedAgents = (config.removedAgents || []).filter(x => x !== id)
+  saveConfig(config)
   res.json(publicConfig(config))
 })
 

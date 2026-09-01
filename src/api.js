@@ -352,6 +352,8 @@ export const api = {
   addAgent: agent => json('POST', '/api/agents', agent),
   updateAgent: (id, patch) => json('PATCH', `/api/agents/${id}`, patch),
   deleteAgent: id => json('DELETE', `/api/agents/${id}`),
+  // Putting a removed built-in back. The removal is recorded, not destructive.
+  restoreAgent: id => json('POST', `/api/agents/restore/${id}`),
   mcpStatus: () => json('GET', '/api/mcp/status'),
   addMcp: server => json('POST', '/api/mcp', server),
   updateMcp: (id, patch) => json('PATCH', `/api/mcp/${id}`, patch),

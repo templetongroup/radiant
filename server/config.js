@@ -325,6 +325,8 @@ const DEFAULT_CONFIG = {
   skillSuggestions: [],
   rejectedSkills: [],
   removedSkills: [],
+  // Built-in agents the user removed; without this they return on every load.
+  removedAgents: [],
   agents: [
     { id: 'agent-radiant', name: 'Radiant', emoji: '✦', icon: 'radiant', hue: null, persona: '', model: null, provider: null, skills: [], useTools: true, builtin: true },
     { id: 'agent-reviewer', name: 'Reviewer', emoji: '🔍', icon: 'search', hue: null, persona: 'You are a meticulous senior code reviewer. Hunt for bugs, edge cases, security issues, race conditions, and unclear code. Be specific — cite files and lines. Prioritize correctness over style, and call out what you are NOT sure about.', model: null, provider: null, skills: [], useTools: true, builtin: true },
@@ -414,6 +416,19 @@ export function loadConfig () {
       for (const def of DEFAULT_CONFIG.skills) {
         if (def.dir && !have.has(def.id) && !cfg.removedSkills.includes(def.id)) cfg.skills.push(structuredClone(def))
       }
+    }
+    // ⚠️ A BUILT-IN YOU DELETE MUST STAY DELETED. The 14 default agents are
+    // seeded from DEFAULT_CONFIG on every load, so a "delete" with no record of
+    // it is undone the moment Radiant restarts — which is why deleting them was
+    // refused outright, leaving fourteen agents nobody could clear. Tony: "i
+    // feel like the agents menu is too cluttered." Same shape as
+    // removedProviders and removedSkills, which existed for exactly this.
+    if (saved.removedAgents) {
+      cfg.removedAgents = saved.removedAgents
+      // ⚠️ AGENTS ARE SERVED FROM agentsStore, NOT FROM THIS LIST. Deleting a
+      // built-in unlinks its file, so the removal already persists; this filter
+      // only stops the one-time config.json → store migration putting it back.
+      cfg.agents = cfg.agents.filter(a => !saved.removedAgents.includes(a.id))
     }
     if (saved.agents) {
       // built-in agents now follow the accent color (hue: null); null out any that
@@ -625,6 +640,12 @@ function makeCollection (name) {
 }
 
 export const agentsStore = makeCollection('agents')
+
+/** A built-in agent's original definition, for putting one back after removal. */
+export function builtinAgent (id) {
+  const def = DEFAULT_CONFIG.agents.find(a => a.id === id)
+  return def ? structuredClone(def) : null
+}
 export const skillsStore = makeCollection('skills')
 export const recipesStore = makeCollection('recipes')
 
@@ -764,6 +785,9 @@ export function publicConfig (cfg) {
     skills: skillsStore.list(),
     skillSuggestions: cfg.skillSuggestions || [],
     agents: agentsStore.list(),
+    // The UI needs to SEE what was removed, or the library cannot offer it back
+    // and "Remove" becomes a one-way door.
+    removedAgents: cfg.removedAgents || [],
     recipes: recipesStore.list(),
     mcpServers: cfg.mcpServers || [],
     // ⚠️ THIS MAC'S OWN CHOICES WIN. Model, provider and starting folder depend

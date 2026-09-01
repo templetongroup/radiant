@@ -702,7 +702,21 @@ function AgentEditor ({ agent, skills, models, onSave, onDelete, onClose, onDupl
         <button className='small-btn primary' onClick={() => onSave(a)} disabled={!a.name?.trim()}>Save</button>
         <button className='small-btn' onClick={onClose}>Cancel</button>
         {agent.id && onDuplicate && <button className='small-btn' onClick={() => onDuplicate(a)} title='Make an editable copy of this agent'>Duplicate</button>}
-        {!agent.builtin && agent.id && <button className='small-btn danger' style={{ marginLeft: 'auto' }} onClick={() => onDelete(agent.id)}>Delete</button>}
+        {/* ⚠️ A BUILT-IN CAN BE REMOVED NOW, and the wording says what that
+            means. Fourteen ship by default and most people use two or three;
+            the rest were permanent furniture, because the server refused to
+            delete them at all. Removing one is undoable from the library, so
+            this reads as tidying rather than destruction. */}
+        {agent.id && (
+          <button
+            className='small-btn danger'
+            style={{ marginLeft: 'auto' }}
+            onClick={() => {
+              if (!agent.builtin) return onDelete(agent.id)
+              if (window.confirm(`Remove "${agent.name}" from your agents?\n\nIt is one of Radiant's built-in agents, so you can put it back any time from the agent library. Chats you had with it are not touched.`)) onDelete(agent.id)
+            }}
+          >{agent.builtin ? 'Remove' : 'Delete'}</button>
+        )}
       </div>
     </div>
   )
@@ -764,6 +778,26 @@ function AgentsPane ({ config, onConfigChange, initialView }) {
           Ready-made expert agents. Pick one to review and add — you can change the model, name, and skills before saving.
         </p>
         <input className='session-search' style={{ marginBottom: 4 }} placeholder={`Filter ${AGENT_TEMPLATES.length} agents…`} value={libQuery} onChange={e => setLibQuery(e.target.value)} />
+        {/* ⚠️ THE WAY BACK. Removing a built-in is only safe to offer because it
+            can be undone, and it can only be undone if you can SEE what you
+            removed. Without this, Remove is a one-way door with a reassuring
+            confirm on it. */}
+        {(config.removedAgents || []).length > 0 && (
+          <div className='tmpl-cat'>
+            <div className='tmpl-cat-label'>Removed from your agents</div>
+            <div className='tmpl-grid'>
+              {(config.removedAgents || []).map(id => (
+                <button key={id} className='tmpl-card' onClick={async () => onConfigChange(await api.restoreAgent(id))}>
+                  <span className='tmpl-ico'>{AGENT_ICONS.bot({ size: 18 })}</span>
+                  <span className='tmpl-body'>
+                    <span className='tmpl-name'>{String(id).replace(/^agent-/, '').replace(/^\w/, c => c.toUpperCase())}</span>
+                    <span className='tmpl-blurb'>A built-in you removed — click to put it back.</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         {shownCats.map(cat => (
           <div key={cat} className='tmpl-cat'>
             <div className='tmpl-cat-label'>{cat}</div>
@@ -2205,6 +2239,7 @@ const GUIDE = [
   {
     title: 'Chat & agents',
     items: [
+      ['Remove agents you don\u2019t use', 'Radiant ships with a set of built-in agents and most people use two or three. You can now remove the rest: open an agent in Settings \u2192 Agents and choose Remove. It stays gone after a restart, and your chats with it are untouched. Nothing is lost \u2014 every built-in you remove is listed at the top of the agent library, one click from coming back. Before this the built-ins could not be deleted at all, so the list only ever grew.'],
       ['A HUD that floats above your other apps', 'Press \u2325\u2318R, or the HUD button at the top of the sidebar, and a small window appears above whatever you are working in. It lists only what is happening right now: tasks an agent is working on, and anything waiting on you \u2014 which sorts to the top, because it is the only kind of row where nothing moves until you act. Click one and Radiant comes forward with that chat open. It stays visible over full-screen apps, and closes when you close Radiant. If it loses contact with Radiant it says so rather than sitting there looking idle.'],
       ['Steer a task while it is running', 'A task that is working, or waiting on you, now has a Steer button on its card. Type what you want instead and it goes into that task\u2019s chat \u2014 no need to find the conversation first. If the agent is in the middle of a turn your message waits and lands the moment that turn finishes, the same way a follow-up typed into the composer does. Queued tasks have no Steer, because nothing is running yet to redirect.'],
       ['Devices no longer describes the wrong Mac', 'When this Mac is showing another Mac\u2019s Radiant, Settings \u2192 Devices used to fill in \u201cThis Mac does the work\u201d with the OTHER Mac\u2019s address, token and sharing switch \u2014 because that Mac is the one answering. It read as a contradiction, and the switch would have turned off sharing on the very Mac you were connected to, cutting your own connection. That half now says plainly whose settings you are looking at and offers no controls until you disconnect.'],
