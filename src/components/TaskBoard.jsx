@@ -48,7 +48,21 @@ function assigneeOf (task, agents) {
   return { name: task.model || 'Default model', missing: false }
 }
 
-function Card ({ task, agents, live, onOpen, onStart, onDelete, onDragStart }) {
+function Card ({ task, agents, live, onOpen, onStart, onSteer, onDelete, onDragStart }) {
+  // Steering only means something once something is running. A queued card has
+  // nothing to redirect; a finished one has nothing left to say.
+  const canSteer = task.state === 'working' || task.state === 'blocked'
+  const [steering, setSteering] = useState(false)
+  const [steerText, setSteerText] = useState('')
+  const steerRef = useRef(null)
+  useEffect(() => { if (steering) steerRef.current?.focus() }, [steering])
+  const sendSteer = e => {
+    e?.preventDefault?.(); e?.stopPropagation?.()
+    const t = steerText.trim()
+    if (!t) return
+    onSteer?.(task, t)
+    setSteerText(''); setSteering(false)
+  }
   const who = assigneeOf(task, agents)
   const draggable = HUMAN_COLUMNS.has(task.state)
   // The agent's own checklist, for the card that is running right now. This is
@@ -89,10 +103,34 @@ function Card ({ task, agents, live, onOpen, onStart, onDelete, onDragStart }) {
         <div className='tb-card-flag'>{task.lastError || 'Waiting for you to approve something'}</div>
       )}
 
+      {/* ⚠️ THE AGENT MAY BE MID-TURN, AND THAT IS FINE. The message is held
+          until the current turn settles and then sent — the same mid-turn queue
+          the composer has. It is not a second way to reach an agent. */}
+      {steering && (
+        <form className='tb-steer' onSubmit={sendSteer} onClick={e => e.stopPropagation()}>
+          <input
+            ref={steerRef}
+            className='tb-steer-input'
+            placeholder='Tell it what to do instead…'
+            aria-label={`Steer ${task.title}`}
+            value={steerText}
+            onChange={e => setSteerText(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Escape') { setSteering(false); setSteerText('') } }}
+          />
+          <button className='tb-mini' type='submit' disabled={!steerText.trim()}>Send</button>
+        </form>
+      )}
+
       <footer className='tb-card-foot'>
         <span className='tb-card-time'>{timeAgo(task.updatedAt || task.createdAt)}</span>
         {task.state === 'queued' && (
           <button className='tb-mini' onClick={e => { e.stopPropagation(); onStart(task) }}>Start</button>
+        )}
+        {canSteer && (
+          <button
+            className='tb-mini'
+            onClick={e => { e.stopPropagation(); setSteering(v => !v) }}
+          >{steering ? 'Cancel' : 'Steer'}</button>
         )}
         {(task.state === 'blocked' || task.state === 'review') && (
           <button className='tb-mini' onClick={e => { e.stopPropagation(); onOpen(task) }}>Open</button>
@@ -107,7 +145,7 @@ function Card ({ task, agents, live, onOpen, onStart, onDelete, onDragStart }) {
   )
 }
 
-export default function TaskBoard ({ agents = [], models = [], liveByTask = {}, onOpenTask, onError, onRefreshModels }) {
+export default function TaskBoard ({ agents = [], models = [], liveByTask = {}, onOpenTask, onSteer, onError, onRefreshModels }) {
   const [tasks, setTasks] = useState([])
   const [loading, setLoading] = useState(true)
   const [composing, setComposing] = useState(false)
@@ -264,6 +302,7 @@ export default function TaskBoard ({ agents = [], models = [], liveByTask = {}, 
                   live={liveByTask[t.id]}
                   onOpen={onOpenTask}
                   onStart={start}
+                  onSteer={onSteer}
                   onDelete={remove}
                   onDragStart={(e, task) => { dragged.current = task; e.dataTransfer.effectAllowed = 'move' }}
                 />

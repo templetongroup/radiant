@@ -1967,3 +1967,13 @@ button.hf-head:hover { background: var(--bg-hover); }
   position: absolute; top: calc(100% + 6px); left: 0; bottom: auto;
   transform-origin: top left;   /* it opens downward here, so grow from the top */
 }
+
+/* Steering a running task, from its card. Sits above the footer so the buttons
+   stay where they were and nothing jumps when it opens. */
+.tb-steer { display: flex; gap: 6px; margin-top: 8px; }
+.tb-steer-input {
+  flex: 1; min-width: 0; padding: 5px 8px; border-radius: 7px;
+  border: 1px solid var(--bg-hover); background: var(--bg-input);
+  color: var(--text); font: inherit; font-size: 11.5px;
+}
+.tb-steer-input:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }

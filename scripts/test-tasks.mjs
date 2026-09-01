@@ -127,6 +127,29 @@ ok('it can be deleted', !gone.body.some(t => t.id === id))
      /\.tb-who-pick \.model-menu \{[^}]*position: absolute/s.test(css))
 }
 
+
+// ── steering ────────────────────────────────────────────────────────────────
+// Tony: "we should have a steer option next to the Queued text so an agent can
+// be steered to the new message." Steering only means something once something
+// is running — a queued card has nothing to redirect.
+{
+  const fs = await import('node:fs')
+  const board = fs.readFileSync('src/components/TaskBoard.jsx', 'utf8')
+  const app = fs.readFileSync('src/App.jsx', 'utf8')
+
+  ok('steer is offered only while a task is running or blocked',
+     /canSteer = task\.state === 'working' \|\| task\.state === 'blocked'/.test(board))
+  ok('and the button is gated on it', /\{canSteer &&[\s\S]{0,200}Steer/.test(board))
+  ok('the card takes a message rather than just opening the chat', /tb-steer-input/.test(board))
+  // ⚠️ ONE DELIVERY PATH. A server-side steer queue would be a second way for a
+  // message to reach an agent, and two is how they drift apart.
+  ok('steering reuses the pending-prompt queue', /kind: 'steer'/.test(app))
+  // A steer arrives at a task already running; a failed START is what belongs
+  // back in Queued. Sending a steered task back would undo real work.
+  ok("a failed steer does not send the card back to Queued",
+     /if \(kind !== 'steer'\) api\.patchTask\(taskId, \{ state: 'queued' \}\)/.test(app))
+}
+
 console.log(`\n  ${pass}/${pass + fail} passed`)
 stop()
 process.exit(fail ? 1 : 0)

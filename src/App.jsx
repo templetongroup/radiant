@@ -308,13 +308,15 @@ function DesktopApp () {
   useEffect(() => {
     if (!pendingPrompt || !session || session.id !== pendingPrompt.sessionId) return
     if (live?.streaming) return
-    const { text, taskId } = pendingPrompt
+    const { text, taskId, kind } = pendingPrompt
     setPendingPrompt(null)
     // A session with no model cannot run. Put the card back rather than leaving
     // it in Working forever: the board must not outlive the thing it describes.
     if (!session.provider || !session.model) {
       setError('Pick a model for this chat, then start the task again.')
-      api.patchTask(taskId, { state: 'queued' }).catch(() => {})
+      // Only a failed START belongs back in Queued. A steer arrives at a task
+      // that is already running; sending it back would undo real work.
+      if (kind !== 'steer') api.patchTask(taskId, { state: 'queued' }).catch(() => {})
       return
     }
     send(text)
@@ -491,6 +493,18 @@ function DesktopApp () {
           models={models}
           onRefreshModels={refreshModels}
           onError={setError}
+          onSteer={async (task, text) => {
+            // ⚠️ NO SECOND DELIVERY PATH. Steering is a message into the task's
+            // own chat, so it goes through the machinery that already exists:
+            // the effect above holds it until the turn settles, which IS the
+            // mid-turn queue behaviour the composer has. Inventing a server-side
+            // steer queue would be a second way for a message to reach an agent,
+            // and two is how they drift.
+            if (!task.sessionId) return
+            setView('chat')
+            await openSession(task.sessionId)
+            setPendingPrompt({ sessionId: task.sessionId, text, taskId: task.id, kind: 'steer' })
+          }}
           onOpenTask={async (task, prompt) => {
             // The board hands the conversation over; chat owns streaming.
             if (!task.sessionId) return
@@ -498,7 +512,7 @@ function DesktopApp () {
             await openSession(task.sessionId)
             // A freshly started task arrives with its opening message unsent —
             // send it here, where the streaming machinery lives.
-            if (prompt) setPendingPrompt({ sessionId: task.sessionId, text: prompt, taskId: task.id })
+            if (prompt) setPendingPrompt({ sessionId: task.sessionId, text: prompt, taskId: task.id, kind: 'start' })
           }}
         />
       ) : (
