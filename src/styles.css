@@ -2013,6 +2013,66 @@ button.hf-head:hover { background: var(--bg-hover); }
 /* The machine an agent's mouse and keyboard will act on, shown on the pill only
    when that is NOT the Mac you are looking at. Quiet, but present — this is the
    one control where being wrong about the machine matters. */
+
+/* ── Devices: what is true now, then the two states ──────────────────────────
+   ⚠️ THE STATUS LINE IS NOT DECORATION. This screen used to present two
+   permanently-expanded roles and never said which one you were in, so the only
+   way to know your own setup was to read both and infer. Tony: "its my product
+   and i dont 100% understand how this works or how my setup is structured."
+   The dot and the sentence answer that before any choice is offered. */
+.dev-setup { display: flex; flex-direction: column; gap: 14px; }
+
+.dev-now {
+  display: flex; gap: 11px; align-items: flex-start;
+  padding: 12px 14px; border-radius: 12px;
+  background: var(--bg-raised); border: 1px solid var(--border);
+}
+.dev-now-dot {
+  flex: none; width: 8px; height: 8px; border-radius: 50%;
+  margin-top: 5px; background: var(--ok, oklch(0.72 0.15 155));
+}
+.dev-now.is-remote .dev-now-dot { background: var(--accent); }
+.dev-now-title { font-size: 13px; color: var(--text); }
+.dev-now-sub { font-size: 12px; color: var(--text-muted); line-height: 1.5; margin-top: 3px; }
+
+/* Two states, side by side, so the shape of the choice is visible at a glance.
+   They stack on a narrow Settings pane rather than squeezing. */
+.dev-choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 900px) { .dev-choices { grid-template-columns: 1fr; } }
+
+.dev-card {
+  border: 1px solid var(--border); border-radius: 12px;
+  background: var(--bg-panel); padding: 14px;
+  display: flex; flex-direction: column; min-width: 0;
+}
+/* The one you are in. A ring rather than a fill, so the card you are NOT in
+   still reads as available instead of disabled. */
+.dev-card.is-current { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.dev-card-head { display: flex; align-items: flex-start; gap: 10px; }
+.dev-card-ico {
+  flex: none; display: grid; place-items: center;
+  width: 30px; height: 30px; border-radius: 8px;
+  background: var(--bg-hover); color: var(--text-muted);
+}
+.dev-card.is-current .dev-card-ico { color: var(--accent); }
+.dev-card-title { font-size: 13px; font-weight: 600; color: var(--text); }
+.dev-card-sub { font-size: 11.5px; color: var(--text-muted); line-height: 1.45; margin-top: 2px; }
+.dev-badge {
+  flex: none; margin-left: auto; align-self: flex-start;
+  font-size: 10px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--accent); border: 1px solid var(--accent);
+  border-radius: 999px; padding: 2px 7px;
+}
+.dev-card-body { margin-top: 12px; }
+.dev-linkline { font-size: 12px; color: var(--text); }
+.dev-card-body .connect-field input { width: 100%; }
+/* The card subtitle sets the scale for the card. A .hint inside it inherits the
+   global size and renders LARGER than the title's own description, which reads
+   as two unrelated blocks rather than one card. */
+.dev-card-body .hint { font-size: 11.5px; line-height: 1.5; }
+.dev-card-body .agent-skill-chk { font-size: 12px; }
+.dev-card-body .connect-field { font-size: 11px; }
+
 .pill-where { color: var(--text-faint); font-size: 10.5px; }
 .pill-toggle.on .pill-where { color: inherit; opacity: .75; }
 

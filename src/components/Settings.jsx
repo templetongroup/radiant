@@ -2077,8 +2077,14 @@ function DevicesPane () {
   const [base, setBase] = useState(server.base || '')
   const [token, setToken] = useState(server.token || '')
   const [msg, setMsg] = useState(null)
+  const [hostName, setHostName] = useState('')
   const [busy, setBusy] = useState(false)
   useEffect(() => { api.getShare().then(setShare).catch(() => {}) }, [])
+  // ⚠️ THE NAME OF WHICHEVER MAC IS ANSWERING — which IS the other Mac when this
+  // window is a client, because publicConfig comes from the server. The screen
+  // could not name either machine before, which is most of why it read as
+  // abstract: "this Mac" and "another" instead of two things you own.
+  useEffect(() => { api.getConfig().then(c => setHostName(c.serverHost || '')).catch(() => {}) }, [])
   const copy = t => { try { navigator.clipboard?.writeText(t) } catch {} }
 
   const toggleShare = async () => {
@@ -2162,147 +2168,168 @@ function DevicesPane () {
 
 
       {/*
-        ⚠️ THIS PANEL IS ABOUT MACS NOW. The iPhone app never implemented
-        connecting to a Mac — the screen stored an address and nothing in the
-        phone UI ever read it — so that feature was removed. This panel still
-        said "Use this Mac from your phone" and walked the user through opening
-        Radiant on their iPhone and tapping Connect to a Mac, a screen that no
-        longer exists. Tony found it after the removal, which is the same
-        half-a-fix pattern that has cost him all day: the feature went and its
-        advertising stayed.
+        ⚠️ THIS SCREEN TELLS YOU WHAT IS TRUE BEFORE IT OFFERS YOU A CHOICE.
+        It used to open with two headings — "This Mac does the work" and "This Mac
+        is a window onto another" — both permanently expanded, both full of hints,
+        and neither saying which one you were actually in. Tony: "its my product
+        and i dont 100% understand how this works or how my setup is structured."
 
-        Sharing itself is real and verified — another Mac connects to this one
-        and uses its models, agents and sessions.
+        So: one sentence naming both machines, then two cards where the one you
+        are in is marked Current and is the only one carrying its controls. The
+        other card says what switching would do and how to do it. Same shape as
+        an onboarding fork, which is what this is — you are in one of two states,
+        never both.
       */}
-      <div className='dev-option' style={{ marginTop: 18 }}>
-        <div className='dev-option-head'>
-          <HostDiagram />
-          <div>
-            <div className='dev-option-title'>2 · Run everything on one Mac, use it from the others</div>
-            <p className='dev-option-sub'>
-              One Mac does the work — it runs the models and stores the chats. The others
-              open a window onto it and see exactly the same screen. Good when one Mac
-              stays awake, or another is too slow for local models.
-              <br /><b>This is one arrangement with two ends.</b> Set the Mac that does the
-              work first, then tell each other Mac to point at it.
-            </p>
-          </div>
-        </div>
-
-          <div className='dev-role'>
-            <div className='dev-role-title'>This Mac does the work</div>
-            {/* ⚠️ EVERY READING BELOW COMES FROM WHICHEVER MAC IS ANSWERING. When
-                this window is borrowing another Mac, /api/share is answered by
-                THAT Mac — so its sharing state, its address and its token were
-                rendered under the heading "This Mac does the work". Tony,
-                connected to dev-mbp: "it says This mac does the work, but its
-                connected to the Dev MBP."
-                Worse than a wrong label: the checkbox would have switched
-                sharing off on the very Mac this window depends on, cutting the
-                connection that draws the screen. So while linked, this half
-                states whose settings these are and offers no controls. */}
-            {linked
-              ? <p className='hint' style={{ marginTop: 2 }}>
-                  These settings belong to <code className='mono'>{server.base}</code>, not to this
-                  Mac — this window is showing that Mac, so it is the one answering. It is already
-                  doing the work; that is what you are looking at.
-                  <br /><br />
-                  To make <b>this</b> Mac do the work instead, disconnect below first.
-                </p>
-              : <>
-          <p className='hint' style={{ marginTop: 2 }}>
-            Turn this on for the Mac that stays awake. You will get an address and a token
-            to type into your other Macs.
-          </p>
-        <label className='agent-skill-chk'>
-          <input type='checkbox' checked={Boolean(share?.desired)} onChange={toggleShare} /> Share with my other Macs
-        </label>
-        {share && share.desired !== share.enabled && (
-          <div className='error-note' style={{ marginTop: 6 }}>
-            Quit and reopen Radiant to {share.desired ? 'start' : 'stop'} sharing.
-          </div>
-        )}
-
-        {share?.desired && share?.enabled && share?.token && (() => {
-          const wifi = (share.addresses || []).find(a => a.wifi)
-          const anywhere = share.phone?.ready ? share.phone.url : null
-          // Same network is the common case and needs nothing installed; the
-          // Tailscale address is what a Mac somewhere else needs.
-          const best = anywhere
-            ? { url: anywhere, where: 'Works from anywhere, over Tailscale.' }
-            : wifi
-              ? { url: `${wifi.address}:${share.port}`, where: 'Works when both Macs are on this network.' }
-              : null
-          if (!best) {
-            return (
-              <div className='hint' style={{ marginTop: 12 }}>
-                No network address yet — is this Mac connected to a network?
-              </div>
-            )
-          }
-          return (
-            <div style={{ marginTop: 14 }}>
-              <p className='hint' style={{ marginTop: 0 }}>
-                On the other Mac, open Radiant &rarr; Settings &rarr; Devices and
-                enter these under <b>Connect this app to another Radiant</b>.
-              </p>
-              <div className='connect-field' style={{ marginTop: 10 }}>Address
-                <div className='row'>
-                  <code className='mono'>{best.url}</code>
-                  <button className='small-btn' onClick={() => copy(best.url)}>Copy</button>
-                </div>
-              </div>
-              <div className='connect-field' style={{ marginTop: 8 }}>Access token
-                <div className='row'>
-                  {/* ⚠️ A SECRET. It grants access to every model, agent and
-                      session here, and it used to sit in plain text on a
-                      settings screen anyone walking past could read. */}
-                  <code className='mono share-token'>{showToken ? share.token : '•'.repeat(24)}</code>
-                  <button className='small-btn' onClick={() => setShowToken(v => !v)}>{showToken ? 'Hide' : 'Show'}</button>
-                  <button className='small-btn' onClick={() => copy(share.token)}>Copy</button>
-                </div>
-              </div>
-              <div className='hint' style={{ marginTop: 8 }}>{best.where}</div>
-
-              {!anywhere && (
-                <div className='hint' style={{ marginTop: 10, lineHeight: 1.5 }}>
-                  <b>To reach this Mac from somewhere else, both Macs need Tailscale</b>
-                  {' '}— a free private network between your own machines, so this Mac is
-                  reachable without being exposed to the internet. Install it on both,
-                  sign in with the same account, and Radiant sets up the rest.{' '}
-                  <a href='https://tailscale.com/download' target='_blank' rel='noreferrer'>tailscale.com/download</a>
-                </div>
-              )}
+      <div className='dev-setup' style={{ marginTop: 18 }}>
+        <div className={'dev-now' + (linked ? ' is-remote' : '')}>
+          <span className='dev-now-dot' aria-hidden />
+          <div className='dev-now-body'>
+            <div className='dev-now-title'>
+              {linked
+                ? <>Right now this Mac is a <b>window onto {hostName || 'another Mac'}</b></>
+                : <>Right now this Mac <b>does the work</b>, on its own</>}
             </div>
-          )
-        })()}
-              </>}
+            <div className='dev-now-sub'>
+              {linked
+                ? <>The chats, agents and models you see all live on {hostName || 'that Mac'}. Downloads
+                    land there, commands run there, and computer control drives its screen — not this one.
+                    Nothing on this Mac is being used or deleted.</>
+                : <>Your chats, agents and models live here, and only this Mac uses them. Nothing is
+                    shared until you turn it on below.</>}
+            </div>
+          </div>
+        </div>
+
+        <div className='dev-choices'>
+          {/* ── A ─────────────────────────────────────────────── */}
+          <div className={'dev-card' + (!linked ? ' is-current' : '')}>
+            <div className='dev-card-head'>
+              <span className='dev-card-ico'><Icon.monitor size={16} /></span>
+              <div>
+                <div className='dev-card-title'>This Mac does the work</div>
+                <div className='dev-card-sub'>Runs the models, keeps the chats. Other Macs can open a window onto it.</div>
+              </div>
+              {!linked && <span className='dev-badge'>Current</span>}
+            </div>
+
+            {linked
+              ? <div className='dev-card-body'>
+                  <p className='hint' style={{ marginTop: 0 }}>
+                    Not this Mac at the moment — {hostName || 'the other Mac'} is doing the work.
+                    Disconnect on the right to run everything here again.
+                  </p>
+                </div>
+              : <div className='dev-card-body'>
+                  <label className='agent-skill-chk'>
+                    <input type='checkbox' checked={Boolean(share?.desired)} onChange={toggleShare} />
+                    {' '}Let my other Macs connect to this one
+                  </label>
+                  {share && share.desired !== share.enabled && (
+                    <div className='error-note' style={{ marginTop: 6 }}>
+                      Quit and reopen Radiant to {share.desired ? 'start' : 'stop'} sharing.
+                    </div>
+                  )}
+                  {!share?.desired && (
+                    <p className='hint' style={{ marginTop: 6 }}>
+                      Turn this on for the Mac that stays awake. You will get an address and a
+                      token to enter on your other Macs.
+                    </p>
+                  )}
+
+                  {share?.desired && share?.enabled && share?.token && (() => {
+                    const wifi = (share.addresses || []).find(a => a.wifi)
+                    const anywhere = share.phone?.ready ? share.phone.url : null
+                    const best = anywhere
+                      ? { url: anywhere, where: 'Works from anywhere, over Tailscale.' }
+                      : wifi
+                        ? { url: `${wifi.address}:${share.port}`, where: 'Works while both Macs are on this network.' }
+                        : null
+                    if (!best) {
+                      return <div className='hint' style={{ marginTop: 12 }}>No network address yet — is this Mac on a network?</div>
+                    }
+                    return (
+                      <div style={{ marginTop: 12 }}>
+                        <p className='hint' style={{ marginTop: 0 }}>
+                          On the other Mac: Settings &rarr; Devices &rarr; <b>Use another Mac&rsquo;s Radiant</b>.
+                        </p>
+                        <div className='connect-field' style={{ marginTop: 10 }}>Address
+                          <div className='row'>
+                            <code className='mono'>{best.url}</code>
+                            <button className='small-btn' onClick={() => copy(best.url)}>Copy</button>
+                          </div>
+                        </div>
+                        <div className='connect-field' style={{ marginTop: 8 }}>Access token
+                          <div className='row'>
+                            {/* ⚠️ A SECRET. It grants access to every model, agent and session
+                                here, and it used to sit in plain text where anyone walking
+                                past could read it. */}
+                            <code className='mono share-token'>{showToken ? share.token : '•'.repeat(24)}</code>
+                            <button className='small-btn' onClick={() => setShowToken(v => !v)}>{showToken ? 'Hide' : 'Show'}</button>
+                            <button className='small-btn' onClick={() => copy(share.token)}>Copy</button>
+                          </div>
+                        </div>
+                        <div className='hint' style={{ marginTop: 8 }}>{best.where}</div>
+                        {!anywhere && (
+                          <div className='hint' style={{ marginTop: 10, lineHeight: 1.5 }}>
+                            <b>To reach this Mac from somewhere else, both Macs need Tailscale</b> — a free
+                            private network between your own machines, so this Mac is reachable without
+                            being exposed to the internet.{' '}
+                            <a href='https://tailscale.com/download' target='_blank' rel='noreferrer'>tailscale.com/download</a>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })()}
+                </div>}
           </div>
 
-        <div className='dev-role'>
-          <div className='dev-role-title'>This Mac is a window onto another</div>
-          <p className='hint' style={{ marginTop: 2 }}>
-            The other end. Paste the address and token from the Mac above, and this app
-            shows that Mac's models, agents and chats instead of its own. Nothing here is
-            deleted — switch back any time.
-          </p>
-        <label className='connect-field'>Server address
-          <input className='text-input' placeholder='100.x.y.z:5834 (Tailscale) or host.local:5834' value={base} onChange={e => setBase(e.target.value)} />
-        </label>
-        <label className='connect-field' style={{ marginTop: 8 }}>Access token
-          <input className='text-input' type='password' placeholder='Token from the host Mac' value={token} onChange={e => setToken(e.target.value)} />
-        </label>
-        {msg && <div className='error-note' style={{ marginTop: 6 }}>⚠ {msg}</div>}
-        <div className='row' style={{ marginTop: 10 }}>
-          <button className='small-btn primary' onClick={connect} disabled={busy || !base.trim()}>{busy ? 'Connecting…' : 'Connect & reload'}</button>
-          {server.base && <button className='small-btn' onClick={useLocal}>Use this Mac's own server</button>}
-        </div>
-        {server.base
-          ? <div className='v-meta' style={{ marginTop: 6 }}>Using <code className='mono'>{server.base}</code>. Press “Use this Mac's own server” to go back.</div>
-          : <div className='v-meta' style={{ marginTop: 6 }}>Not connected — this Mac is using its own server.</div>}
+          {/* ── B ─────────────────────────────────────────────── */}
+          <div className={'dev-card' + (linked ? ' is-current' : '')}>
+            <div className='dev-card-head'>
+              <span className='dev-card-ico'><Icon.branch size={16} /></span>
+              <div>
+                <div className='dev-card-title'>Use another Mac&rsquo;s Radiant</div>
+                <div className='dev-card-sub'>This Mac becomes a window onto that one. Its chats, its models, its agents.</div>
+              </div>
+              {linked && <span className='dev-badge'>Current</span>}
+            </div>
+
+            <div className='dev-card-body'>
+              {linked
+                ? <>
+                    <div className='dev-linkline'>
+                      Connected to <code className='mono'>{server.base}</code>
+                      {hostName && <> — <b>{hostName}</b></>}
+                    </div>
+                    <p className='hint' style={{ marginTop: 6 }}>
+                      Everything you do goes to that Mac. Disconnecting brings back this Mac&rsquo;s
+                      own chats and models exactly as you left them.
+                    </p>
+                    <div className='row' style={{ marginTop: 10 }}>
+                      <button className='small-btn' onClick={useLocal}>Disconnect &mdash; use this Mac</button>
+                    </div>
+                  </>
+                : <>
+                    <p className='hint' style={{ marginTop: 0 }}>
+                      Enter the address and token shown on the Mac doing the work. Nothing here is
+                      deleted — you can switch back any time.
+                    </p>
+                    <label className='connect-field' style={{ marginTop: 8 }}>Address
+                      <input className='text-input' placeholder='100.x.y.z:5834 or host.local:5834' value={base} onChange={e => setBase(e.target.value)} />
+                    </label>
+                    <label className='connect-field' style={{ marginTop: 8 }}>Access token
+                      <input className='text-input' type='password' placeholder='Token from that Mac' value={token} onChange={e => setToken(e.target.value)} />
+                    </label>
+                    <div className='row' style={{ marginTop: 10 }}>
+                      <button className='small-btn primary' onClick={connect} disabled={busy || !base.trim()}>{busy ? 'Connecting…' : 'Connect & reload'}</button>
+                    </div>
+                  </>}
+              {msg && <div className='error-note' style={{ marginTop: 8 }}>⚠ {msg}</div>}
+            </div>
+          </div>
         </div>
       </div>
-    </div>
+      </div>
   )
 }
 
@@ -2310,6 +2337,7 @@ const GUIDE = [
   {
     title: 'Chat & agents',
     items: [
+      ['Devices tells you your setup in one sentence', 'Settings \u2192 Devices used to show two headings \u2014 "This Mac does the work" and "This Mac is a window onto another" \u2014 both open at once, both full of explanation, and neither saying which one you were actually in. It now opens with a single line naming both machines: "Right now this Mac is a window onto Tony\u2019s Home MBP M4", and what that means \u2014 where your chats live, where downloads land, whose screen computer control drives. Below it the two setups are cards, and the one you are in is marked Current and is the only one holding controls. Tony: "its my product and i dont 100% understand how this works or how my setup is structured."'],
       ['Changes made while an agent is working now stick', 'If you moved a chat into a project while the agent was still going, it jumped back to No Project the moment the agent stopped \u2014 and the same thing quietly undid renaming, pinning and archiving a live chat. The chat was being saved twice: once by your change, and again by the agent from a copy it had taken before you made it. The agent now keeps only the conversation and leaves everything else to you. Tony: "during a chat, i moved it into the Templeton Group project and something moved it out to No Project."'],
       ['Computer control says which Mac it will drive', 'Everything an agent does happens on the Mac running Radiant \u2014 reading files, running commands, and computer control. If you use Radiant on one Mac from another, that means the mouse that moves, the keys that get typed and the screen that is captured all belong to the other machine, which you may not be sitting at or even able to see. Nothing said so before. The computer button in the composer now names that Mac while it is switched on, its tooltip says whose desktop is being driven, and Settings \u2192 Automation does the same.'],
       ['The HUD counts running chats, not just tasks', 'The floating HUD (\u2325\u2318R) listed only cards from the Tasks board, so an agent working away in an ordinary chat left it reading "Nothing running" while your screen showed otherwise. It now lists live chats alongside board tasks, and clicking one opens that chat.'],

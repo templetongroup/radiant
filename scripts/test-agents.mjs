@@ -251,6 +251,27 @@ ok('with the record cleared', !(back.removedAgents || []).includes('agent-financ
   ok('all of them can be put back at once', /tmpl-restore-all/.test(set))
 }
 
+// ⚠️ DEVICES MUST SAY WHICH STATE YOU ARE IN BEFORE IT OFFERS A CHOICE. It used
+// to show two permanently-expanded roles — "This Mac does the work" and "This Mac
+// is a window onto another" — and never said which one was true, so reading your
+// own setup meant reading both and inferring. Tony: "its my product and i dont
+// 100% understand how this works or how my setup is structured."
+{
+  const dfs = await import('node:fs')
+  const set = dfs.readFileSync('src/components/Settings.jsx', 'utf8')
+  ok('there is a status line stating the current state', /className=\{'dev-now'/.test(set))
+  ok('and it names the machine, not "another Mac"', /window onto \{hostName/.test(set))
+  ok('the two states are cards', /dev-choices/.test(set) && /dev-card-title/.test(set))
+  ok('and the one you are in is marked', /dev-badge'>Current/.test(set))
+  ok('each card is marked from the same fact', (set.match(/is-current/g) || []).length >= 2)
+
+  const dcss = dfs.readFileSync('src/styles.css', 'utf8')
+  ok('the current card is ringed, not filled', /\.dev-card\.is-current \{[^}]*box-shadow/s.test(dcss))
+  // A .hint inside a card inherits the global size and outgrows the card's own
+  // subtitle, which reads as two unrelated blocks instead of one card.
+  ok('card body text is scaled to the card', /\.dev-card-body \.hint \{[^}]*font-size/s.test(dcss))
+}
+
 console.log(`\n  ${pass}/${pass + fail} passed  ·  its own data directory, not yours`)
 stop()
 process.exit(fail ? 1 : 0)
