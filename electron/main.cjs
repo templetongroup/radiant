@@ -90,7 +90,12 @@ ipcMain.on('rad:open-settings', async (e, tab) => {
     minHeight: 520,
     title: 'Radiant Settings',
     backgroundColor: lastBg || (nativeTheme.themeSource === 'light' ? '#f5f5f6' : '#141517'),
-    parent: win || undefined,
+    // ⚠️ NO `parent`. On macOS a child window is ATTACHED to its parent: it floats
+    // above it always, and it MOVES WITH IT — drag the main window and Settings
+    // comes along, which is not what any Mac settings window does. Tony: "when the
+    // settings window is open and i move the main window behind it, the settings
+    // window seems stuck to it. they move together." The one thing `parent` bought
+    // was closing together, and that is done explicitly below, beside the HUD.
     webPreferences: { contextIsolation: true, nodeIntegration: false, preload: path.join(__dirname, 'preload.cjs') }
   })
   windowState.track(settingsWin, 'settings', setState)
@@ -163,9 +168,13 @@ async function createWindow () {
   // Radiant and the embedded server dies with the process, so a HUD left open
   // would hold a half-dead app on screen with no way back into it.
   win.on('closed', () => {
-    win = null
-    if (hudWin && !hudWin.isDestroyed()) hudWin.close()
-  })
+      win = null
+      if (hudWin && !hudWin.isDestroyed()) hudWin.close()
+      // Settings is no longer a child window, so nothing closes it for us — and an
+      // orphaned Settings window holds a half-dead app on screen with no way back
+      // into it, exactly as an orphaned HUD would.
+      if (settingsWin && !settingsWin.isDestroyed()) settingsWin.close()
+    })
   // external links go to the real browser, not new Electron windows
   win.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url)

@@ -764,12 +764,12 @@ code, pre, .mono { font-family: var(--font-mono); }
 /* ⚠️ THE WIDTH ASSUMES A TRIMMED LOGO. The original asset carried ~26% empty
    transparent space above and below the ink, so a 10px CSS gap rendered as a
    ~43px hole under the text. templeton-tech.png is now cropped to the artwork;
-   285px keeps the mark the same on-screen size it was before the crop.
+   143px is half the 285px that matched the pre-crop size — Tony's call.
    Replacing the file? Trim it first, or this gap silently opens back up. */
 .about-footer-link { display: inline-block; border-radius: 6px; transition: opacity 120ms ease; }
 .about-footer-link:hover .about-footer-logo { opacity: 1; }
 .about-footer-link:focus-visible { outline: 2px solid var(--accent, currentColor); outline-offset: 4px; }
-.about-footer-logo { display: block; margin: 0 auto; transition: opacity 120ms ease; max-width: 100%; width: 285px; height: auto; opacity: 0.9; }
+.about-footer-logo { display: block; margin: 0 auto; transition: opacity 120ms ease; max-width: 100%; width: 143px; height: auto; opacity: 0.9; }
 .icon-btn {
   padding: 6px 9px; border: 1px solid transparent; border-radius: 8px;
   background: transparent; color: var(--text-muted); font-size: 12.5px;

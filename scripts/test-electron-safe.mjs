@@ -69,6 +69,24 @@ for (const [label, re] of banned) {
   else pass++ // window.open is legitimate for external links; counted, not banned
 }
 
+// ⚠️ SETTINGS MUST NOT BE A CHILD WINDOW. On macOS a BrowserWindow with `parent`
+// is ATTACHED to it: always floating above, and dragged along when the parent
+// moves. Tony: "when the settings window is open and i move the main window
+// behind it, the settings window seems stuck to it. they move together."
+// The only thing `parent` gave us was closing together, which is now explicit.
+{
+  const main = readFileSync('electron/main.cjs', 'utf8')
+  const decls = main.split('new BrowserWindow(')
+  const settings = decls.find(d => /title: 'Radiant Settings'/.test(d)) || ''
+  is('the settings window exists', settings.length > 0, true)
+  // Read the options object, not the whole file — `parent` appears in prose too.
+  const opts = settings.slice(0, settings.indexOf('})'))
+  is('and is not parented to the main window', /^\s*parent:/m.test(opts), false)
+  // Nothing else closes it now, and an orphan holds a half-dead app on screen.
+  const onClosed = main.slice(main.indexOf("win.on('closed'"), main.indexOf("win.on('closed'") + 420)
+  is('but it still closes with the main window', /settingsWin.*close\(\)/s.test(onClosed), true)
+}
+
 console.log(results.join('\n'))
 console.log(`${pass}/${pass + fail} passed  ·  no browser-only APIs in the renderer`)
 process.exit(fail ? 1 : 0)
