@@ -2010,6 +2010,12 @@ button.hf-head:hover { background: var(--bg-hover); }
 }
 .tmpl-restore-all:hover { border-color: var(--accent); color: var(--accent); }
 
+/* The machine an agent's mouse and keyboard will act on, shown on the pill only
+   when that is NOT the Mac you are looking at. Quiet, but present — this is the
+   one control where being wrong about the machine matters. */
+.pill-where { color: var(--text-faint); font-size: 10.5px; }
+.pill-toggle.on .pill-where { color: inherit; opacity: .75; }
+
 .model-pick-field { position: relative; display: flex; align-items: center; }
 .model-pick-field .model-btn { width: 100%; justify-content: flex-start; }
 .model-pick-field .model-menu {

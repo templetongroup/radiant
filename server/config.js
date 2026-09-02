@@ -673,6 +673,25 @@ function makeCollection (name) {
   }
 }
 
+// ⚠️ THE NAME OF THE MACHINE DOING THE WORK. Every tool a turn runs — reading
+// files, running commands, and above all computer control — executes in THIS
+// process, on THIS Mac. A client connected from another Mac is a window: the
+// mouse that moves, the keys that are typed and the screen that is captured are
+// all here. Nothing in the UI said so. Tony: "if the devmbp is the host machine
+// and im working on another Mac and i want to use computer control will it act
+// on the devmbp or the machine im typing into?"
+// It rides in publicConfig so any screen can name it without its own fetch.
+let cachedHost = null
+export function serverHost () {
+  if (cachedHost) return cachedHost
+  cachedHost = os.hostname().replace(/\.local$/, '')
+  try {
+    const n = execFileSync('scutil', ['--get', 'ComputerName'], { timeout: 2000 }).toString().trim()
+    if (n) cachedHost = n
+  } catch {}
+  return cachedHost
+}
+
 export const agentsStore = makeCollection('agents')
 
 /** A built-in agent's original definition, for putting one back after removal. */
@@ -821,6 +840,7 @@ export function publicConfig (cfg) {
     agents: agentsStore.list(),
     // The UI needs to SEE what was removed, or the library cannot offer it back
     // and "Remove" becomes a one-way door.
+    serverHost: serverHost(),
     removedAgents: cfg.removedAgents || [],
     // ⚠️ SEND THE WHOLE DEFINITION, NOT JUST THE ID. With only ids the library
     // had to invent what it showed: a generic robot for every one of them, and a

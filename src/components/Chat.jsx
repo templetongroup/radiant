@@ -3,7 +3,7 @@ import Markdown from './Markdown.jsx'
 import { Icon } from './Icons.jsx'
 import { glyphColor } from '../theme.js'
 import { AgentGlyph } from './AgentIcons.jsx'
-import { api } from '../api.js'
+import { api, getServer } from '../api.js'
 
 // An agent brought in from another app on this Mac (Hermes, OpenClaw). They sit
 // apart from your own agents and keep their icon's own color rather than taking
@@ -652,7 +652,14 @@ export function GroupPicker ({ agents, onStart, onCancel }) {
   )
 }
 
-export default function Chat ({ session, live, todos = [], stats, approval, question, onAnswer, usage, error, models, agents = [], recipes = [], onSend, onStop, onApproval, onPickModel, onToggleTools, onToggleComputer, onTogglePlan, onSetCwd, onNew, onNewGroup, onTruncate, onRefreshModels, skillSuggestion, onReviewSkill, onDismissSuggestion, onOpenLibrary, rightOpen, onToggleRight, onMenu, approvalMode = 'ask', onCycleApproval, onFork, skills = [], onAddSkill, onRemoveSkill}) {
+export default function Chat ({ session, live, todos = [], stats, approval, question, onAnswer, usage, error, models, agents = [], recipes = [], onSend, onStop, onApproval, onPickModel, onToggleTools, onToggleComputer, onTogglePlan, onSetCwd, onNew, onNewGroup, onTruncate, onRefreshModels, skillSuggestion, onReviewSkill, onDismissSuggestion, onOpenLibrary, rightOpen, onToggleRight, onMenu, approvalMode = 'ask', onCycleApproval, onFork, skills = [], onAddSkill, onRemoveSkill, serverHost }) {
+  // ⚠️ TOOLS RUN ON THE SERVER'S MAC. Computer control is the one where that is
+  // dangerous rather than merely surprising: the mouse that moves, the keys that
+  // get typed and the screen that is captured all belong to the machine running
+  // Radiant — which you may not be sitting at, or able to see. Tony: "if the
+  // devmbp is the host machine and im working on another Mac and i want to use
+  // computer control will it act on the devmbp or the machine im typing into?"
+  const onAnotherMac = Boolean(getServer().base)
   const [groupPicker, setGroupPicker] = useState(false)
   const [pickAgent, setPickAgent] = useState(false) // splash: reveal the agent picker
   const [draft, setDraft] = useState('')
@@ -1135,9 +1142,10 @@ export default function Chat ({ session, live, todos = [], stats, approval, ques
               <button
                 className={'pill-toggle' + (session.computerControl ? ' on' : '')}
                 onClick={onToggleComputer}
-                data-tip={'Computer control: let the model drive the\nbrowser & desktop (needs a vision model +\nmacOS permissions). Click to turn ' + (session.computerControl ? 'off' : 'on') + '.'}
+                data-tip={'Computer control: the model drives the browser\nand desktop of ' + (onAnotherMac ? serverHost : 'this Mac') + '.\nNeeds a vision model + macOS permissions.\nClick to turn ' + (session.computerControl ? 'off' : 'on')}
               >
                 <Icon.monitor size={13} /> computer {session.computerControl ? 'on' : 'off'}
+                  {onAnotherMac && session.computerControl && <span className='pill-where'> · {serverHost}</span>}
               </button>
               <button
                 className={'pill-toggle' + (session.planMode ? ' on' : '')}

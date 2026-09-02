@@ -528,6 +528,7 @@ function DesktopApp () {
         />
       ) : (
       <Chat
+        serverHost={config.serverHost}
         skills={config.skills || []}
         onAddSkill={addSkillToChat}
         onRemoveSkill={removeSkillFromChat}

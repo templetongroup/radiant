@@ -253,6 +253,28 @@ ok('it can be deleted', !gone.body.some(t => t.id === id))
   ok('tooltips are left-aligned, not centred', /text-align:\s*left/.test(tip))
 }
 
+// ⚠️ COMPUTER CONTROL ACTS ON THE SERVER'S MAC. providers.js -> computer-tools.js
+// -> computer.js execFiles the native helper IN THE SERVER PROCESS, so the mouse
+// that moves, the keys that get typed and the screen that is captured belong to
+// the machine running Radiant — not the one you are typing into. Nothing in the
+// UI said so. Tony: "if the devmbp is the host machine and im working on another
+// Mac and i want to use computer control will it act on the devmbp or the machine
+// im typing into?"
+{
+  const rf = await import('node:fs')
+  const chat = rf.readFileSync('src/components/Chat.jsx', 'utf8')
+  ok('the composer knows it may be driving another Mac', /const onAnotherMac = Boolean\(getServer\(\)\.base\)/.test(chat))
+  ok('and the computer pill names it', /pill-where/.test(chat))
+  ok('the tooltip names it too', /desktop of ' \+ \(onAnotherMac \? serverHost/.test(chat))
+
+  const cfg = rf.readFileSync('server/config.js', 'utf8')
+  ok('the server tells every screen its own name', /serverHost: serverHost\(\)/.test(cfg))
+
+  // The chain that makes this true — if any link moves, re-check the wording.
+  const ct = rf.readFileSync('server/computer-tools.js', 'utf8')
+  ok('desktop tools still run server-side', /from '\.\/computer\.js'/.test(ct))
+}
+
 console.log(`\n  ${pass}/${pass + fail} passed`)
 stop()
 process.exit(fail ? 1 : 0)

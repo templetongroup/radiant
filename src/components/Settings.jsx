@@ -1515,7 +1515,7 @@ function AgentPane ({ config, onSettings }) {
       </p>
 
       <div className='set-block' style={{ marginTop: 14 }}>
-        <div className='set-block-title'>What works on this Mac</div>
+        <div className='set-block-title'>What works on {config?.serverHost || 'this Mac'}</div>
         <div className='comp-stat' style={{ marginTop: 8 }}>
           <span className={comp?.browser ? 'key-ok' : 'fit-badge fit-no'}>{comp?.browser ? '✓' : '—'} Browser control</span>
           <span className='desc'>drives your system Chrome. Nothing to set up.</span>
@@ -1551,7 +1551,7 @@ function AgentPane ({ config, onSettings }) {
           <span>
             <strong>Full automation</strong>
             <span className='auto-choice-sub'>
-              Clicks, types and opens apps without asking. The agent can do anything on this Mac that you
+              Clicks, types and opens apps without asking — on {config?.serverHost || 'this Mac'}, the machine running Radiant, which may not be the one you are looking at. The agent can do anything there that you
               could, including things that cannot be undone. Use it only with models and tasks you trust.
             </span>
           </span>
@@ -2310,6 +2310,7 @@ const GUIDE = [
   {
     title: 'Chat & agents',
     items: [
+      ['Computer control says which Mac it will drive', 'Everything an agent does happens on the Mac running Radiant \u2014 reading files, running commands, and computer control. If you use Radiant on one Mac from another, that means the mouse that moves, the keys that get typed and the screen that is captured all belong to the other machine, which you may not be sitting at or even able to see. Nothing said so before. The computer button in the composer now names that Mac while it is switched on, its tooltip says whose desktop is being driven, and Settings \u2192 Automation does the same.'],
       ['The HUD counts running chats, not just tasks', 'The floating HUD (\u2325\u2318R) listed only cards from the Tasks board, so an agent working away in an ordinary chat left it reading "Nothing running" while your screen showed otherwise. It now lists live chats alongside board tasks, and clicking one opens that chat.'],
       ['Tooltips read straight', 'The longer tooltips \u2014 the HUD button, agent tools, computer control, permissions \u2014 were centered, which turned every multi-line one into ragged text that looked like a mistake. They are left-aligned now, and the HUD tooltip is shorter and tucked under its button instead of spilling across the window.'],
       ['Models say which Mac they are going to', 'If you use Radiant on one Mac from another, the Models screen was describing the wrong machine: the chip, the memory, the free disk and the installed list all belong to the Mac running Radiant, but every label said "this Mac." Downloads land there too, and keep going even if you close the window. It now names that Mac \u2014 "On Tony\u2019s Home MBP M4 \u00b7 6 installed" \u2014 and says so plainly before you start a download. Tony, on where a model ends up: "correct. thats what confused me."'],
