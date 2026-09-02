@@ -272,6 +272,26 @@ ok('with the record cleared', !(back.removedAgents || []).includes('agent-financ
   ok('card body text is scaled to the card', /\.dev-card-body \.hint \{[^}]*font-size/s.test(dcss))
 }
 
+// ⚠️ THE SELECTED SIDEBAR TAB MUST CARRY THE ACCENT — and the rule that does it
+// must be the one the app actually renders. The sidebar's segmented control is
+// `.sidebar-switch button.on`; the stylesheet also carried `.view-switch` /
+// `.view-tab`, a second copy of the same control that NO component rendered. The
+// first fix for "the active tab is barely visible" went into that dead copy and
+// changed nothing on screen. The dead rules are gone; this keeps the live one
+// honest and named.
+{
+  const tfs = await import('node:fs')
+  const tcss = tfs.readFileSync('src/styles.css', 'utf8')
+  const rule = /\.sidebar-switch button\.on \{([\s\S]*?)\}/.exec(tcss)?.[1] || ''
+  ok('the selected tab is styled at all', rule.length > 0)
+  ok('and it uses the accent, not a near-identical surface', /background:\s*var\(--accent\)/.test(rule))
+  ok('with a label colour meant for the accent', /color:\s*var\(--on-accent\)/.test(rule))
+  ok('the dead duplicate control is gone', !/^\.view-tab[.:\s{]/m.test(tcss))
+
+  const sb = tfs.readFileSync('src/components/Sidebar.jsx', 'utf8')
+  ok('and the sidebar still renders that class', /className='sidebar-switch'/.test(sb))
+}
+
 console.log(`\n  ${pass}/${pass + fail} passed  ·  its own data directory, not yours`)
 stop()
 process.exit(fail ? 1 : 0)

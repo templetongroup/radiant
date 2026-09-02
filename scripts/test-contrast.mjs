@@ -30,6 +30,14 @@ for (const t of DESKTOP.filter(t => t.vars)) {
     cases.push([`mac ${t.id}/${mode}: text on panel`, v['--text'], v['--bg-panel'], 4.5])
     cases.push([`mac ${t.id}/${mode}: muted on bg`, v['--text-muted'], v['--bg'], 4.5])
     cases.push([`mac ${t.id}/${mode}: on-accent on accent`, v['--on-accent'], v['--accent'], 4.5])
+    // ⚠️ THE SELECTED TAB MUST BE VISIBLE ON ITS OWN TRACK. Chats/Agents/Tasks is
+    // a segmented control: the only thing marking the current view is the pill's
+    // fill against the strip behind it. --bg-raised on --bg-input measured
+    // 1.08:1 in the light themes — a white chip on a white strip. Tony: "the
+    // active tab is barely visible." The track now mixes 10% --text, which is
+    // what this checks; 1.4 is the bar the iOS separator already uses.
+    cases.push([`mac ${t.id}/${mode}: selected tab on its track`,
+                v['--accent'], v['--bg-input'], 1.4])
   }
 }
 for (const t of MOBILE.filter(t => t.vars)) {

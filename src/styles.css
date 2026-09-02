@@ -428,7 +428,18 @@ code, pre, .mono { font-family: var(--font-mono); }
 
 .sidebar-switch { display: flex; gap: 3px; margin: 0 12px 8px; padding: 3px; background: var(--bg-input); border-radius: 9px; }
 .sidebar-switch button { flex: 1; padding: 5px; border: none; border-radius: 6px; background: none; color: var(--text-muted); font-size: 12px; font-weight: 500; }
-.sidebar-switch button.on { background: var(--bg-raised); color: var(--text); box-shadow: var(--shadow-sm); }
+/* ⚠️ THE SELECTED TAB IS THE ONLY THING SAYING WHICH VIEW YOU ARE IN, so it gets
+   the accent — the same thing that marks "current" everywhere else in the app.
+   It was --bg-raised on a --bg-input track, which is a near-white chip on a white
+   strip in the light themes: 1.08:1. Tony: "the active tab is barely visible."
+   Nudging the two surfaces apart needed a 30% mix before every theme cleared 1.4,
+   which turns the track into a dark bar. The accent clears it outright — 2.81:1
+   at worst, label 4.74:1 — and needs no per-theme tuning. Checked in
+   scripts/test-contrast.mjs so a new theme cannot reintroduce it. */
+.sidebar-switch button.on {
+  background: var(--accent); color: var(--on-accent);
+  font-weight: 600; box-shadow: var(--shadow-sm);
+}
 
 .session-search {
   margin: 0 12px 6px; padding: 6px 10px; border: 1px solid var(--border);
@@ -1885,23 +1896,10 @@ button.hf-head:hover { background: var(--bg-hover); }
 .update-pill-ready { background: var(--accent-wash); border-color: var(--accent); color: var(--accent); font-weight: 600; }
 .update-pill-progress { opacity: 0.75; cursor: default; }
 
-/* ── the view switcher ─────────────────────────────────────────────────────
-   Sits above the brand, because navigation belongs where navigation already
-   lives. Uses the same tokens as everything else so the accent and the theme
-   carry through without a second palette. */
-.view-switch {
-  display: flex; gap: 2px; margin: 8px 10px 0;
-  padding: 2px; border-radius: 9px; background: var(--bg-input);
-}
-.view-tab {
-  flex: 1; padding: 5px 0; border: 0; border-radius: 7px;
-  background: transparent; color: var(--text-muted);
-  font: inherit; font-size: 12px; cursor: pointer;
-  transition: background .15s ease, color .15s ease;
-}
-.view-tab:hover { color: var(--text); }
-.view-tab.is-on { background: var(--bg-raised); color: var(--text); }
-.view-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+/* NOTE: .view-switch / .view-tab used to live here — a second, unused copy of
+   the sidebar's segmented control. No component rendered them, so a fix applied
+   there would have changed nothing on screen. Removed. */
+
 
 /* ── the board ─────────────────────────────────────────────────────────────
    Columns scroll independently; the board itself scrolls sideways when the
@@ -1986,7 +1984,7 @@ button.hf-head:hover { background: var(--bg-hover); }
 .tb-mini-quiet:hover { color: var(--text); background: var(--bg-input); }
 
 @media (prefers-reduced-motion: reduce) {
-  .view-tab, .tb-col, .tb-steps-bar > i { transition: none; }
+  .sidebar-switch button, .tb-col, .tb-steps-bar > i { transition: none; }
 }
 
 /* The board reuses the chat's model picker, whose button and menu are absolutely
