@@ -937,7 +937,11 @@ app.post('/api/agents/restore/:id', (req, res) => {
   if (!def) return res.status(404).json({ error: 'not a built-in agent' })
   agentsStore.save(def)
   config.removedAgents = (config.removedAgents || []).filter(x => x !== id)
-  saveConfig(config)
+  // ⚠️ SAY THAT THIS IS A RESTORE. saveConfig now unions tombstones with what is
+  // on disk so a stale writer cannot resurrect a deleted agent; without
+  // `forgetting`, that union would immediately put this id straight back and the
+  // restore would appear to do nothing.
+  saveConfig(config, { forgetting: [id] })
   res.json(publicConfig(config))
 })
 

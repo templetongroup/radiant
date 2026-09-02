@@ -350,7 +350,16 @@ const readPins = () => {
 // the chat window." Two pickers would also mean two behaviours to keep in step.
 // `session` is only read for the current model/provider, so any { model,
 // provider } shape works — the board passes the task's own choice.
-export function ModelPicker ({ session, models, onPick, onRefresh }) {
+// ⚠️ ONE PICKER, EVERYWHERE THERE IS A MODEL LIST. Radiant ships hundreds of
+// models, so a flat <select> is unusable — Tony, on the agent editor: "the model
+// list is again endless. anywhere there's a model list we need to be able to
+// collapse it by provider." Grouped, collapsed by default except the provider
+// you are on, and searchable. The two optional props are what let a form field
+// use it: `placeholder` for the resting label, and `clearLabel` for the "none"
+// row a <select> got for free from an empty <option>. Without that second one,
+// swapping a select for this picker would quietly delete the ability to say
+// "no model" — which is what "Session default" and "No default" mean.
+export function ModelPicker ({ session, models, onPick, onRefresh, placeholder, clearLabel }) {
   const [open, setOpen] = useState(false)
   const [q, setQ] = useState('')
   const [collapsed, setCollapsed] = useState({}) // providerName -> explicit collapse override
@@ -395,13 +404,21 @@ export function ModelPicker ({ session, models, onPick, onRefresh }) {
               <span className='provider-tag'>{current?.providerName || session.provider}</span>
               <span className='model-name'>{session.model}</span>
             </>
-          : 'Pick a model'}
+          : (placeholder || 'Pick a model')}
         <span aria-hidden style={{ fontSize: 9 }}>▲</span>
       </button>
       {open && (
         <div className='model-menu'>
           <input autoFocus placeholder='Search models…' value={q} onChange={e => setQ(e.target.value)} />
           <div className='model-groups'>
+            {clearLabel && !searching && (
+              <button
+                className={'model-option is-clear' + (session?.model ? '' : ' selected')}
+                onClick={() => { onPick(null); setOpen(false) }}
+              >
+                <span className='mo-name'>{clearLabel}</span>
+              </button>
+            )}
             {pinned.length > 0 && (
               <div>
                 <div className='model-group-label is-static'>

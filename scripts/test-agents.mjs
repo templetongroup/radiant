@@ -10,7 +10,7 @@
 //
 // ⚠️ OWN SERVER, OWN DATA DIRECTORY. Radiant.app holds 5834 whenever it is open.
 import { spawn } from 'node:child_process'
-import { mkdtempSync, rmSync } from 'node:fs'
+import fs, { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -150,6 +150,82 @@ ok('with the record cleared', !(back.removedAgents || []).includes('agent-financ
     ok('and that arm does not time out either', !timers.some(t => /setArmedDelete/.test(t)))
   }
   ok('and shows that it is armed', /is-armed/.test(row))
+}
+
+// ⚠️ A REMOVAL MUST OUTLIVE A STALE WRITER. This is the bug that made every
+// earlier fix look like it had not worked. saveConfig writes a whole in-memory
+// snapshot from any of two dozen callers, so one holding a config from before a
+// removal wiped removedAgents -- and the next launch re-seeded every built-in
+// file the tombstone was protecting. Tony's folder is in iCloud and shared with
+// a second Mac, where "one writer, the server" is not true: his config.json kept
+// removedProviders and removedSkills but had lost removedAgents, and 51 minutes
+// later all thirteen built-in agents were written back. "I just created a single
+// new agent and all of the previous pre-installed agents just reappeared."
+{
+  // config.js resolves RADIANT_DIR when it is first imported, and this process
+  // has never imported it -- the server under test runs in a child. Point it at
+  // the same throwaway directory before the import, never at a real one.
+  process.env.RADIANT_DIR = dir
+  const { readFileSync } = await import('node:fs')
+  const cfgmod = await import('../server/config.js')
+  const tomb = () => {
+    try { return JSON.parse(readFileSync(join(dir, 'config.json'), 'utf8')).removedAgents || [] }
+    catch { return [] }
+  }
+  const same = (a, b) => JSON.stringify([...a].sort()) === JSON.stringify([...b].sort())
+
+  const live = cfgmod.loadConfig()
+  live.removedAgents = ['agent-reviewer']
+  cfgmod.saveConfig(live)
+  ok('a removal is written down', tomb().includes('agent-reviewer'))
+
+  const stale = cfgmod.loadConfig()
+  delete stale.removedAgents
+  cfgmod.saveConfig(stale)
+  ok('and a writer that predates it cannot wipe it', tomb().includes('agent-reviewer'), JSON.stringify(tomb()))
+
+  const two = cfgmod.loadConfig()
+  two.removedAgents = ['agent-docs']
+  cfgmod.saveConfig(two)
+  ok('two machines each deleting keep both deletions',
+     same(tomb(), ['agent-docs', 'agent-reviewer']), JSON.stringify(tomb()))
+
+  // The one case that must subtract. Without `forgetting`, the union would put
+  // the id straight back and Restore would silently do nothing.
+  const back = cfgmod.loadConfig()
+  back.removedAgents = back.removedAgents.filter(x => x !== 'agent-reviewer')
+  cfgmod.saveConfig(back, { forgetting: ['agent-reviewer'] })
+  ok('an explicit restore still clears it', same(tomb(), ['agent-docs']), JSON.stringify(tomb()))
+}
+
+// ⚠️ NO FLAT MODEL LIST ANYWHERE. Radiant carries hundreds of models, so a plain
+// <select> of all of them is unusable — and it kept reappearing in new screens
+// after the chat picker was built. Tony, on the agent editor: "the model list is
+// again endless. anywhere there's a model list we need to be able to collapse it
+// by provider." One shared ModelPicker, so a screen cannot opt out by accident.
+{
+  const files = ['src/components/Settings.jsx', 'src/components/ComparePanel.jsx', 'src/components/TaskBoard.jsx']
+  for (const f of files) {
+    const src = fs.readFileSync(f, 'utf8')
+    // The catalogue of every provider's models — NOT `data.models`, which is the
+    // quantize converter's list of local models to convert. That one is a single
+    // provider with a size and quant per row; grouping it by provider would put
+    // everything under one heading and help nobody.
+    ok(`${f.split('/').pop()} lists no models in a flat <select>`,
+       !/[^.\w]models\.map\(m => <option/.test(src))
+  }
+  const set = fs.readFileSync('src/components/Settings.jsx', 'utf8')
+  ok('the agent editor uses the shared picker', /<ModelPicker/.test(set))
+  ok('and both of its model fields do', (set.match(/<ModelPicker/g) || []).length >= 3)
+  // A <select> got its "none" row free from an empty <option>. The picker has to
+  // be told, or swapping it in silently deletes "no model".
+  ok('picking nothing is still possible', /clearLabel=/.test(set))
+  const chat = fs.readFileSync('src/components/Chat.jsx', 'utf8')
+  ok('the picker honours a clear row', /clearLabel && !searching/.test(chat))
+  ok('and clearing sends null, not a model', /onPick\(null\)/.test(chat))
+  const css = fs.readFileSync('src/styles.css', 'utf8')
+  // .model-menu has no position of its own; every host supplies one.
+  ok('the form-field host positions the menu', /\.model-pick-field \.model-menu \{[^}]*position:\s*absolute/s.test(css))
 }
 
 console.log(`\n  ${pass}/${pass + fail} passed  ·  its own data directory, not yours`)

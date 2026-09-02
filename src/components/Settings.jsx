@@ -6,6 +6,7 @@ import { MOTIONS } from './MotionBackground.jsx'
 import { Icon } from './Icons.jsx'
 import { AGENT_ICONS, AGENT_ICON_IDS, AgentGlyph } from './AgentIcons.jsx'
 import { AGENT_TEMPLATES, AGENT_TEMPLATE_CATS } from '../agentTemplates.js'
+import { ModelPicker } from './Chat.jsx'
 
 // strip a leading "You are (a|an|the) …" so descriptions read as a role, not a command
 function cleanDesc (s) {
@@ -381,18 +382,16 @@ function DefaultModelBlock ({ config, onSettings }) {
         project's, still wins. Set per Mac, so a Mac can default to the models it has
         downloaded rather than ones it cannot run.
       </p>
-      <select
-        className='text-input'
-        style={{ fontFamily: 'inherit', marginTop: 8 }}
-        value={current}
-        onChange={e => {
-          const m = models.find(x => x.id === e.target.value)
-          onSettings({ defaultModel: e.target.value || null, defaultProvider: m ? m.provider : null })
-        }}
-      >
-        <option value=''>No default — pick a model in each chat</option>
-        {models.map(m => <option key={m.provider + m.id} value={m.id}>{m.providerName} · {m.id}</option>)}
-      </select>
+      <div className='model-pick-field' style={{ marginTop: 8 }}>
+          <ModelPicker
+            session={{ model: current, provider: config?.settings?.defaultProvider }}
+            models={models}
+            placeholder='No default — pick a model in each chat'
+            clearLabel='No default — pick a model in each chat'
+            onPick={m => onSettings({ defaultModel: m ? m.id : null, defaultProvider: m ? m.provider : null })}
+            onRefresh={() => {}}
+          />
+        </div>
       {current && !models.some(m => m.id === current) && (
         <div className='set-hint' style={{ marginTop: 6 }}>
           <strong>{current}</strong> is set here but is not available on this Mac right now —
@@ -665,22 +664,28 @@ function AgentEditor ({ agent, skills, models, onSave, onDelete, onClose, onDupl
         <textarea className='text-input' style={{ fontFamily: 'inherit', minHeight: 90, resize: 'vertical' }} placeholder="e.g. You are a meticulous code reviewer…" value={a.persona || ''} onChange={e => set({ persona: e.target.value })} />
       </label>
       <label className='agent-field'>Model
-        <select className='text-input' style={{ fontFamily: 'inherit' }} value={a.model || ''} onChange={e => {
-          const m = models.find(x => x.id === e.target.value)
-          set({ model: e.target.value || null, provider: m ? m.provider : null })
-        }}>
-          <option value=''>Session default (pick per chat)</option>
-          {models.map(m => <option key={m.provider + m.id} value={m.id}>{m.providerName} · {m.id}</option>)}
-        </select>
+        <div className='model-pick-field'>
+          <ModelPicker
+            session={{ model: a.model, provider: a.provider }}
+            models={models}
+            placeholder='Session default (pick per chat)'
+            clearLabel='Session default (pick per chat)'
+            onPick={m => set({ model: m ? m.id : null, provider: m ? m.provider : null })}
+            onRefresh={() => {}}
+          />
+        </div>
       </label>
       <label className='agent-field'>Planner model <span style={{ color: 'var(--text-faint)', fontWeight: 400 }}>— optional lead model that plans first, then the model above executes</span>
-        <select className='text-input' style={{ fontFamily: 'inherit' }} value={a.plannerModel || ''} onChange={e => {
-          const m = models.find(x => x.id === e.target.value)
-          set({ plannerModel: e.target.value || null, plannerProvider: m ? m.provider : null })
-        }}>
-          <option value=''>None (no separate planning step)</option>
-          {models.map(m => <option key={m.provider + m.id} value={m.id}>{m.providerName} · {m.id}</option>)}
-        </select>
+        <div className='model-pick-field'>
+          <ModelPicker
+            session={{ model: a.plannerModel, provider: a.plannerProvider }}
+            models={models}
+            placeholder='None (no separate planning step)'
+            clearLabel='None (no separate planning step)'
+            onPick={m => set({ plannerModel: m ? m.id : null, plannerProvider: m ? m.provider : null })}
+            onRefresh={() => {}}
+          />
+        </div>
       </label>
       <label className='agent-field'>Color
         <span className='agent-color-row'>
@@ -2264,6 +2269,8 @@ const GUIDE = [
   {
     title: 'Chat & agents',
     items: [
+      ['Model lists collapse by provider everywhere', 'Picking a model in the agent editor, in Settings \u2192 Default model, and in Compare used to mean scrolling one long list of every model you have. Those are the same grouped, searchable list the chat window uses now: providers collapsed by default, the one you are already on open, and a search box that expands everything as you type. Choosing no model at all \u2014 Session default, or no planner \u2014 is still the first thing in the list.'],
+      ['Removing an agent finally sticks', 'If you removed built-in agents and later found them all back, this was why, and it was not you. Radiant records which built-ins you removed, but that record lived in a file any part of the app could overwrite with an older copy of itself \u2014 and once the record was gone, the next launch put every agent back. It matters most if your Radiant folder is in iCloud and shared with a second Mac, because then two machines write that file. Removals are merged rather than overwritten now, so one machine cannot undo the other.'],
       ['Tasks and the HUD have some depth', 'Needs you is the only column where nothing happens until you act, so it is the only place color is spent \u2014 but only while something is actually waiting there. When that column is empty it looks like every other column; the moment a task lands in it, a wash runs down the column, its label picks up the accent, and the card gets a marked edge. A column that glowed all the time was just decoration, and you would stop noticing it on the day it mattered. In the HUD that row glows faintly and its dot breathes. Everything else gets depth instead: a lit top edge on the columns, a shadow under each card, a slight lift as you hover, and some light in the progress bar. All the movement stops if your Mac is set to Reduce Motion; the color and depth stay, because those are what carry the meaning.'],
       ['The agent editor reads properly now', 'The skills list was a wrapping row of differently sized items \u2014 three or four per line at ragged intervals, with the \u201call agents\u201d tags pushing the next name along. It is a tidy grid of columns now, with the tags kept to their own space. Agent tools and Computer control sit apart from the skills, because they are permissions rather than skills, and the buttons have their own row with room around them. Removing an agent also updates the rest of the app straight away \u2014 before, only the Settings window noticed, so the sidebar and the model pickers kept showing an agent you had just removed.'],
       ['Remove agents you don\u2019t use', 'Radiant ships with a set of built-in agents and most people use two or three. You can now remove the rest: open an agent in Settings \u2192 Agents and choose Remove. It stays gone after a restart, and your chats with it are untouched. Nothing is lost \u2014 every built-in you remove is listed at the top of the agent library, one click from coming back. Before this the built-ins could not be deleted at all, so the list only ever grew.'],

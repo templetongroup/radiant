@@ -1986,6 +1986,23 @@ button.hf-head:hover { background: var(--bg-hover); }
 /* The board reuses the chat's model picker, whose button and menu are absolutely
    positioned against their container — so give it one. Without this the menu
    anchors to the page and opens away from the control that summoned it. */
+/* A model picker used as a form field — the agent editor, the default-model
+   setting, the compare columns.
+   ⚠️ THE POSITION LIVES ON THIS WRAPPER, NOT ON .model-menu. .model-menu has no
+   `position` of its own; every host supplies one. Drop the picker somewhere
+   without this and the menu lands at the top of the page.
+   It opens DOWNWARD here, unlike the composer's picker: these fields sit near
+   the top of a scrolling panel, and a menu anchored to the button's bottom edge
+   would open off-screen. */
+.model-pick-field { position: relative; display: flex; align-items: center; }
+.model-pick-field .model-btn { width: 100%; justify-content: flex-start; }
+.model-pick-field .model-menu {
+  position: absolute; top: calc(100% + 6px); left: 0;
+  transform-origin: top left;
+  max-height: 340px;
+}
+.model-pick-field .model-option.is-clear { color: var(--text-muted); }
+
 .tb-who-pick { position: relative; display: flex; align-items: center; flex: 1; min-width: 0; }
 .tb-who-pick .model-menu {
   /* ⚠️ THE POSITION LIVES ON THE PARENT, NOT THE MENU. .model-menu itself has no

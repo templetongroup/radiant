@@ -493,9 +493,43 @@ export function loadConfig () {
 // into their own files before this ever runs.
 const OWN_FILE_NOW = ['agents', 'skills', 'recipes', 'projects']
 
-export function saveConfig (cfg) {
+// ⚠️ A REMOVAL MUST SURVIVE A STALE WRITER. These three lists are tombstones:
+// they record what you deleted, and every one of them is the ONLY thing standing
+// between a deleted built-in and the seeding code that puts it back on load.
+//
+// saveConfig writes a whole in-memory snapshot, and there are two dozen callers.
+// Any of them holding a config object from before a removal silently erases the
+// record — and the very next launch re-seeds every agent, skill or provider the
+// tombstone was protecting. Tony's data folder is in iCloud and shared with a
+// second Mac, so "one writer, the server" is simply not true there: his
+// config.json carried removedProviders and removedSkills but had lost
+// removedAgents, and 51 minutes later all thirteen built-in agent files were
+// written back. "I just created a single new agent and all of the previous
+// pre-installed agents just reappeared."
+//
+// So tombstones are merged with what is already on disk rather than overwritten.
+// Union, because removal is monotonic: two machines that each delete something
+// should end up with both deletions, never with one machine's list winning.
+// Undoing a removal is the one case that must subtract, and it says so
+// explicitly via `forgetting` — a restore, never an accident.
+const TOMBSTONE_KEYS = ['removedAgents', 'removedSkills', 'removedProviders']
+
+function mergeTombstones (out, forgetting) {
+  let disk = null
+  try { disk = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8')) } catch { return }
+  if (!disk || typeof disk !== 'object') return
+  for (const k of TOMBSTONE_KEYS) {
+    const mine = Array.isArray(out[k]) ? out[k] : []
+    const theirs = Array.isArray(disk[k]) ? disk[k] : []
+    if (!mine.length && !theirs.length) continue
+    out[k] = [...new Set([...theirs, ...mine])].filter(id => !forgetting.includes(id))
+  }
+}
+
+export function saveConfig (cfg, { forgetting = [] } = {}) {
   ensureDirs()
   const out = { ...cfg }
+  mergeTombstones(out, forgetting)
   if (out.settings && '_iconTmp' in out.settings) {
     out.settings = { ...out.settings }
     delete out.settings._iconTmp

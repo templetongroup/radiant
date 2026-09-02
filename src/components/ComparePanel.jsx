@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { api, streamChat } from '../api.js'
 import Markdown from './Markdown.jsx'
+import { ModelPicker } from './Chat.jsx'
 
 // Send one prompt to two models and stream their answers side by side.
 export default function ComparePanel ({ models, onClose }) {
@@ -39,9 +40,15 @@ export default function ComparePanel ({ models, onClose }) {
         <div className='compare-cols'>
           {[['a', a, setA], ['b', b, setB]].map(([key, val, setVal]) => (
             <div className='compare-col' key={key}>
-              <select className='text-input' style={{ fontFamily: 'inherit', marginBottom: 8 }} value={val} onChange={e => setVal(e.target.value)}>
-                {models.map(m => <option key={m.provider + m.id} value={m.provider + '|' + m.id}>{m.providerName} · {m.id}</option>)}
-              </select>
+              <div className='model-pick-field' style={{ marginBottom: 8 }}>
+                  <ModelPicker
+                    session={{ model: val.split('|')[1], provider: val.split('|')[0] }}
+                    models={models}
+                    placeholder='Pick a model'
+                    onPick={m => setVal(m.provider + '|' + m.id)}
+                    onRefresh={() => {}}
+                  />
+                </div>
               <div className='compare-out'>
                 {out[key] ? <Markdown text={out[key]} /> : <span className='activity-empty'>{running ? 'Thinking…' : 'Response appears here'}</span>}
               </div>
