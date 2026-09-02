@@ -413,6 +413,18 @@ function DefaultModelBlock ({ config, onSettings }) {
 
 function ModelsPane ({ onModelsChanged, config, onSettings }) {
   const [system, setSystem] = useState(null)
+  // ⚠️ EVERYTHING ON THIS SCREEN BELONGS TO THE SERVER'S MAC, NOT NECESSARILY
+  // THIS ONE. The chip, the memory, the free disk and the installed list all come
+  // from whichever machine runs Radiant — and a download starts there too,
+  // detached, whether or not this window stays open. Saying "this Mac" while
+  // connected to another one is simply wrong, and it is how a pull started on a
+  // laptop ends up filling a Mac in another room. Tony, on where a model lands:
+  // "correct. thats what confused me."
+  const onAnotherMac = Boolean(getServer().base)
+  const serverMac = system?.hostname || (() => {
+    try { return new URL(getServer().base).hostname } catch { return 'the other Mac' }
+  })()
+  const where = onAnotherMac ? serverMac : 'this Mac'
   const [local, setLocal] = useState({ running: true, models: [] })
   const [q, setQ] = useState('')
   const [sort, setSort] = useState('downloads')
@@ -486,6 +498,13 @@ function ModelsPane ({ onModelsChanged, config, onSettings }) {
     <div className='set-section'>
       <DefaultModelBlock config={config} onSettings={onSettings} />
       <h3>Local models</h3>
+      {onAnotherMac && (
+        <div className='set-hint' style={{ marginBottom: 10 }}>
+          You are using the Radiant on <strong>{serverMac}</strong>. Models download to that Mac
+          and run there — not on this one — and the memory and free space below are its own.
+          A download keeps going there even if you close this window.
+        </div>
+      )}
       {system && (
         <div className='spec-card'>
           <div className='spec-chip-name'>{system.chip}</div>
@@ -496,7 +515,7 @@ function ModelsPane ({ onModelsChanged, config, onSettings }) {
           <div className='spec-note'>
             Badges show what fits: <span className='fit-badge fit-ok'>{FIT_LABEL[FITS_WELL]}</span> under {Math.round(system.ramGB * COMFORTABLE)} GB,
             <span className='fit-badge fit-tight'> {FIT_LABEL[FITS_TIGHT]}</span> near the limit,
-            <span className='fit-badge fit-no'> {FIT_LABEL[FITS_NO]}</span> on this Mac.
+            <span className='fit-badge fit-no'> {FIT_LABEL[FITS_NO]}</span> on {where}.
           </div>
         </div>
       )}
@@ -506,7 +525,7 @@ function ModelsPane ({ onModelsChanged, config, onSettings }) {
 
       {local.models.length > 0 && (
         <div className='installed-block'>
-          <div className='installed-label'>On this Mac · {local.models.length} installed</div>
+          <div className='installed-label'>On {where} · {local.models.length} installed</div>
           {[...local.models].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true })).map(m => (
             <div key={m.name} className='installed-row'>
               <span className='v-tag mono'>{m.name}</span>
@@ -2291,6 +2310,7 @@ const GUIDE = [
   {
     title: 'Chat & agents',
     items: [
+      ['Models say which Mac they are going to', 'If you use Radiant on one Mac from another, the Models screen was describing the wrong machine: the chip, the memory, the free disk and the installed list all belong to the Mac running Radiant, but every label said "this Mac." Downloads land there too, and keep going even if you close the window. It now names that Mac \u2014 "On Tony\u2019s Home MBP M4 \u00b7 6 installed" \u2014 and says so plainly before you start a download. Tony, on where a model ends up: "correct. thats what confused me."'],
       ['Model lists collapse by provider everywhere', 'Picking a model in the agent editor, in Settings \u2192 Default model, and in Compare used to mean scrolling one long list of every model you have. Those are the same grouped, searchable list the chat window uses now: providers collapsed by default, the one you are already on open, and a search box that expands everything as you type. Choosing no model at all \u2014 Session default, or no planner \u2014 is still the first thing in the list.'],
       ['Put the built-in agents back, as themselves', 'Settings \u2192 Agents \u2192 Browse library lists every built-in you have removed, at the top, under "Removed from your agents". Each one now shows its own icon, its real name and what it actually does \u2014 before this they were all the same gray robot with a name unpicked from a filename, so you were being asked to restore something you could not recognize. Click one to bring it back exactly as it shipped, or use "Restore all" to bring back the lot in one go. Nothing you wrote is affected: restoring puts back the original, and your own agents are untouched.'],
       ['Removing an agent finally sticks', 'If you removed built-in agents and later found them all back, this was why, and it was not you. Radiant records which built-ins you removed, but that record lived in a file any part of the app could overwrite with an older copy of itself \u2014 and once the record was gone, the next launch put every agent back. It matters most if your Radiant folder is in iCloud and shared with a second Mac, because then two machines write that file. Removals are merged rather than overwritten now, so one machine cannot undo the other.'],

@@ -1484,7 +1484,16 @@ app.get('/api/system', (req, res) => {
     const out = execSync(`df -k "${target}"`, { timeout: 3000 }).toString().trim().split('\n').pop().split(/\s+/)
     diskFreeGB = Math.round(Number(out[3]) / (1024 * 1024))
   } catch {}
+  // ⚠️ SAY WHICH MAC THIS IS. Everything below describes the machine running the
+  // SERVER, which is not the machine the user is looking at when they are
+  // connected to another Mac. The Models screen presented all of it as "this
+  // Mac", and downloads land here too — so a 30 GB pull started on a laptop
+  // silently fills a Mac in another room. Tony, on where a model ends up:
+  // "correct. thats what confused me."
+  let hostname = os.hostname().replace(/\.local$/, '')
+  try { hostname = execSync('scutil --get ComputerName', { timeout: 2000 }).toString().trim() || hostname } catch {}
   res.json({
+    hostname,
     chip,
     ramGB: Math.round(os.totalmem() / (1024 ** 3)),
     cores: os.cpus().length,
