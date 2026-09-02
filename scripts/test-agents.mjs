@@ -284,8 +284,33 @@ ok('with the record cleared', !(back.removedAgents || []).includes('agent-financ
   const tcss = tfs.readFileSync('src/styles.css', 'utf8')
   const rule = /\.sidebar-switch button\.on \{([\s\S]*?)\}/.exec(tcss)?.[1] || ''
   ok('the selected tab is styled at all', rule.length > 0)
-  ok('and it uses the accent, not a near-identical surface', /background:\s*var\(--accent\)/.test(rule))
   ok('with a label colour meant for the accent', /color:\s*var\(--on-accent\)/.test(rule))
+  // ⚠️ THE ACCENT MOVED TO THE TRACK ON PURPOSE. A background on the button
+  // cannot travel between two elements, so the selection jumped. It is a
+  // pseudo-element on .sidebar-switch that translates by whole steps, which is
+  // why the button itself must paint nothing.
+  ok('the button paints no fill of its own', /background:\s*none/.test(rule))
+  const pill = /\.sidebar-switch::before \{([\s\S]*?)\}/.exec(tcss)?.[1] || ''
+  ok('the accent lives on a pill over the track', /background:\s*var\(--accent\)/.test(pill))
+  ok('and the pill glides rather than jumps', /transition:\s*transform[^;]*var\(--spring\)/.test(pill))
+  ok('driven by which tab is selected', /var\(--tab-i/.test(pill))
+  const sbjsx = tfs.readFileSync('src/components/Sidebar.jsx', 'utf8')
+  ok('and the sidebar supplies that number', /'--tab-i':/.test(sbjsx))
+
+  // ⚠️ ONE MOTION VOCABULARY, NOT A CURVE PER CONTROL. Tony: "I LOVE these
+  // elements. can we add them into radiant in places where there are buttons or
+  // selectable items, cards, etc." Spring curves after kinetics.colorion.co.
+  ok('the spring curves are tokens', /--spring:\s*cubic-bezier/.test(tcss) && /--spring-soft:\s*cubic-bezier/.test(tcss))
+  ok('pressable things give under the press', /:active[^{]*\{[^}]*transform:\s*scale\(0\.9/.test(tcss))
+  ok('lists can arrive staggered', /\.stagger > \*/.test(tcss))
+  ok('and copy confirms itself', /\.small-btn\.is-done/.test(tcss))
+  // Motion is feedback here, never the only signal — so all of it goes.
+  {
+    const at = tcss.indexOf('prefers-reduced-motion', tcss.indexOf('.stagger > *:nth-child(n+6)'))
+    const body = at === -1 ? '' : tcss.slice(at, at + 900)
+    ok('every bit of it is off under Reduce Motion',
+       /\.stagger > \*/.test(body) && /transition:\s*none/.test(body) && /transform:\s*none/.test(body))
+  }
   ok('the dead duplicate control is gone', !/^\.view-tab[.:\s{]/m.test(tcss))
 
   const sb = tfs.readFileSync('src/components/Sidebar.jsx', 'utf8')

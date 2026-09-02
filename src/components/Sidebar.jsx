@@ -355,7 +355,14 @@ export default function Sidebar ({ section = 'chat', onSection, onOpenAgents, se
           onClick={() => window.radiantNative.toggleHud()}
         >HUD</button>
       )}
-      <div className='sidebar-switch'>
+      {/* ⚠️ THE PILL'S POSITION IS DATA, NOT MARKUP. It is a pseudo-element on the
+          track that translates by whole steps, so which tab is selected has to
+          reach CSS as a number. A background on the button cannot travel between
+          two elements — which is why the selection used to jump. */}
+      <div
+        className='sidebar-switch'
+        style={{ '--tab-i': section === 'tasks' ? 2 : view === 'bots' ? 1 : 0 }}
+      >
         <button className={section === 'chat' && view === 'chats' ? 'on' : ''}
           onClick={() => { onSection?.('chat'); setView('chats') }}>Chats</button>
         <button className={section === 'chat' && view === 'bots' ? 'on' : ''}

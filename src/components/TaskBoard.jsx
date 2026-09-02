@@ -299,7 +299,7 @@ export default function TaskBoard ({ agents = [], models = [], liveByTask = {}, 
               <span className='tb-col-count'>{byColumn[col.id].length}</span>
             </div>
             <div className='tb-col-hint'>{col.hint}</div>
-            <div className='tb-col-body'>
+            <div className='tb-col-body stagger'>
               {byColumn[col.id].map(t => (
                 <Card
                   key={t.id}

@@ -856,7 +856,7 @@ function AgentsPane ({ config, onConfigChange, initialView }) {
                 }}
               >Restore all {(config.removedAgentDefs || []).length}</button>
             </div>
-            <div className='tmpl-grid'>
+            <div className='tmpl-grid stagger'>
               {(config.removedAgentDefs || []).map(def => (
                 <button key={def.id} className='tmpl-card' onClick={async () => onConfigChange(await api.restoreAgent(def.id))}>
                   <span className='tmpl-ico'>{(AGENT_ICONS[def.icon] || AGENT_ICONS.bot)({ size: 18 })}</span>
@@ -872,7 +872,7 @@ function AgentsPane ({ config, onConfigChange, initialView }) {
         {shownCats.map(cat => (
           <div key={cat} className='tmpl-cat'>
             <div className='tmpl-cat-label'>{cat}</div>
-            <div className='tmpl-grid'>
+            <div className='tmpl-grid stagger'>
               {AGENT_TEMPLATES.filter(t => t.cat === cat && matches(t)).map(t => (
                 <button key={t.name} className='tmpl-card' onClick={() => fromTemplate(t)}>
                   <span className='tmpl-ico'>{(AGENT_ICONS[t.icon] || AGENT_ICONS.bot)({ size: 18 })}</span>
@@ -2085,7 +2085,15 @@ function DevicesPane () {
   // could not name either machine before, which is most of why it read as
   // abstract: "this Mac" and "another" instead of two things you own.
   useEffect(() => { api.getConfig().then(c => setHostName(c.serverHost || '')).catch(() => {}) }, [])
-  const copy = t => { try { navigator.clipboard?.writeText(t) } catch {} }
+  // ⚠️ COPY USED TO SAY NOTHING AT ALL. You press it, the label does not change,
+  // and the only way to know it worked is to paste somewhere else. The button
+  // confirms itself for a moment instead.
+  const [copied, setCopied] = useState(null)
+  const copy = (t, key) => {
+    try { navigator.clipboard?.writeText(t) } catch {}
+    setCopied(key)
+    setTimeout(() => setCopied(c => (c === key ? null : c)), 1100)
+  }
 
   const toggleShare = async () => {
     try { const r = await api.setShare(!(share?.desired)); setShare(s => ({ ...s, ...r })) } catch (e) { setMsg(e.message) }
@@ -2255,7 +2263,7 @@ function DevicesPane () {
                         <div className='connect-field' style={{ marginTop: 10 }}>Address
                           <div className='row'>
                             <code className='mono'>{best.url}</code>
-                            <button className='small-btn' onClick={() => copy(best.url)}>Copy</button>
+                            <button className={'small-btn' + (copied === 'addr' ? ' is-done' : '')} onClick={() => copy(best.url, 'addr')}>{copied === 'addr' ? '\u2713 Copied' : 'Copy'}</button>
                           </div>
                         </div>
                         <div className='connect-field' style={{ marginTop: 8 }}>Access token
@@ -2265,7 +2273,7 @@ function DevicesPane () {
                                 past could read it. */}
                             <code className='mono share-token'>{showToken ? share.token : '•'.repeat(24)}</code>
                             <button className='small-btn' onClick={() => setShowToken(v => !v)}>{showToken ? 'Hide' : 'Show'}</button>
-                            <button className='small-btn' onClick={() => copy(share.token)}>Copy</button>
+                            <button className={'small-btn' + (copied === 'tok' ? ' is-done' : '')} onClick={() => copy(share.token, 'tok')}>{copied === 'tok' ? '\u2713 Copied' : 'Copy'}</button>
                           </div>
                         </div>
                         <div className='hint' style={{ marginTop: 8 }}>{best.where}</div>
@@ -2337,6 +2345,7 @@ const GUIDE = [
   {
     title: 'Chat & agents',
     items: [
+      ['Things move like they have weight', 'Buttons, cards and tabs now respond with spring motion rather than snapping. The Chats / Agents / Tasks pill glides to the tab you picked instead of jumping. Buttons give slightly under a press and spring back. Cards lift toward the pointer. Task cards and the agent library arrive one after another rather than all at once. Copy buttons confirm themselves with a checkmark instead of saying nothing. All of it is feedback, never information \u2014 turn on Reduce Motion in macOS Accessibility settings and every bit of it stops, with nothing lost.'],
       ['The selected tab is actually visible', 'Chats / Agents / Tasks marked the current view with a near-white chip on a white strip \u2014 fine in the dark themes, close to invisible in the light ones. The selected tab now carries the accent color, the same thing that marks "current" everywhere else in Radiant, so it reads at a glance in every theme. Tony: "the active tab is barely visible."'],
       ['Devices tells you your setup in one sentence', 'Settings \u2192 Devices used to show two headings \u2014 "This Mac does the work" and "This Mac is a window onto another" \u2014 both open at once, both full of explanation, and neither saying which one you were actually in. It now opens with a single line naming both machines: "Right now this Mac is a window onto Tony\u2019s Home MBP M4", and what that means \u2014 where your chats live, where downloads land, whose screen computer control drives. Below it the two setups are cards, and the one you are in is marked Current and is the only one holding controls. Tony: "its my product and i dont 100% understand how this works or how my setup is structured."'],
       ['Changes made while an agent is working now stick', 'If you moved a chat into a project while the agent was still going, it jumped back to No Project the moment the agent stopped \u2014 and the same thing quietly undid renaming, pinning and archiving a live chat. The chat was being saved twice: once by your change, and again by the agent from a copy it had taken before you made it. The agent now keeps only the conversation and leaves everything else to you. Tony: "during a chat, i moved it into the Templeton Group project and something moved it out to No Project."'],
