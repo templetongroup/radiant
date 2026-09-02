@@ -49,6 +49,20 @@ ok('and it leaves the list', !after.agents.some(a => a.id === 'agent-finance'))
 ok('the removal is recorded, so it can be offered back',
    (after.removedAgents || []).includes('agent-finance'))
 
+// ⚠️ OFFERED BACK AS ITSELF, NOT AS A ROBOT WITH AN UNSLUGGED ID. The library had
+// only the id list, so it drew every removed agent with the generic bot icon, a
+// name derived from the id ("agent-devops" -> "Devops") and one shared sentence.
+// You were asked to restore something you could not recognise. Tony: "there
+// should be an option to restore the original, pre-defined ones ... with their
+// original icons and agent descriptions."
+{
+  const def = (after.removedAgentDefs || []).find(d => d.id === 'agent-finance')
+  ok('the full definition comes back with it', Boolean(def))
+  ok('with its real name', def?.name === 'Finance', def?.name)
+  ok('its own icon, not the generic one', Boolean(def?.icon) && def.icon !== 'bot', def?.icon)
+  ok('and the text it is described by', (def?.persona || '').length > 20)
+}
+
 // ⚠️ THE REMOVAL MUST SURVIVE A RESTART, or "remove" is a five-minute illusion.
 server.kill()
 await new Promise(r => setTimeout(r, 600))
@@ -226,6 +240,15 @@ ok('with the record cleared', !(back.removedAgents || []).includes('agent-financ
   const css = fs.readFileSync('src/styles.css', 'utf8')
   // .model-menu has no position of its own; every host supplies one.
   ok('the form-field host positions the menu', /\.model-pick-field \.model-menu \{[^}]*position:\s*absolute/s.test(css))
+}
+
+{
+  const set = fs.readFileSync('src/components/Settings.jsx', 'utf8')
+  ok('the library renders the definitions, not the bare ids', /removedAgentDefs \|\| \[\]\)\.map\(def =>/.test(set))
+  ok("each card shows that agent's own icon", /AGENT_ICONS\[def\.icon\]/.test(set))
+  ok('and its own name', /className='tmpl-name'>\{def\.name\}/.test(set))
+  // Thirteen built-ins is thirteen clicks without this.
+  ok('all of them can be put back at once', /tmpl-restore-all/.test(set))
 }
 
 console.log(`\n  ${pass}/${pass + fail} passed  ·  its own data directory, not yours`)

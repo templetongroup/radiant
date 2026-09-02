@@ -822,6 +822,15 @@ export function publicConfig (cfg) {
     // The UI needs to SEE what was removed, or the library cannot offer it back
     // and "Remove" becomes a one-way door.
     removedAgents: cfg.removedAgents || [],
+    // ⚠️ SEND THE WHOLE DEFINITION, NOT JUST THE ID. With only ids the library
+    // had to invent what it showed: a generic robot for every one of them, and a
+    // name unslugged from the id — "agent-devops" rendered as "Devops". You were
+    // asked to put back something you could not recognise. Tony: "there should be
+    // an option to restore the original, pre-defined ones ... with their original
+    // icons and agent descriptions." These ARE the originals, straight out of the
+    // built-in table, so nothing has to be duplicated client-side and nothing can
+    // drift from what restore actually writes back.
+    removedAgentDefs: (cfg.removedAgents || []).map(builtinAgent).filter(Boolean),
     recipes: recipesStore.list(),
     mcpServers: cfg.mcpServers || [],
     // ⚠️ THIS MAC'S OWN CHOICES WIN. Model, provider and starting folder depend

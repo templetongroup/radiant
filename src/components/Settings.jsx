@@ -8,6 +8,15 @@ import { AGENT_ICONS, AGENT_ICON_IDS, AgentGlyph } from './AgentIcons.jsx'
 import { AGENT_TEMPLATES, AGENT_TEMPLATE_CATS } from '../agentTemplates.js'
 import { ModelPicker } from './Chat.jsx'
 
+// ⚠️ A BUILT-IN'S PERSONA IS ITS INSTRUCTIONS, NOT A SUMMARY — several sentences
+// of "You are a…". Its opening sentence is the description a person recognises
+// the agent by, with the second person trimmed so it reads as a label.
+function firstSentence (persona) {
+  if (!persona) return ''
+  const first = String(persona).split(/(?<=\.)\s/)[0].trim()
+  return first.replace(/^You are an?\s+/i, '').replace(/^\w/, c => c.toUpperCase())
+}
+
 // strip a leading "You are (a|an|the) …" so descriptions read as a role, not a command
 function cleanDesc (s) {
   const t = (s || '').trim().replace(/^you(?:'re| are)\s+(?:an?|the)?\s*/i, '')
@@ -812,16 +821,29 @@ function AgentsPane ({ config, onConfigChange, initialView }) {
             can be undone, and it can only be undone if you can SEE what you
             removed. Without this, Remove is a one-way door with a reassuring
             confirm on it. */}
-        {(config.removedAgents || []).length > 0 && (
+        {(config.removedAgentDefs || []).length > 0 && (
           <div className='tmpl-cat'>
-            <div className='tmpl-cat-label'>Removed from your agents</div>
+            <div className='tmpl-cat-label'>
+              Removed from your agents
+              <button
+                className='tmpl-restore-all'
+                onClick={async () => {
+                  // One request each, but a single repaint: putting thirteen
+                  // agents back should not be thirteen clicks, and should not
+                  // redraw the library thirteen times either.
+                  let cfg = null
+                  for (const d of (config.removedAgentDefs || [])) cfg = await api.restoreAgent(d.id)
+                  if (cfg) onConfigChange(cfg)
+                }}
+              >Restore all {(config.removedAgentDefs || []).length}</button>
+            </div>
             <div className='tmpl-grid'>
-              {(config.removedAgents || []).map(id => (
-                <button key={id} className='tmpl-card' onClick={async () => onConfigChange(await api.restoreAgent(id))}>
-                  <span className='tmpl-ico'>{AGENT_ICONS.bot({ size: 18 })}</span>
+              {(config.removedAgentDefs || []).map(def => (
+                <button key={def.id} className='tmpl-card' onClick={async () => onConfigChange(await api.restoreAgent(def.id))}>
+                  <span className='tmpl-ico'>{(AGENT_ICONS[def.icon] || AGENT_ICONS.bot)({ size: 18 })}</span>
                   <span className='tmpl-body'>
-                    <span className='tmpl-name'>{String(id).replace(/^agent-/, '').replace(/^\w/, c => c.toUpperCase())}</span>
-                    <span className='tmpl-blurb'>A built-in you removed — click to put it back.</span>
+                    <span className='tmpl-name'>{def.name}</span>
+                    <span className='tmpl-blurb'>{firstSentence(def.persona) || 'A built-in you removed.'}</span>
                   </span>
                 </button>
               ))}
@@ -2270,6 +2292,7 @@ const GUIDE = [
     title: 'Chat & agents',
     items: [
       ['Model lists collapse by provider everywhere', 'Picking a model in the agent editor, in Settings \u2192 Default model, and in Compare used to mean scrolling one long list of every model you have. Those are the same grouped, searchable list the chat window uses now: providers collapsed by default, the one you are already on open, and a search box that expands everything as you type. Choosing no model at all \u2014 Session default, or no planner \u2014 is still the first thing in the list.'],
+      ['Put the built-in agents back, as themselves', 'Settings \u2192 Agents \u2192 Browse library lists every built-in you have removed, at the top, under "Removed from your agents". Each one now shows its own icon, its real name and what it actually does \u2014 before this they were all the same gray robot with a name unpicked from a filename, so you were being asked to restore something you could not recognize. Click one to bring it back exactly as it shipped, or use "Restore all" to bring back the lot in one go. Nothing you wrote is affected: restoring puts back the original, and your own agents are untouched.'],
       ['Removing an agent finally sticks', 'If you removed built-in agents and later found them all back, this was why, and it was not you. Radiant records which built-ins you removed, but that record lived in a file any part of the app could overwrite with an older copy of itself \u2014 and once the record was gone, the next launch put every agent back. It matters most if your Radiant folder is in iCloud and shared with a second Mac, because then two machines write that file. Removals are merged rather than overwritten now, so one machine cannot undo the other.'],
       ['Tasks and the HUD have some depth', 'Needs you is the only column where nothing happens until you act, so it is the only place color is spent \u2014 but only while something is actually waiting there. When that column is empty it looks like every other column; the moment a task lands in it, a wash runs down the column, its label picks up the accent, and the card gets a marked edge. A column that glowed all the time was just decoration, and you would stop noticing it on the day it mattered. In the HUD that row glows faintly and its dot breathes. Everything else gets depth instead: a lit top edge on the columns, a shadow under each card, a slight lift as you hover, and some light in the progress bar. All the movement stops if your Mac is set to Reduce Motion; the color and depth stay, because those are what carry the meaning.'],
       ['The agent editor reads properly now', 'The skills list was a wrapping row of differently sized items \u2014 three or four per line at ragged intervals, with the \u201call agents\u201d tags pushing the next name along. It is a tidy grid of columns now, with the tags kept to their own space. Agent tools and Computer control sit apart from the skills, because they are permissions rather than skills, and the buttons have their own row with room around them. Removing an agent also updates the rest of the app straight away \u2014 before, only the Settings window noticed, so the sidebar and the model pickers kept showing an agent you had just removed.'],
