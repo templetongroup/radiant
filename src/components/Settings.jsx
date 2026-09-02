@@ -251,7 +251,17 @@ function HFRepoRow ({ repo, installedCheck, pulls, onPull, onCancel, systemRam, 
         <span className='v-meta'>{fmtCount(repo.downloads)} downloads · {fmtCount(repo.likes)} likes</span>
         <span className='tool-status' style={{ color: 'var(--text-faint)' }}>{open ? '▾' : '▸'}</span>
       </button>
-      {open && !files && !failed && <div className='variant-row'><span className='v-meta'>Loading quantizations…</span></div>}
+      {/* ⚠️ A SKELETON, NOT THE WORD "LOADING". This list is the slowest thing on
+          the screen — it is a round trip to Hugging Face — and "Loading…" gives no
+          hint of what is arriving or how much. Three bars in the shape of the rows
+          that are coming do. */}
+      {open && !files && !failed && (
+        <div className='variant-row'>
+          <div className='skel-rows' style={{ flex: 1 }}>
+            <div className='skel' /><div className='skel' /><div className='skel' />
+          </div>
+        </div>
+      )}
       {open && failed && <div className='variant-row'><span className='v-meta'>Could not load file list.</span></div>}
       {open && files && !files.quants.length && <div className='variant-row'><span className='v-meta'>No GGUF files in this repo.</span></div>}
       {open && files && files.quants.map(qt => {
@@ -2345,6 +2355,8 @@ const GUIDE = [
   {
     title: 'Chat & agents',
     items: [
+      ['Deleting a chat for good is a hold, not a second click', 'The bin in the archive used to arm on one click and delete on the next \u2014 and a second click on a button whose meaning just changed is easy to get wrong. Now you press and hold it for about two thirds of a second while a red ring fills. Let go early and nothing happens at all. It works from the keyboard too: tab to it and hold Enter or Space. Reduce Motion stops the ring animating but does not shorten the hold, because the delay is the safety, not the decoration.'],
+      ['Slow lists show their shape while they load', 'Opening a model repo used to say "Loading\u2026" while it fetched from Hugging Face. It now shows three placeholder rows in the shape of the quantizations that are coming, and download bars carry momentum instead of stepping.'],
       ['Things move like they have weight', 'Buttons, cards and tabs now respond with spring motion rather than snapping. The Chats / Agents / Tasks pill glides to the tab you picked instead of jumping. Buttons give slightly under a press and spring back. Cards lift toward the pointer. Task cards and the agent library arrive one after another rather than all at once. Copy buttons confirm themselves with a checkmark instead of saying nothing. All of it is feedback, never information \u2014 turn on Reduce Motion in macOS Accessibility settings and every bit of it stops, with nothing lost.'],
       ['The selected tab is actually visible', 'Chats / Agents / Tasks marked the current view with a near-white chip on a white strip \u2014 fine in the dark themes, close to invisible in the light ones. The selected tab now carries the accent color, the same thing that marks "current" everywhere else in Radiant, so it reads at a glance in every theme. Tony: "the active tab is barely visible."'],
       ['Devices tells you your setup in one sentence', 'Settings \u2192 Devices used to show two headings \u2014 "This Mac does the work" and "This Mac is a window onto another" \u2014 both open at once, both full of explanation, and neither saying which one you were actually in. It now opens with a single line naming both machines: "Right now this Mac is a window onto Tony\u2019s Home MBP M4", and what that means \u2014 where your chats live, where downloads land, whose screen computer control drives. Below it the two setups are cards, and the one you are in is marked Current and is the only one holding controls. Tony: "its my product and i dont 100% understand how this works or how my setup is structured."'],

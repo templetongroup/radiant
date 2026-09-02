@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { Icon } from './Icons.jsx'
+import HoldButton from './HoldButton.jsx'
 import { glyphColor } from '../theme.js'
 import { AgentGlyph } from './AgentIcons.jsx'
 import { isImported } from './Chat.jsx'
@@ -173,7 +174,6 @@ export default function Sidebar ({ section = 'chat', onSection, onOpenAgents, se
   // ⚠️ NO TIMEOUT — see the note in Settings.jsx. A four-second disarm turned the
   // second click into a re-arm, which looks exactly like nothing happening.
   // Clicking any other row's bin moves the arm; nothing else cancels it.
-  const [armedDelete, setArmedDelete] = useState(null)
 
   // Grouped once per render rather than filtered inside the map, so a sidebar
   // with a few hundred chats does not walk the list once per project.
@@ -306,22 +306,19 @@ export default function Sidebar ({ section = 'chat', onSection, onOpenAgents, se
                   onClick={e => { e.stopPropagation(); onArchive(s.id, false) }}><Icon.unarchive size={13} /></button>
                 {/* The only route to a real delete. Everything it removes is
                     unrecoverable, so it says so and names the session. */}
-                {/* ⚠️ NO NATIVE CONFIRM. The same window.confirm that made the
-                    agent Remove button do nothing also guards this, so the
-                    archive could never be emptied. Two clicks in our own UI: the
-                    bin arms, and disarms again after four seconds. */}
-                <button
-                  data-tip={armedDelete === s.id ? 'Click again — this cannot be undone' : 'Delete permanently'}
+                {/* ⚠️ NO NATIVE CONFIRM, AND NO SECOND CLICK EITHER. window.confirm is a
+                    no-op in these windows, which is why this was a two-click arm —
+                    but a second click lands on a button whose meaning changed under
+                    the pointer, and Tony has twice reported one that "did nothing"
+                    when it had in fact re-armed. Holding has no second click to
+                    miss, and letting go means nothing happened. */}
+                <HoldButton
+                  data-tip='Hold to delete permanently'
                   data-tip-below
-                  title={armedDelete === s.id ? 'Click again to delete for good' : 'Delete permanently'}
-                  aria-label={armedDelete === s.id ? `Confirm deleting "${s.title}" permanently` : `Delete "${s.title}" permanently`}
-                  className={armedDelete === s.id ? 'is-armed' : ''}
-                  onClick={e => {
-                    e.stopPropagation()
-                    if (armedDelete === s.id) { setArmedDelete(null); onDelete(s.id) }
-                    else setArmedDelete(s.id)
-                  }}
-                ><Icon.trash size={13} /></button>
+                  label={`Delete "${s.title}" permanently — hold`}
+                  holdLabel={`Keep holding to delete "${s.title}" for good`}
+                  onConfirm={() => onDelete(s.id)}
+                ><Icon.trash size={13} /></HoldButton>
               </>
             : <button data-tip='Archive' data-tip-below title='Archive' aria-label={`Archive "${s.title}"`}
                 onClick={e => { e.stopPropagation(); onArchive(s.id, true) }}><Icon.archive size={13} /></button>}

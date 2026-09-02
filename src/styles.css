@@ -2018,6 +2018,56 @@ button.hf-head:hover { background: var(--bg-hover); }
    way to know your own setup was to read both and infer. Tony: "its my product
    and i dont 100% understand how this works or how my setup is structured."
    The dot and the sentence answer that before any choice is offered. */
+/* Skeleton → content. A row of grey bars that resolve, instead of the word
+   "Loading…", which tells you nothing about the shape of what is coming. */
+@keyframes shimmer { from { background-position: 200% 0 } to { background-position: -200% 0 } }
+.skel {
+  border-radius: 6px; height: 11px;
+  background: linear-gradient(90deg,
+    var(--bg-hover) 25%,
+    color-mix(in oklch, var(--text) 12%, var(--bg-hover)) 37%,
+    var(--bg-hover) 63%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+.skel-rows { display: flex; flex-direction: column; gap: 8px; padding: 6px 0; }
+.skel-rows .skel:nth-child(2) { width: 78% }
+.skel-rows .skel:nth-child(3) { width: 62% }
+
+/* Progress carries momentum instead of stepping. */
+.pull-bar > span { transition: width 0.45s var(--spring-soft) !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  .skel { animation: none; }
+  .pull-bar > span { transition: none !important; }
+}
+
+/* Hold to confirm — the ring fills while you hold, and the icon leans into it.
+   ⚠️ THE RING IS DRAWN FROM --hold, WHICH JAVASCRIPT SETS EACH FRAME. A CSS
+   animation cannot be used here: it would run to completion on its own, which is
+   the one thing a confirmation must never do. Letting go must leave no trace. */
+.hold-btn { position: relative; --hold: 0; }
+/* ⚠️ THE RING IS A CHILD, NOT A PSEUDO-ELEMENT. These buttons carry data-tip, and
+   the CSS tooltip is ::after on the same element — a ring drawn there is never
+   painted. The first version did that: --hold counted up correctly and nothing
+   appeared. */
+.hold-btn .hold-ring {
+  position: absolute; inset: -3px; border-radius: 50%;
+  pointer-events: none;
+  background: conic-gradient(var(--danger, oklch(0.62 0.19 25)) calc(var(--hold) * 360deg), transparent 0);
+  -webkit-mask: radial-gradient(circle, transparent 58%, #000 61%);
+          mask: radial-gradient(circle, transparent 58%, #000 61%);
+  opacity: 0; transition: opacity 0.1s ease;
+}
+.hold-btn.is-holding .hold-ring { opacity: 1; }
+.hold-btn.is-holding { transform: scale(0.92); color: var(--danger, oklch(0.62 0.19 25)); }
+
+@media (prefers-reduced-motion: reduce) {
+  /* The ring stops moving; the HOLD DOES NOT GET SHORTER. The delay is the
+     safety mechanism, not the decoration. */
+  .hold-btn.is-holding { transform: none; }
+}
+
 /* ── motion ───────────────────────────────────────────────────────────────────
    Spring curves rather than fixed easing, after kinetics.colorion.co. Tony: "I
    LOVE these elements. can we add them into radiant in places where there are

@@ -158,12 +158,15 @@ ok('with the record cleared', !(back.removedAgents || []).includes('agent-financ
   }
   const row = sidebar.slice(sidebar.indexOf("className='session-actions'"), sidebar.indexOf('</div>', sidebar.indexOf('Delete permanently')))
   ok('deleting an archived chat does not either', !/window\.confirm/.test(row))
-  ok('it arms on the first click', /armedDelete === s\.id/.test(row))
+  // ⚠️ NO LONGER A TWO-CLICK ARM. The second click landed on a button whose
+  // meaning had changed under the pointer, and Tony twice reported one that "did
+  // nothing" when it had re-armed. It is a hold now — see test-sessions.mjs.
+  ok('deleting forever takes a deliberate hold', /<HoldButton/.test(sidebar))
   {
     const timers = [...sidebar.matchAll(/setTimeout/g)].map(m => sidebar.slice(m.index, m.index + 120))
     ok('and that arm does not time out either', !timers.some(t => /setArmedDelete/.test(t)))
   }
-  ok('and shows that it is armed', /is-armed/.test(row))
+  ok('and the hold is the only way to reach it', !/armedDelete/.test(sidebar))
 }
 
 // ⚠️ A REMOVAL MUST OUTLIVE A STALE WRITER. This is the bug that made every

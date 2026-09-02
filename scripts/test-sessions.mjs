@@ -9,7 +9,7 @@
 // than the working tree — which is exactly what happened the first time, and the
 // results looked like the feature had not been written.
 import { spawn } from 'node:child_process'
-import { mkdtempSync, rmSync } from 'node:fs'
+import nodeFs, { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -81,13 +81,40 @@ ok('the row archives rather than deletes', /title='Archive'/.test(sidebar))
 // on title alone, so none of them explained itself. Tony: "theres no tooltips
 // with the session tools including the new archive button".
 {
-  const rowBtns = sidebar.slice(sidebar.indexOf("className='session-actions'"), sidebar.indexOf('</div>', sidebar.indexOf('Delete permanently')))
-  const withTitle = (rowBtns.match(/<button[^]*?title=/g) || []).length
+  // ⚠️ ANCHOR ON STRUCTURE, NOT ON A LABEL. This used to slice up to the literal
+    // "Delete permanently"; when the bin became a <HoldButton> with a different
+    // label, indexOf returned -1 and the slice collapsed to nothing — so the check
+    // silently measured an empty string instead of failing honestly.
+    const rowStart = sidebar.indexOf("className='session-actions'")
+    const rowEnd = sidebar.indexOf('</HoldButton>', rowStart)
+    const rowBtns = sidebar.slice(rowStart, rowEnd === -1 ? rowStart : rowEnd)
+    // The bin is a <HoldButton>, which takes title and aria-label as props.
+    // ⚠️ COUNT ELEMENTS, NOT A PATTERN ACROSS THEM. `<button[^]*?title=` is
+    // non-greedy and runs past the end of one tag into the next, so it undercounts
+    // — this repo has been bitten by exactly that shape more than once. Split on
+    // the tags and ask each one.
+    //
+    // And ask the real question: does every control expose a NAME? A plain button
+    // says title=; a <HoldButton> takes `label` and sets title and aria-label from
+    // it. Counting one spelling would fail an accessible control for being
+    // spelled differently.
+    const tags = rowBtns.split(/<(?=button|HoldButton)/).slice(1)
+    const named = tags.filter(t => /\btitle=/.test(t) || /\blabel=/.test(t))
+    const withTitle = named.length
+    ok('every chat-row control exposes a name', named.length === tags.length,
+       `${named.length} named of ${tags.length}`)
   const withTip = (rowBtns.match(/data-tip=/g) || []).length
   ok('every chat-row control has a data-tip', withTip >= withTitle, `${withTip} tips for ${withTitle} buttons`)
   // The controls sit at the TOP of the row; a tooltip above them is clipped.
   ok('and they open downward', (rowBtns.match(/data-tip-below/g) || []).length >= withTip)
-  ok('title stays too, for screen readers and the web build', withTitle >= 6)
+  // ⚠️ The bin is a <HoldButton> now, which sets title and aria-label itself from
+  // `label`/`holdLabel` — so the literal count here is one lower, and the
+  // guarantee moved rather than disappeared. Both are asserted right after.
+  ok('title stays too, for screen readers and the web build', withTitle >= 5)
+  ok('and the hold button carries both as well', (() => {
+    const hb = nodeFs.readFileSync('src/components/HoldButton.jsx', 'utf8')
+    return /aria-label=/.test(hb) && /title=/.test(hb)
+  })())
 }
 
 // ⚠️ THE ICON MUST MEAN WHAT THE BUTTON DOES. Archiving shipped behind a ✕,
@@ -99,9 +126,10 @@ ok('restoring uses the unarchive icon', /onArchive\(s\.id, false\)[\s\S]{0,120}I
 // The button grew when its native confirm was replaced by a two-click arm, so
 // read its element rather than a fixed window of characters after the label.
 {
-  const at = sidebar.indexOf('Delete permanently')
-  const el = at === -1 ? '' : sidebar.slice(at, sidebar.indexOf('</button>', at))
-  ok('permanent delete uses the bin', /Icon\.trash/.test(el))
+  const at = sidebar.indexOf('<HoldButton')
+    const el = at === -1 ? '' : sidebar.slice(at, sidebar.indexOf('</HoldButton>', at))
+    ok('permanent delete uses the bin', /Icon\.trash/.test(el))
+    ok('and says it must be held', /Hold to delete/.test(el))
 }
 // Unicode glyphs render as tofu or the wrong picture; the app has its own set.
 // Scoped to the CHAT row's controls only: the project row's ✕ is a real delete
@@ -118,7 +146,7 @@ ok('restoring uses the unarchive icon', /onArchive\(s\.id, false\)[\s\S]{0,120}I
 }
 const icons = await import('node:fs').then(m => m.readFileSync('src/components/Icons.jsx', 'utf8'))
 ok('the icon set actually defines them', /archive:/.test(icons) && /unarchive:/.test(icons) && /trash:/.test(icons))
-ok('and a permanent delete lives only in the archive', /Delete permanently/.test(sidebar))
+ok('and a permanent delete lives only in the archive', /permanently/.test(sidebar))
 
 
 // ⚠️ THE DEVICES SCREEN DESCRIBES WHICHEVER MAC IS ANSWERING. When the window is
@@ -176,6 +204,41 @@ ok('and a permanent delete lives only in the archive', /Delete permanently/.test
   ok('archiving mid-turn survives', after.archived === true)
   ok('a manual rename beats the auto-title', after.title === 'Renamed by hand', JSON.stringify(after.title))
   ok('and the turn still saved its transcript', (after.messages || []).length === 1)
+}
+
+// ⚠️ DELETING FOREVER IS A HOLD NOW, NOT A SECOND CLICK. window.confirm is a
+// no-op in these windows, which is why this was a two-click arm — but the second
+// click lands on a button whose meaning changed under the pointer, and Tony has
+// twice reported one that "did nothing" when it had re-armed. A hold has no
+// second click to miss, and letting go leaves no trace.
+{
+  const hfs = await import('node:fs')
+  const hb = hfs.readFileSync('src/components/HoldButton.jsx', 'utf8')
+  ok('the hold only fires when it completes', /if \(p >= 1\)/.test(hb))
+  ok('letting go cancels it outright', /onPointerUp=|onPointerLeave=/.test(hb))
+  ok('and it fires once, not once per frame', /done\.current/.test(hb))
+  // A control you can only work by holding a mouse button is one some people
+  // cannot work at all, and every session row here is reachable by tab.
+  ok('holding a key works too', /onKeyDown=/.test(hb) && /onKeyUp=/.test(hb))
+  ok('Space does not scroll the list instead', /preventDefault\(\)/.test(hb))
+  // ⚠️ The ring must be a real element: these buttons carry data-tip, and the CSS
+  // tooltip IS ::after — a ring drawn there is never painted. It shipped that way
+  // for one build: --hold counted up correctly and nothing appeared on screen.
+  ok('the ring is a real element, not ::after', /className='hold-ring'/.test(hb))
+
+  const hcss = hfs.readFileSync('src/styles.css', 'utf8')
+  ok('and the stylesheet draws that element', /\.hold-btn \.hold-ring/.test(hcss))
+  ok('filled from the live progress value', /var\(--hold\)/.test(hcss))
+  {
+    // The ring may stop animating under Reduce Motion; the DELAY must not shrink.
+    const at = hcss.indexOf('prefers-reduced-motion', hcss.indexOf('.hold-btn.is-holding .hold-ring'))
+    const body = at === -1 ? '' : hcss.slice(at, at + 320)
+    ok('Reduce Motion does not shorten the hold', !/--hold|transition-duration:\s*0s/.test(body))
+  }
+
+  const sb = hfs.readFileSync('src/components/Sidebar.jsx', 'utf8')
+  ok('the archive bin uses it', /<HoldButton/.test(sb))
+  ok('and the old two-click arm is gone', !/armedDelete/.test(sb))
 }
 
 console.log(`\n  ${pass}/${pass + fail} passed  ·  its own data directory, not yours`)
