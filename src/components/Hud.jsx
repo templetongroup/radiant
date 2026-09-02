@@ -34,10 +34,28 @@ export default function Hud () {
 
   const refresh = useCallback(async () => {
     try {
-      const tasks = await api.listTasks()
+      // ⚠️ A RUNNING CHAT IS RUNNING. The HUD asked only for board tasks, so an
+      // agent streaming in a chat — the most common thing anyone has running —
+      // showed as "Nothing running." Tony, with a turn mid-flight on screen:
+      // "HUD mode shows nothing running even though there clearly is."
+      // /api/sessions already flags which sessions have a live turn; nothing new
+      // is needed on the server, the HUD simply never asked.
+      const [tasks, sessions] = await Promise.all([api.listTasks(), api.listSessions()])
+      const chats = sessions
+        .filter(s => s.active)
+        .map(s => ({
+          id: 'chat-' + s.id,
+          sessionId: s.id,
+          title: s.title || 'Chat',
+          state: 'working',
+          isChat: true,
+          agentId: s.agentId,
+          model: s.model,
+          updatedAt: s.updatedAt
+        }))
+      const board = tasks.filter(t => t.state === 'working' || t.state === 'blocked')
       setRows(
-        tasks
-          .filter(t => t.state === 'working' || t.state === 'blocked')
+        [...board, ...chats]
           .sort((a, b) => (ORDER[a.state] - ORDER[b.state]) || (b.updatedAt || '').localeCompare(a.updatedAt || ''))
       )
       setErr(null)
@@ -89,7 +107,9 @@ export default function Hud () {
               <span className='hud-row-sub'>
                 {t.state === 'blocked'
                   ? (t.lastError || 'Needs you')
-                  : (t.agentId ? 'agent' : (t.model || 'working'))}
+                  : t.isChat
+                    ? (t.model || 'chat')
+                    : (t.agentId ? 'agent' : (t.model || 'working'))}
               </span>
             </span>
             <span className='hud-row-time'>{timeAgo(t.updatedAt || t.createdAt)}</span>

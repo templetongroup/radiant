@@ -156,7 +156,8 @@ ok('it can be deleted', !gone.body.some(t => t.id === id))
 // floats above other apps showing what the agents are doing.
 {
   const fs = await import('node:fs')
-  const hud = fs.readFileSync('src/components/Hud.jsx', 'utf8')
+  const nfs = await import('node:fs')
+  const hud = nfs.readFileSync('src/components/Hud.jsx', 'utf8')
   const main = fs.readFileSync('electron/main.cjs', 'utf8')
   const entry = fs.readFileSync('src/main.jsx', 'utf8')
 
@@ -228,6 +229,28 @@ ok('it can be deleted', !gone.body.some(t => t.id === id))
     ok('every moving part is dropped under Reduce Motion',
        /\.hud-dot \{[^}]*animation:\s*none/.test(body) && /transform:\s*none/.test(body))
   }
+}
+
+// ⚠️ THE HUD MUST COUNT A RUNNING CHAT. It asked only for board tasks, so an
+// agent streaming in a chat — the most common thing anyone has running — left it
+// reading "Nothing running." Tony, with a turn mid-flight on screen: "HUD mode
+// shows nothing running even though there clearly is." /api/sessions already
+// flags a live turn per session; the HUD simply never asked.
+{
+  const nfs = await import('node:fs')
+  const hud = nfs.readFileSync('src/components/Hud.jsx', 'utf8')
+  ok('the HUD asks about chats as well as tasks', /api\.listSessions\(\)/.test(hud))
+  ok('and both are fetched together', /Promise\.all\(\[api\.listTasks\(\), api\.listSessions\(\)\]\)/.test(hud))
+  ok('it keeps only the sessions with a live turn', /\.filter\(s => s\.active\)/.test(hud))
+  ok('a running chat can be opened from the HUD', /sessionId: s\.id/.test(hud))
+
+  const srv = nfs.readFileSync('server/index.js', 'utf8')
+  ok('the server marks which sessions are running', /active: activeTurns\.has\(s\.id\)/.test(srv))
+
+  // Nine tooltips carry authored line breaks; centring made every one ragged.
+  const css2 = nfs.readFileSync('src/styles.css', 'utf8')
+  const tip = /\[data-tip\]:hover::after \{([\s\S]*?)\}/.exec(css2)?.[1] || ''
+  ok('tooltips are left-aligned, not centred', /text-align:\s*left/.test(tip))
 }
 
 console.log(`\n  ${pass}/${pass + fail} passed`)

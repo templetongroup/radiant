@@ -286,7 +286,13 @@ code, pre, .mono { font-family: var(--font-mono); }
   background: var(--bg-tooltip, oklch(0.22 0.02 260)); color: oklch(0.97 0 0);
   padding: 5px 9px; border-radius: 7px; border: 1px solid var(--border);
   font-size: 11.5px; font-weight: 500; line-height: 1.35; white-space: pre-line;
-  width: max-content; max-width: 240px; text-align: center;
+  width: max-content; max-width: 240px;
+  /* ⚠️ LEFT, NOT CENTRE. Nine of these tooltips carry authored line breaks — the
+     permissions one is a bullet list — and centring turns every one of them into
+     ragged, hard-to-scan text that reads as a mistake. A single-line tip looks
+     identical either way, because the bubble hugs its text (width: max-content).
+     Tony, on the HUD tooltip: "more UI sloppiness". */
+  text-align: left;
   box-shadow: 0 6px 20px oklch(0 0 0 / 0.35);
   pointer-events: none; animation: tip-in 0.12s ease both;
 }

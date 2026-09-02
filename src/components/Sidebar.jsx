@@ -348,8 +348,9 @@ export default function Sidebar ({ section = 'chat', onSection, onOpenAgents, se
       {typeof window !== 'undefined' && window.radiantNative?.toggleHud && (
         <button
           className='hud-open'
-          data-tip={'Float a small window above your other apps\nshowing what your agents are doing  (\u2325\u2318R)'}
-          data-tip-below
+          data-tip={'What your agents are doing, floating\nabove your other apps  (\u2325\u2318R)'}
+            data-tip-below
+            data-tip-end
           title='Show the HUD'
           onClick={() => window.radiantNative.toggleHud()}
         >HUD</button>
