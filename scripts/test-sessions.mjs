@@ -241,6 +241,22 @@ ok('and a permanent delete lives only in the archive', /permanently/.test(sideba
   ok('and the old two-click arm is gone', !/armedDelete/.test(sb))
 }
 
+// ⚠️ THE SIDEBAR HEADINGS ARE NO LONGER BOLD — Tony's call — so the size step is
+// now doing the work on its own. Project names, "No project", "Archived", agent
+// names and "No agent" all share .bot-head-name, and it sits directly above chat
+// rows. Shrink it to the rows' size and a heading becomes just another chat.
+{
+  const bfs = await import('node:fs')
+  const bcss = bfs.readFileSync('src/styles.css', 'utf8')
+  const head = /^\.bot-head-name \{([^}]*)\}/m.exec(bcss)?.[1] || ''
+  const row = /^\.session-title-text \{([^}]*)\}/m.exec(bcss)?.[1] || ''
+  const px = t => Number((/font-size:\s*([\d.]+)px/.exec(t) || [])[1])
+  ok('headings are regular weight', /font-weight:\s*400/.test(head), head.trim().slice(0, 60))
+  ok('and still larger than the rows beneath them', px(head) > px(row), `${px(head)}px vs ${px(row)}px`)
+  // Colour is the other half: rows are muted, headings are full-strength ink.
+  ok('and brighter than them', /color:\s*var\(--text\)/.test(head))
+}
+
 console.log(`\n  ${pass}/${pass + fail} passed  ·  its own data directory, not yours`)
 stop()
 process.exit(fail ? 1 : 0)

@@ -465,7 +465,12 @@ code, pre, .mono { font-family: var(--font-mono); }
    hierarchy. Matching the row size and staying semibold is the header
    treatment; going bigger would shout in a 248px sidebar.
    This rule is shared with the Agents tab, which had the same inversion. */
-.bot-head-name { font-size: 13px; font-weight: 600; color: var(--text); flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; text-align: left; }
+/* ⚠️ REGULAR, NOT BOLD — Tony's call. This is every heading in the sidebar:
+   project names, "No project", "Archived", agent names, "No agent". With the
+   weight gone, the size step (13px against the rows' 12px) and the caret are what
+   separate a heading from the chats filed under it, so neither may be trimmed
+   without giving the headings something else to stand on. */
+.bot-head-name { font-size: 13px; font-weight: 400; color: var(--text); flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; text-align: left; }
 /* ⚠️ --text-faint IS FOR DECORATION, NOT INFORMATION. This is the number of
    chats in a project — something the user reads — and it was rendered at the
    dimmest step in the palette. Raising it to --text-muted fixes that.
