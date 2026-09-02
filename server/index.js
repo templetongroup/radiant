@@ -11,8 +11,7 @@ import { fileURLToPath } from 'url'
 import { WebSocketServer } from 'ws'
 import pty from 'node-pty'
 import { execSync, spawn } from 'child_process'
-import { RADIANT_DIR, DIR_POINTER, defaultDataDir, dataDirStatus, loadConfig, saveConfig, publicConfig, listSessions, loadSession, saveSession, deleteSession, searchSessions, upsertCredential, activateAccount, removeAccount, SESSIONS_DIR, listProjects, getProject, saveProject, deleteProject, migrateProjects, agentsStore, skillsStore, recipesStore, cloudStatus, MACHINE_KEYS, saveMachineSettings, skillLibrary, inspectSkillFolder, resolveSkillDir, USER_SKILLS_ROOT, repairCloudFolder, builtinAgent, listTasks, loadTask, saveTask, deleteTask, TASK_STATES
-} from './config.js'
+import { RADIANT_DIR, DIR_POINTER, defaultDataDir, dataDirStatus, loadConfig, saveConfig, publicConfig, listSessions, loadSession, saveSession, deleteSession, searchSessions, upsertCredential, activateAccount, removeAccount, SESSIONS_DIR, listProjects, getProject, saveProject, deleteProject, migrateProjects, agentsStore, skillsStore, recipesStore, cloudStatus, MACHINE_KEYS, saveMachineSettings, skillLibrary, inspectSkillFolder, resolveSkillDir, USER_SKILLS_ROOT, repairCloudFolder, builtinAgent, listTasks, loadTask, saveTask, deleteTask, TASK_STATES, saveTurnSession } from './config.js'
 import { runTurn, listModels } from './providers.js'
 import { OAUTH_PROVIDERS, buildAuthUrl, completePaste, startLoopback, validAccessToken, startDevice, pollDevice } from './oauth.js'
 import { checkForUpdate } from './updater.js'
@@ -2100,7 +2099,7 @@ app.post('/api/chat', async (req, res) => {
       session.autoTitle = true
       emit({ type: 'title', title: session.title })
     }
-    saveSession(session)
+    saveTurnSession(session)
     const controller = new AbortController()
     activeTurns.set(sessionId, { controller })
     res.on('close', () => { if (!res.writableEnded) controller.abort() })
@@ -2115,7 +2114,7 @@ app.post('/api/chat', async (req, res) => {
       if (!controller.signal.aborted) emit({ type: 'error', message: e.message })
     } finally {
       activeTurns.delete(sessionId)
-      saveSession(session)
+      saveTurnSession(session)
       emit({ type: 'closed' })
       res.end()
     }
@@ -2169,7 +2168,7 @@ app.post('/api/chat', async (req, res) => {
     session.autoTitle = true
     emit({ type: 'title', title: session.title })
   }
-  saveSession(session)
+  saveTurnSession(session)
 
   const controller = new AbortController()
   activeTurns.set(sessionId, { controller })
@@ -2439,7 +2438,7 @@ app.post('/api/chat', async (req, res) => {
     if (!controller.signal.aborted) emit({ type: 'error', message: e.message })
   } finally {
     activeTurns.delete(sessionId)
-    saveSession(session)
+    saveTurnSession(session)
     emit({ type: 'closed' })
     res.end()
   }

@@ -147,6 +147,37 @@ ok('and a permanent delete lives only in the archive', /Delete permanently/.test
   ok('and they are capped to fit the sidebar', /max-width/.test(rule))
 }
 
+// ⚠️ A TURN MUST NOT UNDO WHAT YOU DID WHILE IT RAN. /api/chat loads the session
+// when the turn starts and writes the whole object back when it ends, minutes
+// later. Moving the chat to a project mid-turn wrote projectId to disk via its
+// own PATCH, and the turn's stale copy then overwrote it with null. Tony:
+// "during a chat, i moved it into the Templeton Group project and something
+// moved it out to No Project. thats a real problem." Same shape as the
+// removedAgents bug: a long-lived in-memory object clobbering a concurrent write.
+{
+  process.env.RADIANT_DIR = dir
+  const cfg = await import('../server/config.js')
+  cfg.saveSession({ id: 'sess-mid', title: 'Before', projectId: null, autoTitle: true, messages: [] })
+
+  const turn = cfg.loadSession('sess-mid')            // the turn takes its copy
+
+  const live = cfg.loadSession('sess-mid')            // the user, mid-turn
+  live.projectId = 'proj-1'; live.pinned = true; live.archived = true
+  live.title = 'Renamed by hand'; live.autoTitle = false
+  cfg.saveSession(live)
+
+  turn.messages.push({ role: 'assistant', content: 'done' })
+  turn.title = 'Auto-title from the first message'
+  cfg.saveTurnSession(turn)
+
+  const after = cfg.loadSession('sess-mid')
+  ok('a chat moved to a project mid-turn stays there', after.projectId === 'proj-1', JSON.stringify(after.projectId))
+  ok('pinning mid-turn survives', after.pinned === true)
+  ok('archiving mid-turn survives', after.archived === true)
+  ok('a manual rename beats the auto-title', after.title === 'Renamed by hand', JSON.stringify(after.title))
+  ok('and the turn still saved its transcript', (after.messages || []).length === 1)
+}
+
 console.log(`\n  ${pass}/${pass + fail} passed  ·  its own data directory, not yours`)
 stop()
 process.exit(fail ? 1 : 0)

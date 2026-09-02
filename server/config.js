@@ -692,6 +692,35 @@ export function serverHost () {
   return cachedHost
 }
 
+// ⚠️ A TURN HOLDS ITS SESSION FOR MINUTES, AND THE USER KEEPS USING THE APP.
+// The streaming endpoint loads the session when the turn starts and writes the
+// whole object back when it ends. Anything you change in between — moving the
+// chat to a project, renaming it, archiving it, pinning it — is written to disk
+// by its own PATCH and then silently overwritten by that stale copy the moment
+// the agent stops. Tony: "during a chat, i moved it into the Templeton Group
+// project and something moved it out to No Project. thats a real problem."
+//
+// Same shape as the removedAgents bug: a long-lived in-memory object clobbering
+// a concurrent write. The turn owns the transcript; the user owns the metadata.
+// So re-read the file and take the user's fields back before saving.
+//
+// NOT used by PATCH itself — that loads fresh, sets a field and saves, and
+// merging from disk there would undo the very edit being made.
+const USER_OWNED = [
+  'projectId', 'pinned', 'archived', 'agentId', 'cwd',
+  'useTools', 'computerControl', 'planMode', 'skillIds', 'model', 'provider'
+]
+
+export function saveTurnSession (session) {
+  const disk = loadSession(session.id)
+  if (disk) {
+    for (const k of USER_OWNED) if (k in disk) session[k] = disk[k]
+    // A manual rename sets autoTitle false; the turn's auto-title must not win.
+    if (disk.autoTitle === false) { session.title = disk.title; session.autoTitle = false }
+  }
+  saveSession(session)
+}
+
 export const agentsStore = makeCollection('agents')
 
 /** A built-in agent's original definition, for putting one back after removal. */
