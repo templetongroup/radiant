@@ -320,6 +320,37 @@ ok('with the record cleared', !(back.removedAgents || []).includes('agent-financ
   ok('and the sidebar still renders that class', /className='sidebar-switch'/.test(sb))
 }
 
+// ⚠️ A CONFIRMATION MUST FOLLOW THE SUCCESS, NOT THE CLICK. Copy said nothing at
+// all — the only way to know it worked was to paste somewhere else.
+{
+  const cfs = await import('node:fs')
+  const cb = cfs.readFileSync('src/components/ConfirmButton.jsx', 'utf8')
+  ok('the handler is awaited before confirming', /await onClick\?\.\(e\)/.test(cb))
+  ok('and a failure is not dressed up as success', /finally/.test(cb) && !/catch\s*\{\s*\}/.test(cb))
+  // ⚠️ React 18 StrictMode mounts, unmounts and mounts again. A cleanup that only
+  // sets this false leaves it false forever, and the guard meant to prevent
+  // setState-after-unmount then throws every confirmation away.
+  ok('the unmount guard re-arms on mount', /alive\.current = true/.test(cb))
+  // An sr-only "Copied" beside a visible "Copied" is announced twice, because the
+  // accessible name is the concatenation of both.
+  ok('the label is not announced twice', !/sr-only'/.test(cb))
+
+  const set = cfs.readFileSync('src/components/Settings.jsx', 'utf8')
+  // ⚠️ ONLY WHERE THE BUTTON SURVIVES ITS OWN SUCCESS. Saving a key swaps the row
+  // for its "key is set" state and saving an agent closes the editor, so a check
+  // on either unmounts before anyone could see it. Copy stays put.
+  ok('copy confirms itself', /<ConfirmButton[^>]*doneLabel='Copied'/.test(set))
+  ok('and Save is left alone, because it unmounts on success',
+     !/<ConfirmButton[^>]*onClick=\{\(\) => (save|onSave)\(/.test(set))
+
+  const css = cfs.readFileSync('src/styles.css', 'utf8')
+  ok('the tick is drawn, not faded in', /stroke-dashoffset/.test(css) && /draw-tick/.test(css))
+  ok('the download stage has a mark of its own', /\.pull-stage-dot/.test(css))
+  // "stuck at 100%" and "importing, be patient" must not look identical again.
+  ok('and importing looks different from downloading', /\.pull-stage\.is-importing \.pull-stage-dot/.test(css))
+  ok('a changing token count registers', /\.usage-note\.is-bumped/.test(css))
+}
+
 console.log(`\n  ${pass}/${pass + fail} passed  ·  its own data directory, not yours`)
 stop()
 process.exit(fail ? 1 : 0)

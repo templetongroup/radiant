@@ -7,6 +7,7 @@ import { Icon } from './Icons.jsx'
 import { AGENT_ICONS, AGENT_ICON_IDS, AgentGlyph } from './AgentIcons.jsx'
 import { AGENT_TEMPLATES, AGENT_TEMPLATE_CATS } from '../agentTemplates.js'
 import { ModelPicker } from './Chat.jsx'
+import ConfirmButton from './ConfirmButton.jsx'
 
 // ⚠️ A BUILT-IN'S PERSONA IS ITS INSTRUCTIONS, NOT A SUMMARY — several sentences
 // of "You are a…". Its opening sentence is the description a person recognises
@@ -296,7 +297,15 @@ function HFRepoRow ({ repo, installedCheck, pulls, onPull, onCancel, systemRam, 
                           "100%" with the model nowhere in the list: "i just
                           downloaded a version of qwen iq4 and it says 100% and i
                           dont see it anywhere." It was importing the whole time. */}
-                      {importing ? (pull.status || 'importing…') : (pct != null ? pct + '%' : (pull.status || 'starting…'))}
+                      {/* ⚠️ A STAGE MARK, NOT JUST A NUMBER. This flow has broken four times in
+                          production and every failure looked the same from here: a number that
+                          stopped meaning anything. The stage now carries its own mark — a pulsing
+                          dot while bytes move, a turning square while Ollama imports — so "stuck
+                          at 100%" and "importing, be patient" cannot look identical again. */}
+                      <span className={'pull-stage' + (importing ? ' is-importing' : '')}>
+                        <span className='pull-stage-dot' aria-hidden />
+                        {importing ? (pull.status || 'importing…') : (pct != null ? pct + '%' : (pull.status || 'starting…'))}
+                      </span>
                       <button className='pull-stop' title='Stop download' onClick={() => onCancel(model)}>✕</button>
                     </span>
                   : <button className='small-btn' onClick={() => onPull({ repo: repo.id, files: qt.files, model })} disabled={fit === 'fit-no' || noDisk} title={noDisk ? `Not enough free disk (${diskFree} GB free, needs ${qt.sizeGB} GB)` : ''}>Download</button>}
@@ -2096,14 +2105,12 @@ function DevicesPane () {
   // abstract: "this Mac" and "another" instead of two things you own.
   useEffect(() => { api.getConfig().then(c => setHostName(c.serverHost || '')).catch(() => {}) }, [])
   // ⚠️ COPY USED TO SAY NOTHING AT ALL. You press it, the label does not change,
-  // and the only way to know it worked is to paste somewhere else. The button
-  // confirms itself for a moment instead.
-  const [copied, setCopied] = useState(null)
-  const copy = (t, key) => {
-    try { navigator.clipboard?.writeText(t) } catch {}
-    setCopied(key)
-    setTimeout(() => setCopied(c => (c === key ? null : c)), 1100)
-  }
+  // and the only way to know it worked is to paste somewhere else. <ConfirmButton>
+  // owns that now — it is the one action here whose button STAYS after it
+  // succeeds, which is what the effect needs. Save does not: saving a key swaps
+  // the row for its "key is set" state and saving an agent closes the editor, so
+  // a check there would unmount before anyone saw it.
+  const copy = t => { try { navigator.clipboard?.writeText(t) } catch {} }
 
   const toggleShare = async () => {
     try { const r = await api.setShare(!(share?.desired)); setShare(s => ({ ...s, ...r })) } catch (e) { setMsg(e.message) }
@@ -2273,7 +2280,7 @@ function DevicesPane () {
                         <div className='connect-field' style={{ marginTop: 10 }}>Address
                           <div className='row'>
                             <code className='mono'>{best.url}</code>
-                            <button className={'small-btn' + (copied === 'addr' ? ' is-done' : '')} onClick={() => copy(best.url, 'addr')}>{copied === 'addr' ? '\u2713 Copied' : 'Copy'}</button>
+                            <ConfirmButton className='small-btn' doneLabel='Copied' onClick={() => copy(best.url)}>Copy</ConfirmButton>
                           </div>
                         </div>
                         <div className='connect-field' style={{ marginTop: 8 }}>Access token
@@ -2283,7 +2290,7 @@ function DevicesPane () {
                                 past could read it. */}
                             <code className='mono share-token'>{showToken ? share.token : '•'.repeat(24)}</code>
                             <button className='small-btn' onClick={() => setShowToken(v => !v)}>{showToken ? 'Hide' : 'Show'}</button>
-                            <button className={'small-btn' + (copied === 'tok' ? ' is-done' : '')} onClick={() => copy(share.token, 'tok')}>{copied === 'tok' ? '\u2713 Copied' : 'Copy'}</button>
+                            <ConfirmButton className='small-btn' doneLabel='Copied' onClick={() => copy(share.token)}>Copy</ConfirmButton>
                           </div>
                         </div>
                         <div className='hint' style={{ marginTop: 8 }}>{best.where}</div>
@@ -2355,6 +2362,9 @@ const GUIDE = [
   {
     title: 'Chat & agents',
     items: [
+      ['Copy tells you it copied', 'The Copy buttons in Settings \u2192 Devices used to look identical before and after you pressed them \u2014 the only way to know it had worked was to paste somewhere else. They now draw a checkmark and say "Copied" for a moment. Save buttons deliberately do not: saving an API key swaps that row for its "key is set" state and saving an agent closes the editor, so the change itself is already the confirmation.'],
+      ['A download tells you which stage it is in', 'Bytes arriving and Ollama importing the finished file used to render as the same gray text, so the second one looked like a stall \u2014 the model is copied and hashed into Ollama\u2019s own store after the download finishes, which for a large model takes minutes. Each stage now has its own mark beside it: a pulsing dot while bytes move, a turning square while it imports.'],
+      ['The context counter reacts when it changes', 'The token count sits in the corner of a busy composer and updates once a turn, which is easy to miss \u2014 exactly when it matters most, as you approach the context limit. It gives a small bump when the number changes.'],
       ['Deleting a chat for good is a hold, not a second click', 'The bin in the archive used to arm on one click and delete on the next \u2014 and a second click on a button whose meaning just changed is easy to get wrong. Now you press and hold it for about two thirds of a second while a red ring fills. Let go early and nothing happens at all. It works from the keyboard too: tab to it and hold Enter or Space. Reduce Motion stops the ring animating but does not shorten the hold, because the delay is the safety, not the decoration.'],
       ['Slow lists show their shape while they load', 'Opening a model repo used to say "Loading\u2026" while it fetched from Hugging Face. It now shows three placeholder rows in the shape of the quantizations that are coming, and download bars carry momentum instead of stepping.'],
       ['Things move like they have weight', 'Buttons, cards and tabs now respond with spring motion rather than snapping. The Chats / Agents / Tasks pill glides to the tab you picked instead of jumping. Buttons give slightly under a press and spring back. Cards lift toward the pointer. Task cards and the agent library arrive one after another rather than all at once. Copy buttons confirm themselves with a checkmark instead of saying nothing. All of it is feedback, never information \u2014 turn on Reduce Motion in macOS Accessibility settings and every bit of it stops, with nothing lost.'],

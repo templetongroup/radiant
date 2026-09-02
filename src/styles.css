@@ -2018,6 +2018,44 @@ button.hf-head:hover { background: var(--bg-hover); }
    way to know your own setup was to read both and infer. Tony: "its my product
    and i dont 100% understand how this works or how my setup is structured."
    The dot and the sentence answer that before any choice is offered. */
+/* The download's stage, with a mark of its own. Bytes moving and Ollama importing
+   used to render as the same grey text, so the second one read as a stall. */
+.pull-stage { display: inline-flex; align-items: center; gap: 6px; }
+.pull-stage-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--accent);
+  animation: stage-pulse 1.1s ease-in-out infinite;
+}
+.pull-stage.is-importing .pull-stage-dot {
+  border-radius: 2px;                       /* a different SHAPE, not just a different speed */
+  animation: stage-work 1.6s ease-in-out infinite;
+}
+@keyframes stage-pulse { 0%, 100% { opacity: 1 } 50% { opacity: 0.35 } }
+@keyframes stage-work { 0%, 100% { transform: rotate(0deg) } 50% { transform: rotate(90deg) } }
+
+@media (prefers-reduced-motion: reduce) {
+  .pull-stage-dot, .pull-stage.is-importing .pull-stage-dot { animation: none; }
+}
+
+/* Save confirms itself by drawing a check where its label was.
+   ⚠️ THE TICK IS DRAWN, NOT FADED IN. A stroke that draws reads as "this just
+   happened"; the same mark fading in reads as "this was always true", which is
+   the wrong claim for a confirmation. */
+.confirm-done { display: inline-flex; align-items: center; gap: 5px; }
+.confirm-tick { stroke-dasharray: 16; stroke-dashoffset: 16; animation: draw-tick 0.34s var(--spring-soft) forwards; }
+@keyframes draw-tick { to { stroke-dashoffset: 0 } }
+.small-btn.is-confirmed { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+
+
+/* A count that changes should register as having changed. */
+@keyframes num-bump { 0% { transform: none } 45% { transform: translateY(-2px) scale(1.06) } 100% { transform: none } }
+.usage-note.is-bumped { animation: num-bump 0.32s var(--spring); display: inline-block; }
+
+@media (prefers-reduced-motion: reduce) {
+  .confirm-tick { animation: none; stroke-dashoffset: 0; }
+  .usage-note.is-bumped { animation: none; }
+}
+
 /* Skeleton → content. A row of grey bars that resolve, instead of the word
    "Loading…", which tells you nothing about the shape of what is coming. */
 @keyframes shimmer { from { background-position: 200% 0 } to { background-position: -200% 0 } }

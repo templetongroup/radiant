@@ -558,16 +558,33 @@ function contextWindow (model) {
 const kfmt = n => n >= 1000 ? `${(n / 1000).toFixed(n >= 10_000 ? 0 : 1)}k` : String(n)
 
 function ContextGauge ({ usage, model }) {
+  // ⚠️ A COUNT THAT CHANGES SHOULD REGISTER AS HAVING CHANGED. This number moves
+  // once per turn and sits in the corner of a busy composer, so it updates without
+  // anyone noticing — which matters most as it approaches the context limit, the
+  // one moment the number is worth reading. A short bump on change, nothing more.
+  const [bump, setBump] = useState(false)
+  const lastIn = useRef(null)
+  useEffect(() => {
+    const v = usage?.input ?? null
+    if (v !== null && lastIn.current !== null && v !== lastIn.current) {
+      setBump(true)
+      const t = setTimeout(() => setBump(false), 340)
+      lastIn.current = v
+      return () => clearTimeout(t)
+    }
+    lastIn.current = v
+  }, [usage?.input])
+  const bumped = bump ? ' is-bumped' : ''
   const used = usage?.input
-  if (!used) return <span className='usage-note'>{usage?.output ?? '–'} out</span>
+  if (!used) return <span className={'usage-note' + bumped}>{usage?.output ?? '–'} out</span>
   const win = contextWindow(model)
-  if (!win) return <span className='usage-note'>{kfmt(used)} in · {usage.output ?? '–'} out</span>
+  if (!win) return <span className={'usage-note' + bumped}>{kfmt(used)} in · {usage.output ?? '–'} out</span>
   const pct = Math.min(100, Math.round((used / win) * 100))
   const level = pct >= 90 ? ' is-full' : pct >= 70 ? ' is-high' : ''
   return (
     <span className={'ctx-gauge' + level} data-tip={`Context: ${used.toLocaleString()} of about ${win.toLocaleString()} tokens used on the last turn.\nWhen this fills, the oldest messages stop being sent.`}>
       <span className='ctx-bar'><span style={{ width: pct + '%' }} /></span>
-      <span className='usage-note'>{pct}% of {kfmt(win)} · {usage.output ?? '–'} out</span>
+      <span className={'usage-note' + bumped}>{pct}% of {kfmt(win)} · {usage.output ?? '–'} out</span>
     </span>
   )
 }
