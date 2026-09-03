@@ -1535,6 +1535,14 @@ function AgentPane ({ config, onSettings }) {
         model that can see: Claude, GPT-4o, or a local vision model.
       </p>
 
+      {/* ⚠️ WHOSE CHROME IS BEING DRIVEN. Radiant always launched a fresh one — no
+          extensions, no tabs, signed in to nothing — so an agent asked to look at an
+          open page saw an empty stranger's browser and, having no better
+          explanation, blamed macOS permissions. Tony: "the agent is saying it cant
+          control my active chrome because of settings but Radiant has access in
+          privacy and disk access." It never was permissions. */}
+      <ChromeAttachBlock />
+
       <div className='set-block' style={{ marginTop: 14 }}>
         <div className='set-block-title'>What works on {config?.serverHost || 'this Mac'}</div>
         <div className='comp-stat' style={{ marginTop: 8 }}>
@@ -2090,6 +2098,51 @@ function HostDiagram () {
   )
 }
 
+function ChromeAttachBlock () {
+  const [st, setSt] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState(null)
+  const load = () => api.browserStatus().then(setSt).catch(() => {})
+  useEffect(() => { load() }, [])
+
+  const enable = async () => {
+    setBusy(true); setErr(null)
+    try { await api.browserEnable(); await load() } catch (e) { setErr(e.message) }
+    setBusy(false)
+  }
+
+  const on = Boolean(st?.reachable)
+  return (
+    <div className='set-block' style={{ marginTop: 14 }}>
+      <div className='set-block-title'>Which Chrome the agent drives</div>
+      <div className='comp-stat' style={{ marginTop: 8 }}>
+        <span className={on ? 'key-ok' : 'fit-badge fit-tight'}>
+          {on ? '\u2713 Your own Chrome' : '\u2014 A separate, empty Chrome'}
+        </span>
+        {on && st.reachable.browser && <span className='v-meta'>{st.reachable.browser}</span>}
+      </div>
+      <p className='hint' style={{ marginTop: 6 }}>
+        {on
+          ? <>The agent works in the Chrome you already have open — your tabs, your extensions,
+              and the sites you are signed in to. Quit Chrome normally and this turns off again.</>
+          : <>Right now the agent opens its <b>own</b> Chrome: a clean window with no extensions,
+              signed in to nothing, so your open tabs are invisible to it. Chrome only lets an app
+              drive it when it was started for that, and the setting cannot be added to a Chrome
+              that is already running — so this quits Chrome and starts it again, restoring
+              your tabs.</>}
+      </p>
+      {!on && (
+        <div className='row' style={{ marginTop: 8 }}>
+          <button className='small-btn primary' onClick={enable} disabled={busy}>
+            {busy ? 'Restarting Chrome\u2026' : 'Quit Chrome and let Radiant drive it'}
+          </button>
+        </div>
+      )}
+      {err && <div className='error-note' style={{ marginTop: 8 }}>\u26a0 {err}</div>}
+    </div>
+  )
+}
+
 function DevicesPane () {
   const [share, setShare] = useState(null)
   // The token is a credential; it starts hidden. See the note beside it.
@@ -2364,6 +2417,7 @@ const GUIDE = [
   {
     title: 'Chat & agents',
     items: [
+      ['The agent can drive the Chrome you already have open', 'Until now Radiant always opened its own Chrome for computer control \u2014 a clean window with no extensions, signed in to nothing \u2014 so an agent asked to look at a page you had open saw an empty browser instead, and often blamed macOS permissions, which had nothing to do with it. It now uses your real Chrome when it can: your tabs, your extensions, the sites you are signed in to. Chrome only allows this when it was started for it, and that cannot be switched on afterwards, so Settings \u2192 Automation has a button that quits Chrome and starts it again with your tabs restored. If you skip that, everything behaves as it did before.'],
       ['The model selector blooms open', 'Picking a model now wipes open from the button instead of appearing all at once \u2014 a frosted panel that unfolds downward, its rows arriving in sequence, with the thinking level last. Providers still collapse and expand exactly as before, Escape closes it, and Reduce Motion turns all of it off.'],
       ['No more "0 GB" downloads', 'Some model repos do not tell Hugging Face how big their files are, and Radiant was turning that silence into a number: a real multi-gigabyte download offered as "0 GB \u00b7 ~2 GB RAM". It now says the size is unknown, sorts those last, and does not pretend to judge whether they fit.'],
       ['A finished task list folds itself away', 'When an agent works through a checklist, the list stayed open above the composer for the rest of the conversation \u2014 five struck-through lines you had already read. It collapses to a single "Tasks \u2713 5/5" line the moment the last item is done. Click it any time to open it back up, and it stays open once you do.'],

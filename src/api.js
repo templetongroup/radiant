@@ -367,6 +367,8 @@ export const api = {
     try { window.radiantNative?.notifyConfigChanged?.() } catch {}
     return cfg
   },
+  browserStatus: () => json('GET', '/api/browser/status'),
+  browserEnable: () => json('POST', '/api/browser/enable'),
   mcpStatus: () => json('GET', '/api/mcp/status'),
   addMcp: server => json('POST', '/api/mcp', server),
   updateMcp: (id, patch) => json('PATCH', `/api/mcp/${id}`, patch),

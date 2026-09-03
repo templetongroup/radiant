@@ -1468,6 +1468,41 @@ app.get('/api/models', async (req, res) => {
 // ---------- local models (Ollama) ----------
 const OLLAMA = 'http://127.0.0.1:11434'
 
+// ---------- controlling the user's own Chrome ----------
+//
+// ⚠️ CHROME ONLY ACCEPTS CONTROL IF IT WAS STARTED WITH A DEBUGGING PORT, and the
+// flag cannot be added to a Chrome that is already running — `open -na` with args
+// just focuses the existing process. So enabling it means quitting Chrome and
+// starting it again, which is a thing to ask for, never to do quietly.
+app.get('/api/browser/status', async (req, res) => {
+  const { chromeReachable, mode, CDP_PORT } = await import('./browser.js')
+  res.json({ port: CDP_PORT, mode, reachable: await chromeReachable() })
+})
+
+app.post('/api/browser/enable', async (req, res) => {
+  const { CDP_PORT } = await import('./browser.js')
+  try {
+    // `quit` through AppleScript, not a kill: it is the graceful path, so Chrome
+    // writes its session out and can restore the tabs on the way back up.
+    try { execSync('osascript -e \'quit app "Google Chrome"\'', { timeout: 15000 }) } catch {}
+    for (let i = 0; i < 40; i++) {                       // wait for it to actually go
+      try { execSync('pgrep -x "Google Chrome"', { stdio: 'ignore' }) } catch { break }
+      await new Promise(r => setTimeout(r, 250))
+    }
+    execSync(`open -na "Google Chrome" --args --remote-debugging-port=${CDP_PORT} --restore-last-session`, { timeout: 15000 })
+    // Give it a moment to open the port before we claim success.
+    let up = null
+    for (let i = 0; i < 24 && !up; i++) {
+      await new Promise(r => setTimeout(r, 500))
+      const { chromeReachable } = await import('./browser.js')
+      up = await chromeReachable()
+    }
+    res.json({ ok: Boolean(up), reachable: up })
+  } catch (e) {
+    res.status(500).json({ error: e.message })
+  }
+})
+
 app.get('/api/system', (req, res) => {
   let chip = os.cpus()[0]?.model || 'Unknown CPU'
   try { chip = execSync('sysctl -n machdep.cpu.brand_string', { timeout: 2000 }).toString().trim() } catch {}

@@ -444,6 +444,33 @@ for (const r of results) console.log(`  ${r.ok ? '✓' : '✗'} ${r.name}${r.det
   ok(/e\.key === 'Escape'/.test(chat), 'Escape closes it')
   ok(/toggleGroup/.test(chat), 'and the provider groups still collapse')
 
+  // ⚠️ RADIANT DROVE A BRAND-NEW, EMPTY CHROME AND NOBODY SAID SO. pw.launch starts
+  // one on a throwaway profile: no extensions, no tabs, signed in to nothing. An
+  // agent asked to look at an open page saw an empty stranger's browser and blamed
+  // macOS permissions, which govern the DESKTOP tools and have nothing to do with
+  // this. Tony: "I want radiant to Attach to the Chrome you already have open."
+  const br = pfs.readFileSync('server/browser.js', 'utf8')
+  ok(/connectOverCDP/.test(br), "it attaches to the user's Chrome when it can")
+  {
+    const at = br.indexOf('await tryAttach()')
+    const la = br.indexOf('browser = await pw.launch')
+    ok(at !== -1 && la !== -1 && at < la, 'attaching is tried BEFORE launching')
+  }
+  // Opening a new tab lands on about:blank and loses the page being pointed at,
+  // which is the entire reason for attaching rather than launching.
+  ok(/existing\[existing\.length - 1\]/.test(br), 'and it uses the tab already open')
+  // Falling back must be the old behaviour exactly, or this makes things worse for
+  // anyone who has not turned it on.
+  ok(/mode = 'launched'/.test(br) && /mode = 'attached'/.test(br), 'and reports which of the two it did')
+
+  const idx2 = pfs.readFileSync('server/index.js', 'utf8')
+  ok(/api\/browser\/status/.test(idx2), 'the UI can ask which Chrome is being driven')
+  // The flag cannot be added to a running Chrome, so enabling means restarting it
+  // — something to ask for, never to do quietly.
+  ok(/quit app "Google Chrome"/.test(idx2), 'enabling quits Chrome gracefully')
+  ok(/--restore-last-session/.test(idx2), 'and brings the tabs back')
+  ok(/Which Chrome the agent drives/.test(pfs.readFileSync('src/components/Settings.jsx', 'utf8')), 'and Settings says which it is')
+
   // ⚠️ THE ANSWER CHIPS WERE SOLID ACCENT BUTTONS. Each option is a sentence, so
   // they arrived as fat wrapping blue pills shouting over the question. Tony:
   // "these selection cards are awful. ugly.. use this instead. use Focus Relay."

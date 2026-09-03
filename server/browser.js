@@ -38,16 +38,68 @@ function attachCapture (p) {
   })
 }
 
+// ⚠️ ATTACH TO THE USER'S OWN CHROME FIRST, AND ONLY LAUNCH IF WE CANNOT.
+// pw.launch starts a BRAND NEW Chrome on a throwaway profile: no extensions, no
+// tabs, signed in to nothing. An agent asked to "look at my open page" saw an
+// empty stranger's browser, and — having no better explanation — blamed macOS
+// permissions. Tony: "im in a chat and the agent is saying it cant control my
+// active chrome because of settings but Radiant has access in privacy and disk
+// access." It was never permissions; Screen Recording and Accessibility govern the
+// DESKTOP tools, not this.
+//
+// Chrome exposes itself for control only when started with --remote-debugging-port,
+// so this connects if that is on and falls back to launching if it is not. The
+// fallback is the old behaviour exactly, so nothing gets worse for anyone who has
+// not turned it on.
+export const CDP_PORT = Number(process.env.RADIANT_CHROME_PORT || 9222)
+
+// What the UI shows, and what the agent is told when a page is not what it expected.
+export let mode = 'none'   // 'attached' → the user's Chrome | 'launched' → our own
+
+async function tryAttach () {
+  try {
+    const r = await fetch(`http://127.0.0.1:${CDP_PORT}/json/version`, { signal: AbortSignal.timeout(700) })
+    if (!r.ok) return null
+  } catch { return null }              // nothing listening: not an error, just off
+  try {
+    const b = await pw.connectOverCDP(`http://127.0.0.1:${CDP_PORT}`)
+    const ctx = b.contexts()[0]
+    if (!ctx) { await b.close(); return null }
+    // ⚠️ USE THE TAB THAT IS ALREADY THERE. Opening a new one lands on about:blank
+    // and loses the thing the user is pointing at — which is the whole reason for
+    // attaching rather than launching.
+    const existing = ctx.pages().filter(p => !p.url().startsWith('devtools://'))
+    return { b, ctx, p: existing[existing.length - 1] || await ctx.newPage() }
+  } catch { return null }
+}
+
 async function ensure () {
   if (page && !page.isClosed()) return page
   if (!pw) pw = (await import('playwright-core')).chromium
   if (!browser) {
+    const attached = await tryAttach()
+    if (attached) {
+      browser = attached.b; context = attached.ctx; page = attached.p; mode = 'attached'
+      attachCapture(page)
+      return page
+    }
     browser = await pw.launch({ channel: 'chrome', headless: false, args: ['--no-first-run', '--no-default-browser-check'] })
+    mode = 'launched'
   }
   context = context || await browser.newContext({ viewport: { width: 1280, height: 800 } })
   page = await context.newPage()
   attachCapture(page)
   return page
+}
+
+/** Is the user's own Chrome reachable right now? For the UI, without connecting. */
+export async function chromeReachable () {
+  try {
+    const r = await fetch(`http://127.0.0.1:${CDP_PORT}/json/version`, { signal: AbortSignal.timeout(700) })
+    if (!r.ok) return null
+    const v = await r.json()
+    return { port: CDP_PORT, browser: v.Browser || 'Chrome' }
+  } catch { return null }
 }
 
 export const browserAvailable = async () => {
