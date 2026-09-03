@@ -492,9 +492,27 @@ const EFFORT_STOPS = [
 
 function ThinkRail ({ value, onPick }) {
   const at = Math.max(0, EFFORT_STOPS.findIndex(([id]) => id === (value || 'auto')))
+  const rail = useRef(null)
+  const [box, setBox] = useState(null)
+
+  // ⚠️ THE PILL HAS TO MEASURE THE STOP, NOT ASSUME A QUARTER OF THE RAIL. The
+  // labels are different lengths — "Auto" against "Medium" — so four equal
+  // quarters never line up with them: the pill sat off-centre on Low and clipped
+  // Medium. Tony: "you didnt fix the spacing of low medium and high text in the
+  // thinking window." Measured, it fits whatever the words happen to be, in any
+  // language.
+  useLayoutEffect(() => {
+    const el = rail.current?.children?.[at + 1]   // +1: the pill itself is first
+    if (el) setBox({ left: el.offsetLeft, width: el.offsetWidth })
+  }, [at, value])
+
   return (
-    <div className='think-rail' style={{ '--stop': at }} role='group' aria-label='Thinking level'>
-      <span className='think-pill' aria-hidden />
+    <div className='think-rail' ref={rail} role='group' aria-label='Thinking level'>
+      <span
+        className='think-pill'
+        aria-hidden
+        style={box ? { transform: `translateX(${box.left}px)`, width: box.width } : { opacity: 0 }}
+      />
       {EFFORT_STOPS.map(([id, label, hint], n) => (
         <button
           key={id}

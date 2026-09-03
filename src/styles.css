@@ -2316,17 +2316,19 @@ button.hf-head:hover { background: var(--bg-hover); }
   border: 1px solid var(--border);
 }
 .think-pill {
-  position: absolute; z-index: 0; top: 2px; bottom: 2px; left: 2px;
-  width: calc((100% - 4px) / 4); border-radius: 999px;
-  background: var(--accent);
-  transform: translateX(calc(var(--stop, 0) * 100%));
-  transition: transform 0.3s var(--spring);
+  position: absolute; z-index: 0; top: 2px; bottom: 2px; left: 0;
+  border-radius: 999px; background: var(--accent);
+  /* width and x come from measuring the active stop — see ThinkRail */
+  transition: transform 0.3s var(--spring), width 0.3s var(--spring), opacity 0.15s ease;
 }
 .think-stop {
-  position: relative; z-index: 1; flex: 1;
+  /* ⚠️ NO flex: 1. Equal quarters cannot hold labels of different lengths: with
+     "Auto" beside "Medium" the text crowds its own edges and the pill lands off
+     centre. Each stop takes the width of its word, and the pill measures it. */
+  position: relative; z-index: 1; flex: none;
   border: 0; background: none; cursor: pointer;
   font: inherit; font-size: 10.5px; letter-spacing: 0.01em;
-  padding: 3px 9px; color: var(--text-muted); white-space: nowrap;
+  padding: 3px 11px; color: var(--text-muted); white-space: nowrap;
 }
 .think-stop.is-on { color: var(--on-accent); font-weight: 600; }
 .think-stop:hover:not(.is-on) { color: var(--text); }

@@ -412,6 +412,16 @@ for (const r of results) console.log(`  ${r.ok ? '✓' : '✗'} ${r.name}${r.det
   // picked, and it sat at the far end of the composer's pill row, four controls
   // away from it. Tony: "thinking should be under the model selector."
   ok(/model-menu-think/.test(chat), 'and it sits at the foot of the model menu')
+  // ⚠️ THE PILL MEASURES ITS STOP. Four equal quarters cannot hold labels of
+  // different lengths — "Auto" against "Medium" — so it sat off-centre on Low and
+  // clipped Medium. Tony: "you didnt fix the spacing of low medium and high text
+  // in the thinking window."
+  ok(/setBox\(\{ left: el\.offsetLeft, width: el\.offsetWidth \}\)/.test(chat), 'the pill measures the active stop')
+  {
+    const railCss = pfs.readFileSync('src/styles.css', 'utf8')
+    ok(!/width: calc\(\(100% - 4px\) \/ 4\)/.test(railCss), 'and is not a fixed quarter of the rail')
+    ok(/\.think-stop \{[^}]*flex: none/s.test(railCss), 'each stop is as wide as its own word')
+  }
   // Only where a session owns one — the task board, agent editor and Compare
   // render the same picker and pass no handler.
   ok(/\{onSetEffort && \(/.test(chat), 'rendered only where a session owns a level')
