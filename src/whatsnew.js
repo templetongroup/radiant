@@ -18,7 +18,7 @@
  */
 export const WHATS_NEW = [
   {
-    version: '0.6.228',
+    version: '0.6.229',
     items: [
       ['Radiant says what is new', 'After it updates itself, the first launch shows a short list of what changed — once, and never on a fresh install.']
     ]

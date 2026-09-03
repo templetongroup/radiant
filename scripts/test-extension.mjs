@@ -137,6 +137,23 @@ ok(/const url = .*https:\/\/.* \+ a\.url/.test(sw),
 ok(!/chrome\.debugger/.test(sw),
    'it does not use chrome.debugger, which would show every page a "being debugged" banner')
 
+// ⚠️ THE ICON IS THE APP'S OWN MARK, NOT SOMETHING DRAWN IN PIL. The first one was
+// a blue circle with a hole in it, made in ten lines because it was "just a toolbar
+// icon". Tony: "the browser icon is awful. it should be the blue swirl." These are
+// resampled from public/icon-512.png, the signed-off full-bleed mark.
+const manifest = JSON.parse(readFileSync('extension/manifest.json', 'utf8'))
+ok(Object.keys(manifest.icons).join() === '16,32,48,128',
+   'every size Chrome asks for is present — a missing one gets an upscaled blur in the toolbar')
+ok(manifest.action.default_icon, 'and the toolbar button has an icon of its own')
+const { statSync } = await import('node:fs')
+for (const sz of [16, 32, 48, 128]) {
+  ok(statSync(`extension/icon${sz}.png`).size > 100, `icon${sz}.png exists and is not empty`)
+}
+const mark = readFileSync('public/icon-512.png')
+const i128 = readFileSync('extension/icon128.png')
+ok(!i128.equals(mark) && i128.length > 400,
+   'the 128 is a resample of the real mark, not the raw 512 dropped in')
+
 rmSync(dir, { recursive: true, force: true })
 console.log(`  ${pass}/${pass + fail} passed  ·  the bridge, minus Chrome itself (Chrome 137 forbids loading it in a test)`)
 process.exit(fail ? 1 : 0)
