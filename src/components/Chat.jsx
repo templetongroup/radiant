@@ -3,7 +3,7 @@ import Markdown from './Markdown.jsx'
 import { Icon } from './Icons.jsx'
 import { glyphColor } from '../theme.js'
 import { AgentGlyph } from './AgentIcons.jsx'
-import { api, getServer } from '../api.js'
+import { api, getServer, apiUrl, authHeaders } from '../api.js'
 import { shouldDrainQueue } from '../queue.js'
 import { emptyDictation, applyDictationEvent, dictationText } from '../dictation.js'
 
@@ -887,13 +887,15 @@ export default function Chat ({ session, live, todos = [], stats, approval, ques
   const dictRef = useRef(null)     // the EventSource
   const dictState = useRef(emptyDictation(''))
 
+  const dictStopping = useRef(false)
   const stopDictation = () => {
+    dictStopping.current = true
     try { dictRef.current?.close() } catch {}
     dictRef.current = null
     setDictating(false)
     // Tell the server too: closing an EventSource ends the request, but saying so
     // explicitly means the microphone is released even if that never arrives.
-    fetch(getServer() + '/api/dictate/stop', { method: 'POST', credentials: 'include' }).catch(() => {})
+    fetch(apiUrl('/api/dictate/stop'), { method: 'POST', headers: authHeaders(), credentials: 'include' }).catch(() => {})
   }
 
   // The microphone must not outlive the chat that opened it.
@@ -902,8 +904,16 @@ export default function Chat ({ session, live, todos = [], stats, approval, ques
   const toggleDictation = () => {
     if (dictating) { stopDictation(); textareaRef.current?.focus(); return }
     setDictateError(null)
+    dictStopping.current = false
     dictState.current = emptyDictation(draft)
-    const es = new EventSource(getServer() + '/api/dictate', { withCredentials: true })
+    // ⚠️ apiUrl, NOT getServer(). getServer() returns an OBJECT, so concatenating a
+    // string built the URL "[object Object]/api/dictate", the request never reached
+    // the server, and EventSource reported the only thing it can report — a
+    // connection error. Tony, on the first press of the shipped button: "as soon as
+    // i clicked the mic, it got 'Lost the connection to dictation.'" The endpoint had
+    // been proved with curl against the packaged app and the button had never once
+    // been clicked. scripts/test-dictate-click.mjs clicks it.
+    const es = new EventSource(apiUrl('/api/dictate'), { withCredentials: true })
     dictRef.current = es
     setDictating(true)
     es.onmessage = e => {
@@ -915,6 +925,11 @@ export default function Chat ({ session, live, todos = [], stats, approval, ques
       setDraft(dictationText(dictState.current))
     }
     es.onerror = () => {
+      // ⚠️ A CLEAN END LOOKS EXACTLY LIKE A FAILURE HERE. EventSource fires onerror
+      // whenever the stream closes at all — including the close right after our own
+      // "stopped" — so without this flag every successful dictation would finish by
+      // announcing that it had lost the connection.
+      if (dictStopping.current) return
       // An EventSource retries by itself, which would re-open the microphone
       // behind your back. One failure is the end of the session.
       setDictateError(d => d || 'Lost the connection to dictation.')
@@ -1392,13 +1407,16 @@ export default function Chat ({ session, live, todos = [], stats, approval, ques
                 onChange={e => { if (e.target.files.length) addFiles(e.target.files); e.target.value = '' }}
               />
               
-              <button
-                className={'attach-btn is-dictate' + (dictating ? ' is-listening' : '')}
-                onClick={toggleDictation}
-                title={dictating ? 'Stop dictating' : 'Dictate'}
-                aria-pressed={dictating}
-                data-tip={dictating ? 'Stop dictating' : 'Dictate — transcribed on this Mac'}
-              ><Icon.mic size={15} />{dictating ? 'Listening' : 'Dictate'}</button>
+              {/* The microphone is on whichever Mac runs the server, so a client
+                  pointed at someone else's Radiant must not offer to open it. */}
+              {!onAnotherMac && (
+                <button
+                  className={'attach-btn is-dictate' + (dictating ? ' is-listening' : '')}
+                  onClick={toggleDictation}
+                  title={dictating ? 'Stop dictating' : 'Dictate'}
+                  aria-pressed={dictating}
+                  data-tip={dictating ? 'Stop dictating' : 'Dictate — transcribed on this Mac'}
+                ><Icon.mic size={15} />{dictating ? 'Listening' : 'Dictate'}</button>)}
               <button className='attach-btn' onClick={() => fileInputRef.current?.click()} title='Attach files or images' data-tip='Attach files or images'><Icon.plus size={17} /></button>
               <button className={'attach-btn' + (designBusy ? ' is-capturing' : '')} onClick={startDesign} disabled={designBusy} title='Design Mode' data-tip={'Design Mode — open a web page and click\nan element to capture its HTML, CSS &\na screenshot as context'}><Icon.target size={16} /></button>
               {activeSkillIds.length > 0 && activeSkillIds.map(id => {
