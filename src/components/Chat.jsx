@@ -5,6 +5,7 @@ import { glyphColor } from '../theme.js'
 import { AgentGlyph } from './AgentIcons.jsx'
 import { api, getServer } from '../api.js'
 import { shouldDrainQueue } from '../queue.js'
+import { emptyDictation, applyDictationEvent, dictationText } from '../dictation.js'
 
 // An agent brought in from another app on this Mac (Hermes, OpenClaw). They sit
 // apart from your own agents and keep their icon's own color rather than taking
@@ -872,6 +873,55 @@ export default function Chat ({ session, live, todos = [], stats, approval, ques
   const [groupPicker, setGroupPicker] = useState(false)
   const [pickAgent, setPickAgent] = useState(false) // splash: reveal the agent picker
   const [draft, setDraft] = useState('')
+
+  // ⚠️ DICTATION IS ON-DEVICE. The helper refuses any locale without an offline
+  // model rather than sending your microphone to Apple; see native/RadiantControl
+  // and server/dictate.js. Nothing here touches the network.
+  //
+  // The transcript arithmetic lives in ../dictation.js because a speech result is
+  // the whole utterance so far, not the new words, and appending them spells
+  // "hello hello there hello there world". scripts/test-dictation.mjs covers it
+  // without a microphone, a permission prompt, or anybody talking to a laptop.
+  const [dictating, setDictating] = useState(false)
+  const [dictateError, setDictateError] = useState(null)
+  const dictRef = useRef(null)     // the EventSource
+  const dictState = useRef(emptyDictation(''))
+
+  const stopDictation = () => {
+    try { dictRef.current?.close() } catch {}
+    dictRef.current = null
+    setDictating(false)
+    // Tell the server too: closing an EventSource ends the request, but saying so
+    // explicitly means the microphone is released even if that never arrives.
+    fetch(getServer() + '/api/dictate/stop', { method: 'POST', credentials: 'include' }).catch(() => {})
+  }
+
+  // The microphone must not outlive the chat that opened it.
+  useEffect(() => () => { try { dictRef.current?.close() } catch {} }, [])
+
+  const toggleDictation = () => {
+    if (dictating) { stopDictation(); textareaRef.current?.focus(); return }
+    setDictateError(null)
+    dictState.current = emptyDictation(draft)
+    const es = new EventSource(getServer() + '/api/dictate', { withCredentials: true })
+    dictRef.current = es
+    setDictating(true)
+    es.onmessage = e => {
+      let ev
+      try { ev = JSON.parse(e.data) } catch { return }
+      if (ev.type === 'error') { setDictateError(ev.message || 'Dictation failed.'); stopDictation(); return }
+      if (ev.type === 'stopped') { stopDictation(); return }
+      dictState.current = applyDictationEvent(dictState.current, ev)
+      setDraft(dictationText(dictState.current))
+    }
+    es.onerror = () => {
+      // An EventSource retries by itself, which would re-open the microphone
+      // behind your back. One failure is the end of the session.
+      setDictateError(d => d || 'Lost the connection to dictation.')
+      stopDictation()
+    }
+    textareaRef.current?.focus()
+  }
   const [attachments, setAttachments] = useState([])
   const [queued, setQueued] = useState([]) // messages typed mid-turn, sent as one follow-up when the turn settles
   const [designCapture, setDesignCapture] = useState(null) // {tag, outerHTML, css, screenshot, url} from Design Mode
@@ -1329,6 +1379,12 @@ export default function Chat ({ session, live, todos = [], stats, approval, ques
               }
             }}
           />
+          {dictateError && (
+            <div className='composer-note' role='status'>
+              {dictateError}
+              <button className='composer-note-x' onClick={() => setDictateError(null)} aria-label='Dismiss'>×</button>
+            </div>
+          )}
           <div className='composer-row'>
             <div className='composer-tools'>
               <input
@@ -1336,6 +1392,13 @@ export default function Chat ({ session, live, todos = [], stats, approval, ques
                 onChange={e => { if (e.target.files.length) addFiles(e.target.files); e.target.value = '' }}
               />
               
+              <button
+                className={'attach-btn is-dictate' + (dictating ? ' is-listening' : '')}
+                onClick={toggleDictation}
+                title={dictating ? 'Stop dictating' : 'Dictate'}
+                aria-pressed={dictating}
+                data-tip={dictating ? 'Stop dictating' : 'Dictate — transcribed on this Mac'}
+              ><Icon.mic size={15} />{dictating ? 'Listening' : 'Dictate'}</button>
               <button className='attach-btn' onClick={() => fileInputRef.current?.click()} title='Attach files or images' data-tip='Attach files or images'><Icon.plus size={17} /></button>
               <button className={'attach-btn' + (designBusy ? ' is-capturing' : '')} onClick={startDesign} disabled={designBusy} title='Design Mode' data-tip={'Design Mode — open a web page and click\nan element to capture its HTML, CSS &\na screenshot as context'}><Icon.target size={16} /></button>
               {activeSkillIds.length > 0 && activeSkillIds.map(id => {

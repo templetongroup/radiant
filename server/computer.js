@@ -9,7 +9,7 @@ const execFileP = promisify(execFile)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 // the compiled Swift helper; in the packaged app it's unpacked next to server/
-function helperPath () {
+export function helperPath () {
   const candidates = [
     path.join(__dirname, '..', 'native', 'radiant-control'),
     path.join(process.resourcesPath || '', 'native', 'radiant-control')

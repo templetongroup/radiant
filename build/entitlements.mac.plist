@@ -12,6 +12,16 @@
   <!-- we dlopen/spawn bundled native bits (node-pty, the Swift helper, playwright) -->
   <key>com.apple.security.cs.disable-library-validation</key>
   <true/>
+  <!-- ⚠️ DICTATION DIES WITHOUT THIS, AND SAYS NOTHING. Under the hardened runtime
+       the microphone is refused unless the entitlement is present, and the failure
+       is a TCC kill of the helper process, not an error anyone can catch. Pair it
+       with mac.extendInfo in package.json: the entitlement grants the right to ask,
+       the usage strings are what makes macOS willing to ask on Radiant's behalf.
+       Measured 2026-09-03: a helper spawned by a process WITHOUT those strings is
+       killed outright — "attempted to access privacy-sensitive data without a usage
+       description" — however the helper itself is signed or bundled. -->
+  <key>com.apple.security.device.audio-input</key>
+  <true/>
   <!-- the agent drives Chrome and can control the desktop -->
   <key>com.apple.security.automation.apple-events</key>
   <true/>

@@ -9,6 +9,8 @@
 import Foundation
 import CoreGraphics
 import AppKit
+import AVFoundation
+import Speech
 
 let args = CommandLine.arguments
 func d(_ i: Int) -> Double { i < args.count ? (Double(args[i]) ?? 0) : 0 }
@@ -67,6 +69,111 @@ case "permissions":
     let screen = CGPreflightScreenCaptureAccess()
     let ax = AXIsProcessTrusted()
     print("{\"screenRecording\":\(screen),\"accessibility\":\(ax)}")
+
+// ⚠️ DICTATION IS ON-DEVICE, AND THAT IS NOT THE DEFAULT. requiresOnDeviceRecognition
+// defaults to false, which ships your microphone audio to Apple's servers for
+// transcription. For a coding harness that is unacceptable — you dictate file paths,
+// client names and half-formed ideas about unreleased work. supportsOnDeviceRecognition
+// was probed true on this machine before any of this was written; if a locale ever
+// reports false we refuse rather than quietly going online.
+//
+// Output is one JSON object per line on stdout, flushed immediately: ready, partial,
+// final, error. The caller stops it by closing stdin or sending SIGTERM — there is no
+// "stop" command, because a hung helper holding the microphone open is worse than a
+// helper that dies with its parent.
+case "dictate":
+    let localeId = args.count > 2 ? args[2] : "en-US"
+
+    func emit(_ obj: [String: Any]) {
+        guard let d = try? JSONSerialization.data(withJSONObject: obj),
+              let line = String(data: d, encoding: .utf8) else { return }
+        print(line)
+        fflush(stdout)
+    }
+    func die(_ code: String, _ message: String) -> Never {
+        emit(["type": "error", "code": code, "message": message])
+        exit(1)
+    }
+
+    guard let recognizer = SFSpeechRecognizer(locale: Locale(identifier: localeId)) else {
+        die("no-recognizer", "Speech recognition is not available for \(localeId) on this Mac.")
+    }
+    guard recognizer.supportsOnDeviceRecognition else {
+        die("not-on-device", "\(localeId) has no on-device speech model, and Radiant will not send your audio to Apple. Add the language under System Settings › Keyboard › Dictation.")
+    }
+
+    // Both prompts, resolved before a single sample is captured. Asking for the
+    // microphone only when the audio engine starts produces a recogniser that is
+    // authorised and an engine that is silent, which looks like a broken feature.
+    // ⚠️ WAIT WITH A DEADLINE. requestAuthorization's callback simply never arrives
+    // when nothing can present the prompt — spawned from a shell, this helper sat on
+    // sem.wait() forever holding a pipe the caller was reading. A dictate button that
+    // hangs is worse than one that says why it cannot start.
+    let sem = DispatchSemaphore(value: 0)
+    func waited(_ what: String) {
+        if sem.wait(timeout: .now() + 25) == .timedOut {
+            die("no-prompt", "macOS never answered the request for \(what). Open Radiant, try again, and allow it when asked.")
+        }
+    }
+    var speechOK = false
+    SFSpeechRecognizer.requestAuthorization { st in speechOK = (st == .authorized); sem.signal() }
+    waited("Speech Recognition")
+    if !speechOK {
+        die("speech-denied", "Speech Recognition is off for Radiant. Turn it on in System Settings › Privacy & Security › Speech Recognition.")
+    }
+    var micOK = false
+    AVCaptureDevice.requestAccess(for: .audio) { granted in micOK = granted; sem.signal() }
+    waited("the microphone")
+    if !micOK {
+        die("mic-denied", "The microphone is off for Radiant. Turn it on in System Settings › Privacy & Security › Microphone.")
+    }
+
+    let engine = AVAudioEngine()
+    let request = SFSpeechAudioBufferRecognitionRequest()
+    request.shouldReportPartialResults = true
+    request.requiresOnDeviceRecognition = true
+
+    var task: SFSpeechRecognitionTask?
+    task = recognizer.recognitionTask(with: request) { result, error in
+        if let r = result {
+            // ⚠️ formattedString IS THE WHOLE UTTERANCE SO FAR, not the newest words.
+            // Appending these would spell "hello hello there hello there world". The
+            // caller replaces the current segment with it; see src/dictation.js.
+            emit(["type": r.isFinal ? "final" : "partial", "text": r.bestTranscription.formattedString])
+        }
+        if error != nil || (result?.isFinal ?? false) {
+            engine.stop()
+            engine.inputNode.removeTap(onBus: 0)
+            if let e = error as NSError?, e.domain != "kLSRErrorDomain", e.code != 301, e.code != 216 {
+                emit(["type": "error", "code": "recognition", "message": e.localizedDescription])
+            }
+            emit(["type": "stopped"])
+            exit(0)
+        }
+    }
+
+    let input = engine.inputNode
+    // The tap format must be the hardware's own. Asking for a different one throws
+    // an uncatchable ObjC exception at installTap.
+    input.installTap(onBus: 0, bufferSize: 1024, format: input.inputFormat(forBus: 0)) { buf, _ in
+        request.append(buf)
+    }
+    engine.prepare()
+    do { try engine.start() } catch {
+        die("audio-start", "Could not start the microphone: \(error.localizedDescription)")
+    }
+    emit(["type": "ready", "locale": localeId, "onDevice": true])
+
+    // Closing stdin is the stop signal: it is delivered even if the parent is killed,
+    // which SIGTERM is not.
+    DispatchQueue.global().async {
+        var b = [UInt8](repeating: 0, count: 256)
+        while read(0, &b, 256) > 0 { }
+        request.endAudio()
+        task?.finish()
+    }
+    signal(SIGTERM) { _ in exit(0) }
+    RunLoop.main.run()
 
 case "screensize":
     let b = CGDisplayBounds(CGMainDisplayID())

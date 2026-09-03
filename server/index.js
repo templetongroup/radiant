@@ -1483,6 +1483,20 @@ const OLLAMA = 'http://127.0.0.1:11434'
 const CHROME_APP = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 const chromeProfile = () => path.join(RADIANT_DIR, 'chrome')
 
+// Dictation. A GET so it can be an EventSource, which reconnects on its own and,
+// more importantly, tells the server the moment the page goes away — that is what
+// releases the microphone.
+app.get('/api/dictate', async (req, res) => {
+  const { startDictation } = await import('./dictate.js')
+  startDictation(req, res, String(req.query.locale || 'en-US'))
+})
+
+app.post('/api/dictate/stop', async (req, res) => {
+  const { stopDictation } = await import('./dictate.js')
+  stopDictation()
+  res.json({ ok: true })
+})
+
 app.get('/api/browser/status', async (req, res) => {
   const { chromeReachable, mode, CDP_PORT } = await import('./browser.js')
   res.json({

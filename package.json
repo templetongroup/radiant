@@ -1,6 +1,6 @@
 {
   "name": "radiant",
-  "version": "0.6.222",
+  "version": "0.6.223",
   "private": true,
   "description": "Radiant — a local coding harness: chat with coding agents across cloud and local models.",
   "author": "Tony Ricciardi",
@@ -11,7 +11,7 @@
     "dev": "concurrently -k -n server,ui \"node server/index.js\" \"vite --port 5833 --strictPort\"",
     "build": "vite build",
     "start": "NODE_ENV=production node server/index.js",
-    "compile:helper": "swiftc -O native/RadiantControl.swift -o native/radiant-control",
+    "compile:helper": "swiftc -O native/RadiantControl.swift -o native/radiant-control -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __info_plist -Xlinker native/Info.plist",
     "app": "npm run build && electron .",
     "dist": "npm run build && npm run compile:helper && electron-builder --mac",
     "postinstall": "chmod +x node_modules/node-pty/prebuilds/darwin-*/spawn-helper 2>/dev/null || true",
@@ -74,7 +74,11 @@
       "gatekeeperAssess": false,
       "entitlements": "build/entitlements.mac.plist",
       "entitlementsInherit": "build/entitlements.mac.plist",
-      "icon": "build/icon.icns"
+      "icon": "build/icon.icns",
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "Radiant turns what you say into text in the message box. Audio is transcribed on this Mac and is never sent anywhere.",
+        "NSSpeechRecognitionUsageDescription": "Radiant transcribes your dictation on this Mac, using Apple's on-device speech recognition. Nothing is sent to Apple or to any server."
+      }
     }
   },
   "dependencies": {

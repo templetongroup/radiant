@@ -1858,9 +1858,10 @@ button.hf-head:hover { background: var(--bg-hover); }
 .attach-btn:hover { background: var(--bg-hover); border-color: var(--border); color: var(--accent); }
 /* ⚠️ THIS IS DESIGN MODE CAPTURING, NOT A MICROPHONE. It was called `listening`
    and pulsed with a keyframe named `mic-pulse`, left over from a mic that this app
-   does not have — and the names were convincing enough that I described it to Tony
+   did not have — and the names were convincing enough that I described it to Tony
    as "the microphone while recording". He asked "what microphone button?" There
-   isn't one.
+   wasn't one. There is now — `.attach-btn.is-listening` below — and this one is
+   still Design Mode. The two must not drift back together.
    It is also no longer red: capturing an element is not dangerous, and --danger is
    spoken for by "allow all" two controls along. */
 .attach-btn.is-capturing { color: var(--accent); border-color: var(--accent); animation: capture-pulse 1.2s ease-in-out infinite; }
@@ -1869,6 +1870,44 @@ button.hf-head:hover { background: var(--bg-hover); }
   50%      { box-shadow: 0 0 0 4px color-mix(in oklch, var(--accent) 0%, transparent); }
 }
 @media (prefers-reduced-motion: reduce) { .attach-btn.is-capturing { animation: none; } }
+
+/* Dictation. A labelled control, not a bare glyph: a microphone icon on its own
+   reads as "record a voice message" at least as often as "type what I say", and
+   this one types into the message box. It names its state for the same reason —
+   an icon that only changes colour cannot tell you it is listening. */
+.attach-btn.is-dictate {
+  width: auto; padding: 0 9px; gap: 6px;
+  grid-auto-flow: column; align-items: center;
+  font-size: 12px; font-weight: 500;
+}
+.attach-btn.is-listening {
+  color: var(--accent); border-color: var(--accent);
+  animation: listen-pulse 1.4s ease-in-out infinite;
+}
+@keyframes listen-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklch, var(--accent) 45%, transparent); }
+  50%      { box-shadow: 0 0 0 4px color-mix(in oklch, var(--accent) 0%, transparent); }
+}
+/* The pulse is decoration; the word "Listening" is the signal, so removing the
+   motion removes nothing you needed. */
+@media (prefers-reduced-motion: reduce) { .attach-btn.is-listening { animation: none; } }
+
+/* Why dictation could not start. It is always something you can act on — a
+   permission, a missing language — so it says so in the composer rather than in a
+   console nobody opens. */
+.composer-note {
+  display: flex; align-items: flex-start; gap: 8px;
+  margin: 0 0 8px; padding: 8px 10px;
+  border: 1px solid var(--border); border-radius: 10px;
+  background: var(--bg-subtle); color: var(--text);
+  font-size: 12.5px; line-height: 1.45;
+}
+.composer-note-x {
+  margin-left: auto; flex-shrink: 0;
+  background: none; border: 0; color: var(--text-muted);
+  font-size: 15px; line-height: 1; padding: 0 2px;
+}
+.composer-note-x:hover { color: var(--text); }
 .msg-attach { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
 .msg-attach img { max-width: 220px; max-height: 220px; border-radius: 8px; border: 1px solid var(--border); }
 .msg-attach-file { font-size: 12px; color: var(--text-muted); background: var(--bg-input); border: 1px solid var(--border); border-radius: 6px; padding: 3px 8px; }
