@@ -27,7 +27,7 @@ export const THEMES = [
         '--bg-input': '#222a30', '--bg': '#2d353b',
         '--bg-panel': '#363e44', '--bg-raised': '#3f474d', '--bg-hover': '#495157',
         '--border': '#586065', '--border-strong': '#6f777d',
-        '--text': '#d3c6aa', '--text-muted': '#a89d87', '--text-faint': '#766e5c',
+        '--text': '#d3c6aa', '--text-muted': '#b4a993', '--text-faint': '#766e5c',
         '--accent': '#a7c080', '--accent-hot': '#bbd298',
         '--accent-dim': '#4f6032', '--accent-wash': '#3f4734', '--on-accent': '#12171a'
       },
@@ -37,7 +37,7 @@ export const THEMES = [
         '--border': '#626c71', '--border-strong': '#798389',
         // Medium sits lighter than dark, so the muted tone that clears 4.5:1
         // there does not here — lifted until it does.
-        '--text': '#d3c6aa', '--text-muted': '#b6ab94', '--text-faint': '#8a8271',
+        '--text': '#d3c6aa', '--text-muted': '#c6bba4', '--text-faint': '#8a8271',
         '--accent': '#a7c080', '--accent-hot': '#bbd298',
         '--accent-dim': '#5b6c3e', '--accent-wash': '#495340', '--on-accent': '#12171a'
       },

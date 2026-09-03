@@ -818,13 +818,22 @@ code, pre, .mono { font-family: var(--font-mono); }
 .cwd-chip:hover { color: var(--text-muted); border-color: var(--border-strong); }
 
 /* model picker (lives in the prompt bar) */
+/* ⚠️ TEXT FIRST, CHIP ONLY ON HOVER. Every control in the composer wore a
+   permanent outlined pill, so a row of six read as six competing buttons before
+   you had touched any of them. Tony, on ChatGPT's composer: "I also like how model
+   selector, access and other buttons aren't really buttons. theyre just text that
+   turn into buttons on hover and when clicked."
+   The border and fill are earned — by hover, by focus, or by being open. Padding
+   stays put in every state so nothing shifts as the chip appears. */
 .model-btn {
   display: inline-flex; align-items: center; gap: 6px;
   padding: 4px 10px;
-  border: 1px solid var(--border); border-radius: 999px;
+  border: 1px solid transparent; border-radius: 999px;
   background: transparent; color: var(--text-muted);
   font-size: 12px; font-weight: 500; max-width: 300px; min-width: 0; flex-shrink: 1;
 }
+/* open counts as touched: while the panel is up the trigger keeps its chip */
+.model-btn[aria-expanded='true'] { background: var(--bg-hover); border-color: var(--border); color: var(--text); }
 .model-btn .provider-tag { flex: none; }
 .model-btn:hover { background: var(--bg-hover); color: var(--text); }
 .model-btn .provider-tag { color: var(--text-faint); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em; }
@@ -1139,12 +1148,19 @@ code, pre, .mono { font-family: var(--font-mono); }
 .pill-toggle {
   display: inline-flex; align-items: center; gap: 6px; flex: none; white-space: nowrap;
   padding: 4px 10px; border-radius: 999px;
-  border: 1px solid var(--border);
-  background: none; color: var(--text-faint); font-size: 12px;
+  border: 1px solid transparent;
+  /* ⚠️ THE LABEL IS THE CONTROL NOW. With the outline gone it is the only thing
+     carrying an off state, and --text-faint measured 2.15:1 on a panel in the worst
+     theme — fine as decoration beside a bordered chip, not as the control itself. */
+  background: none; color: var(--text-muted); font-size: 12px;
 }
-.pill-toggle:hover { background: var(--bg-hover); }
+.pill-toggle:hover { background: var(--bg-hover); border-color: var(--border); color: var(--text); }
 .pill-toggle .logo-mark { width: 11px; height: 11px; background: currentColor; }
-.pill-toggle.on { color: var(--accent); border-color: var(--accent-dim); background: var(--accent-wash); }
+/* ⚠️ ON IS SAID IN COLOUR, NOT IN CHROME. A filled chip on every enabled toggle is
+   what made the row shout; the accent on the label carries it, and the word beside
+   it already says "on" — so the state survives for anyone who cannot see colour. */
+.pill-toggle.on { color: var(--accent); border-color: transparent; background: none; }
+.pill-toggle.on:hover { background: var(--accent-wash); border-color: var(--accent-dim); }
 .pill-toggle.warn { color: var(--danger); border-color: color-mix(in oklab, var(--danger) 45%, transparent); background: color-mix(in oklab, var(--danger) 12%, transparent); }
 .send-btn {
   width: 32px; height: 32px; border-radius: 999px; border: none;
@@ -1824,11 +1840,11 @@ button.hf-head:hover { background: var(--bg-hover); }
 .attach-x:hover { color: var(--danger); }
 .attach-btn {
   width: 28px; height: 28px; padding: 0; border-radius: 8px;
-  border: 1px solid var(--border); background: var(--bg-panel);
+  border: 1px solid transparent; background: none;
   color: var(--text-muted); font-size: 16px; line-height: 1;
   display: grid; place-items: center; flex-shrink: 0;
 }
-.attach-btn:hover { border-color: var(--accent-dim); color: var(--accent); }
+.attach-btn:hover { background: var(--bg-hover); border-color: var(--border); color: var(--accent); }
 .attach-btn.listening { color: var(--danger); border-color: var(--danger); animation: mic-pulse 1.2s ease-in-out infinite; }
 @keyframes mic-pulse { 0%,100% { box-shadow: 0 0 0 0 oklch(0.6 0.2 25 / 0.4); } 50% { box-shadow: 0 0 0 4px oklch(0.6 0.2 25 / 0); } }
 .msg-attach { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }

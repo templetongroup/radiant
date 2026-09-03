@@ -501,6 +501,24 @@ for (const r of results) console.log(`  ${r.ok ? '✓' : '✗'} ${r.name}${r.det
     ok(blk.length > 0 && !/>\s*\\u[0-9a-f]{4}/i.test(blk), 'no raw \\uXXXX left in the JSX text')
   }
 
+  // ⚠️ TEXT FIRST, CHIP ONLY ON HOVER. Every control in the composer wore a
+  // permanent outlined pill, so a row of six read as six competing buttons before
+  // you had touched any. Tony, on ChatGPT's composer: "I also like how model
+  // selector, access and other buttons aren't really buttons. theyre just text
+  // that turn into buttons on hover and when clicked."
+  ok(/\.pill-toggle \{[^}]*border: 1px solid transparent/s.test(css), 'toggles carry no border at rest')
+  ok(/\.model-btn \{[^}]*border: 1px solid transparent/s.test(css), 'nor does the model selector')
+  ok(/\.pill-toggle:hover \{[^}]*border-color: var\(--border\)/s.test(css), 'the chip is earned by hover')
+  // Open counts as touched: the trigger keeps its chip while the panel is up.
+  ok(/\.model-btn\[aria-expanded='true'\]/.test(css), 'and by being open')
+  // ⚠️ A filled chip on every enabled toggle is what made the row shout. Colour
+  // says on — and the word beside it already reads "on", so the state survives for
+  // anyone who cannot see colour.
+  ok(/\.pill-toggle\.on \{[^}]*background: none/s.test(css), 'on is said in colour, not in chrome')
+  // ⚠️ With the outline gone the label IS the control, and --text-faint measured
+  // 2.15:1 on a panel in the worst theme.
+  ok(/\.pill-toggle \{[^}]*color: var\(--text-muted\)/s.test(css), 'and the label is readable as text')
+
   // ⚠️ THE ANSWER CHIPS WERE SOLID ACCENT BUTTONS. Each option is a sentence, so
   // they arrived as fat wrapping blue pills shouting over the question. Tony:
   // "these selection cards are awful. ugly.. use this instead. use Focus Relay."

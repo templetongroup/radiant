@@ -29,6 +29,10 @@ for (const t of DESKTOP.filter(t => t.vars)) {
     cases.push([`mac ${t.id}/${mode}: text on bg`, v['--text'], v['--bg'], 4.5])
     cases.push([`mac ${t.id}/${mode}: text on panel`, v['--text'], v['--bg-panel'], 4.5])
     cases.push([`mac ${t.id}/${mode}: muted on bg`, v['--text-muted'], v['--bg'], 4.5])
+      // ⚠️ AND ON A PANEL, WHICH IS WHERE THE COMPOSER SITS. The controls there are
+      // plain text now — no outline to lean on — so the label carries the control
+      // by itself and has to be readable as text, not as decoration.
+      cases.push([`mac ${t.id}/${mode}: muted on panel`, v['--text-muted'], v['--bg-panel'], 4.5])
     cases.push([`mac ${t.id}/${mode}: on-accent on accent`, v['--on-accent'], v['--accent'], 4.5])
     // ⚠️ THE SELECTED TAB MUST BE VISIBLE ON ITS OWN TRACK. Chats/Agents/Tasks is
     // a segmented control: the only thing marking the current view is the pill's
