@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { api, streamChat } from './api.js'
 import { applyTheme } from './theme.js'
 import Sidebar from './components/Sidebar.jsx'
+import WhatsNew from './components/WhatsNew.jsx'
 import Chat, { GroupPicker } from './components/Chat.jsx'
 import RightPanel from './components/RightPanel.jsx'
 import Settings from './components/Settings.jsx'
@@ -488,6 +489,8 @@ function DesktopApp () {
   return (
     <div className={'app' + (navOpen ? ' nav-open' : '')}>
       <MotionBackground kind={config.settings.motionBg} />
+      {/* Unbidden, once, after an update — see components/WhatsNew.jsx */}
+      <WhatsNew />
       <div className='nav-backdrop' onClick={() => setNavOpen(false)} />
       <Sidebar
         section={view}
