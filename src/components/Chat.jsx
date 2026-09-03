@@ -510,7 +510,7 @@ function ThinkRail ({ value, onPick }) {
   )
 }
 
-export function ModelPicker ({ session, models, onPick, onRefresh, placeholder, clearLabel }) {
+export function ModelPicker ({ session, models, onPick, onRefresh, placeholder, clearLabel, effort, onSetEffort }) {
   const [open, setOpen] = useState(false)
   const [q, setQ] = useState('')
   const [collapsed, setCollapsed] = useState({}) // providerName -> explicit collapse override
@@ -622,6 +622,17 @@ export function ModelPicker ({ session, models, onPick, onRefresh, placeholder, 
               </div>
             )}
           </div>
+          {/* ⚠️ THE THINKING LEVEL BELONGS TO THE MODEL, so it lives where the model
+              is chosen. It sat at the far end of the composer's pill row, four
+              controls away from the thing it applies to. Tony: "thinking should be
+              under the model selector." Only rendered where a session owns one —
+              the task board, the agent editor and Compare pass no handler. */}
+          {onSetEffort && (
+            <div className='model-menu-think'>
+              <span className='model-menu-think-label'>Thinking</span>
+              <ThinkRail value={effort} onPick={onSetEffort} />
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -1312,7 +1323,10 @@ export default function Chat ({ session, live, todos = [], stats, approval, ques
                 )
               })}
               <RecipeMenu recipes={recipes} onUse={text => { setDraft(text); setTimeout(() => textareaRef.current?.focus(), 0) }} />
-              <ModelPicker session={session} models={models} onPick={onPickModel} onRefresh={onRefreshModels} />
+              <ModelPicker session={session} models={models} onPick={onPickModel} onRefresh={onRefreshModels}
+                  effort={session.effort}
+                  onSetEffort={onSetEffort}
+                />
               <button
                 className={'pill-toggle' + (toolsOn ? ' on' : '')}
                 onClick={onToggleTools}
@@ -1336,10 +1350,7 @@ export default function Chat ({ session, live, todos = [], stats, approval, ques
               >
                 <Icon.clipboard size={13} /> plan {session.planMode ? 'on' : 'off'}
               </button>
-                <ThinkRail
-                  value={session.effort}
-                  onPick={v => onSetEffort?.(v)}
-                />
+                
               <button
                 className={'pill-toggle' + (approvalMode === 'off' ? ' warn' : approvalMode === 'auto' ? ' on' : '')}
                 onClick={onCycleApproval}

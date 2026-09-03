@@ -407,7 +407,14 @@ for (const r of results) console.log(`  ${r.ok ? '✓' : '✗'} ${r.name}${r.det
   ok(/'provider', 'effort'/.test(cfg), 'a running turn cannot clobber it')
 
   const chat = pfs.readFileSync('src/components/Chat.jsx', 'utf8')
-  ok(/EFFORT_STOPS/.test(chat) && /think-rail/.test(chat), 'the composer has a four-stop rail')
+  ok(/EFFORT_STOPS/.test(chat) && /think-rail/.test(chat), 'there is a four-stop rail')
+  // ⚠️ IT LIVES WITH THE MODEL. The level is a property of the model you just
+  // picked, and it sat at the far end of the composer's pill row, four controls
+  // away from it. Tony: "thinking should be under the model selector."
+  ok(/model-menu-think/.test(chat), 'and it sits at the foot of the model menu')
+  // Only where a session owns one — the task board, agent editor and Compare
+  // render the same picker and pass no handler.
+  ok(/\{onSetEffort && \(/.test(chat), 'rendered only where a session owns a level')
 
   // ⚠️ "FAILED" WAS COUNTING THREE UNRELATED THINGS. Tony: "whenever i ask agents
   // to do something there are ALWAYS tool failures. why?" Because a probe into a

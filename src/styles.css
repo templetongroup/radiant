@@ -2213,6 +2213,15 @@ button.hf-head:hover { background: var(--bg-hover); }
   .palette-list .palette-item, .palette-list .palette-group { animation: none; }
 }
 
+/* The thinking level sits at the foot of the model menu, under a rule, because it
+   is a property of the model you just picked rather than another item in the list. */
+.model-menu-think {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; border-top: 1px solid var(--border);
+}
+.model-menu-think-label { font-size: 11px; color: var(--text-muted); }
+.model-menu-think .think-rail { margin-left: auto; }
+
 /* The thinking rail — four stops, with the pill springing to the one you pick.
    ⚠️ THE PILL IS A SIBLING, NOT A BACKGROUND ON THE BUTTON, for the same reason
    the sidebar tabs are: a background cannot travel between two elements. */
