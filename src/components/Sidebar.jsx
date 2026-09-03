@@ -91,6 +91,149 @@ function UsageChip () {
 const MIN_W = 190
 const MAX_W = 460
 
+/**
+ * ⚠️ THESE LIVE AT MODULE SCOPE BECAUSE A COMPONENT DEFINED INSIDE ANOTHER ONE
+ * IS A NEW COMPONENT TYPE ON EVERY RENDER — and React does not update a
+ * different type, it destroys the old tree and builds a new one. Both of these
+ * used to be declared inside Sidebar.
+ *
+ * While a turn streams, App re-renders per token, so every chat row in the
+ * sidebar was thrown away and rebuilt dozens of times a second. Tony: "while an
+ * agent is typing, if i hover over a different chat the tooltips flicker over
+ * and over very rapidly." The row under the pointer kept being replaced, so
+ * :hover was lost and re-acquired and the tooltip restarted its animation each
+ * time. Playwright could not even complete a hover against it — "element was
+ * detached from the DOM, retrying", over and over.
+ *
+ * It also meant the rename input remounted mid-keystroke, and that every row's
+ * DOM was rebuilt continuously for no reason at all.
+ *
+ * Props may change as often as they like; that is a cheap patch. It is the
+ * *identity of the function* that has to stay put. Do not move these back
+ * inside, and do not add a component definition to Sidebar's body.
+ */
+function InlineEdit ({ placeholder, edit }) {
+  return (
+    <input
+      className='inline-edit'
+      autoFocus
+      placeholder={placeholder}
+      defaultValue={edit.editing?.value || ''}
+      onClick={e => e.stopPropagation()}
+      onChange={e => { edit.editing.value = e.target.value }}
+      onKeyDown={e => {
+        e.stopPropagation()
+        if (e.key === 'Enter') edit.commit()
+        if (e.key === 'Escape') edit.setEditing(null)
+      }}
+      onBlur={edit.commit}
+    />
+  )
+}
+
+function SessionRow ({ s, showAgent = true, ctx }) {
+  const { agentOf, activeId, working, onOpen, projects, onMoveSession, onPin, onArchive, onDelete, edit } = ctx
+    const ag = agentOf(s.agentId)
+    return (
+      <div
+        className={'session-item' + (s.id === activeId ? ' active' : '') + (s.pinned ? ' pinned' : '') + (working && s.id === activeId ? ' working' : '')}
+        onClick={() => onOpen(s.id)}
+        title={s.title}
+      >
+        <div className='session-title'>
+          {showAgent && ag && <span className='session-agent' style={isImported(ag) ? undefined : { color: glyphColor(ag.hue, 0.7, 0.15) }}><AgentGlyph agent={ag} size={13} /></span>}
+          {edit.editing?.kind === 'session' && edit.editing.id === s.id
+            ? <InlineEdit placeholder='Chat name…' edit={edit} />
+            : <span className='session-title-text'>{s.title}</span>}
+        </div>
+        <span className='session-meta'>{s.model || 'no model'} · {s.messageCount} msg</span>
+        <div className='session-actions'>
+          {/* ⚠️ A FOLDER ICON OVER A REAL <select>, not a menu of my own.
+              Moving a chat is a one-of-N choice, so it stays a select — that is
+              what gives it keyboard support, screen-reader semantics and a menu
+              the platform positions correctly. Only the CHROME changes: the
+              select sits transparent on top of the glyph and fills it, so the
+              row shows one icon instead of a 74px box spelling out a project
+              name. Tony: "the pull down menu on hover on the chats is
+              cumbersome. maybe make it a folder icon". Hand-rolling a menu here
+              would repeat the model-picker bug from the same day, where a
+              hand-positioned menu opened on top of the form that summoned it. */}
+          {onMoveSession && projects.length > 0 && (
+            <span
+              className='session-project-wrap'
+              title={s.projectId ? `In ${projects.find(p => p.id === s.projectId)?.name || 'a project'} — move it` : 'Move to project'}
+            >
+              {/* ⚠️ THE APP'S OWN FOLDER, not a Unicode glyph. The first cut used
+                  🗀 and 🗂 — U+1F5C0 and U+1F5C2, which macOS renders as an empty
+                  box and a set of card dividers rather than folders. Tony: "i
+                  dont know what that icone is you put in there." Icon.folder is
+                  what the project rows already draw, so a chat's folder now
+                  matches the folders it can be put into. */}
+              <span className={'session-project-glyph' + (s.projectId ? ' is-filed' : '')} aria-hidden><Icon.folder size={13} /></span>
+              <select
+                className='session-project'
+                aria-label={`Move "${s.title}" to a project`}
+                value={s.projectId || ''}
+                onClick={e => e.stopPropagation()}
+                onChange={e => { e.stopPropagation(); onMoveSession(s.id, e.target.value || null) }}
+              >
+                <option value=''>No project</option>
+                {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+            </span>
+          )}
+          <button data-tip={s.pinned ? 'Unpin' : 'Pin to top'} data-tip-below title={s.pinned ? 'Unpin' : 'Pin to top'} onClick={e => { e.stopPropagation(); onPin(s.id, !s.pinned) }}>{s.pinned ? '★' : '☆'}</button>
+          {/* Export one chat. Markdown, not JSON: the reason you export a single
+              conversation is to show it to somebody. The JSON archive lives in
+              Settings, where you go to move everything at once. */}
+          <button data-tip='Export as Markdown' data-tip-below title='Export as Markdown' onClick={async e => {
+            e.stopPropagation()
+            try {
+              const r = await api.exportChat(s.id, 'md')
+              await saveToFile(r.filename, r.mime, r.content)
+            } catch (err) { window.alert(`Could not export: ${err.message}`) }
+          }}>⤓</button>
+          <button data-tip='Rename' data-tip-below title='Rename' onClick={e => { e.stopPropagation(); edit.setEditing({ kind: 'session', id: s.id, value: s.title }) }}>✎</button>
+          {/* ⚠️ data-tip, NOT title alone. styles.css has said since it was
+              written that "Electron's native title tooltips are slow/flaky" and
+              ships a CSS tooltip for exactly that reason — but these buttons
+              were still on title, so six icon-only controls explained themselves
+              nowhere. Tony: "theres no tooltips with the session tools including
+              the new archive button". title stays for screen readers and the web
+              build; data-tip is what a person sees. data-tip-below because the
+              actions sit at the TOP of the row, where a tooltip above is clipped.
+
+              ⚠️ THE ICON HAS TO MEAN WHAT THE BUTTON DOES. Archiving shipped
+              behind a ✕, which every interface on earth uses for delete — so the
+              one control that keeps your chat looked like the one that destroys
+              it. Tony: "To me an X means delete." A box with an arrow going in
+              archives; a bin, and only inside the archive, deletes. */}
+          {s.archived
+            ? <>
+                <button data-tip='Restore from archive' data-tip-below title='Restore from archive' aria-label={`Restore "${s.title}" from the archive`}
+                  onClick={e => { e.stopPropagation(); onArchive(s.id, false) }}><Icon.unarchive size={13} /></button>
+                {/* The only route to a real delete. Everything it removes is
+                    unrecoverable, so it says so and names the session. */}
+                {/* ⚠️ NOT BECAUSE CONFIRM IS BROKEN — it is not; see HoldButton.jsx. A
+                    two-click arm puts the second click on a button whose meaning
+                    changed under the pointer, and Tony has twice reported one that
+                    "did nothing" when it had re-armed. Holding has no second click
+                    to miss, and letting go means nothing happened. */}
+                <HoldButton
+                  data-tip='Hold to delete permanently'
+                  data-tip-below
+                  label={`Delete "${s.title}" permanently — hold`}
+                  holdLabel={`Keep holding to delete "${s.title}" for good`}
+                  onConfirm={() => onDelete(s.id)}
+                ><Icon.trash size={13} /></HoldButton>
+              </>
+            : <button data-tip='Archive' data-tip-below title='Archive' aria-label={`Archive "${s.title}"`}
+                onClick={e => { e.stopPropagation(); onArchive(s.id, true) }}><Icon.archive size={13} /></button>}
+        </div>
+      </div>
+    )
+}
+
 export default function Sidebar ({ section = 'chat', onSection, onOpenAgents, sessions, activeId, working, onOpen, onNew, onNewGroup, onDelete, onArchive, onRename, onPin, agents = [], projects = [], projectsError = null, onNewProject, onRenameProject, onDeleteProject, onMoveSession, onSettings, mode, onToggleMode, updateInfo, onUpdate, onCloseNav }) {
   const agentOf = id => agents.find(a => a.id === id)
   const [width, setWidth] = useState(() => {
@@ -207,124 +350,8 @@ export default function Sidebar ({ section = 'chat', onSection, onOpenAgents, se
     else if (e.kind === 'project') onRenameProject?.(e.id, v)
     else if (e.kind === 'session') onRename?.(e.id, v)
   }
-  const InlineEdit = ({ placeholder }) => (
-    <input
-      className='inline-edit'
-      autoFocus
-      placeholder={placeholder}
-      defaultValue={editing?.value || ''}
-      onClick={e => e.stopPropagation()}
-      onChange={e => { editing.value = e.target.value }}
-      onKeyDown={e => {
-        e.stopPropagation()
-        if (e.key === 'Enter') commitEdit()
-        if (e.key === 'Escape') setEditing(null)
-      }}
-      onBlur={commitEdit}
-    />
-  )
-
-  const SessionRow = ({ s, showAgent = true }) => {
-    const ag = agentOf(s.agentId)
-    return (
-      <div
-        className={'session-item' + (s.id === activeId ? ' active' : '') + (s.pinned ? ' pinned' : '') + (working && s.id === activeId ? ' working' : '')}
-        onClick={() => onOpen(s.id)}
-        title={s.title}
-      >
-        <div className='session-title'>
-          {showAgent && ag && <span className='session-agent' style={isImported(ag) ? undefined : { color: glyphColor(ag.hue, 0.7, 0.15) }}><AgentGlyph agent={ag} size={13} /></span>}
-          {editing?.kind === 'session' && editing.id === s.id
-            ? <InlineEdit placeholder='Chat name…' />
-            : <span className='session-title-text'>{s.title}</span>}
-        </div>
-        <span className='session-meta'>{s.model || 'no model'} · {s.messageCount} msg</span>
-        <div className='session-actions'>
-          {/* ⚠️ A FOLDER ICON OVER A REAL <select>, not a menu of my own.
-              Moving a chat is a one-of-N choice, so it stays a select — that is
-              what gives it keyboard support, screen-reader semantics and a menu
-              the platform positions correctly. Only the CHROME changes: the
-              select sits transparent on top of the glyph and fills it, so the
-              row shows one icon instead of a 74px box spelling out a project
-              name. Tony: "the pull down menu on hover on the chats is
-              cumbersome. maybe make it a folder icon". Hand-rolling a menu here
-              would repeat the model-picker bug from the same day, where a
-              hand-positioned menu opened on top of the form that summoned it. */}
-          {onMoveSession && projects.length > 0 && (
-            <span
-              className='session-project-wrap'
-              title={s.projectId ? `In ${projects.find(p => p.id === s.projectId)?.name || 'a project'} — move it` : 'Move to project'}
-            >
-              {/* ⚠️ THE APP'S OWN FOLDER, not a Unicode glyph. The first cut used
-                  🗀 and 🗂 — U+1F5C0 and U+1F5C2, which macOS renders as an empty
-                  box and a set of card dividers rather than folders. Tony: "i
-                  dont know what that icone is you put in there." Icon.folder is
-                  what the project rows already draw, so a chat's folder now
-                  matches the folders it can be put into. */}
-              <span className={'session-project-glyph' + (s.projectId ? ' is-filed' : '')} aria-hidden><Icon.folder size={13} /></span>
-              <select
-                className='session-project'
-                aria-label={`Move "${s.title}" to a project`}
-                value={s.projectId || ''}
-                onClick={e => e.stopPropagation()}
-                onChange={e => { e.stopPropagation(); onMoveSession(s.id, e.target.value || null) }}
-              >
-                <option value=''>No project</option>
-                {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
-            </span>
-          )}
-          <button data-tip={s.pinned ? 'Unpin' : 'Pin to top'} data-tip-below title={s.pinned ? 'Unpin' : 'Pin to top'} onClick={e => { e.stopPropagation(); onPin(s.id, !s.pinned) }}>{s.pinned ? '★' : '☆'}</button>
-          {/* Export one chat. Markdown, not JSON: the reason you export a single
-              conversation is to show it to somebody. The JSON archive lives in
-              Settings, where you go to move everything at once. */}
-          <button data-tip='Export as Markdown' data-tip-below title='Export as Markdown' onClick={async e => {
-            e.stopPropagation()
-            try {
-              const r = await api.exportChat(s.id, 'md')
-              await saveToFile(r.filename, r.mime, r.content)
-            } catch (err) { window.alert(`Could not export: ${err.message}`) }
-          }}>⤓</button>
-          <button data-tip='Rename' data-tip-below title='Rename' onClick={e => { e.stopPropagation(); setEditing({ kind: 'session', id: s.id, value: s.title }) }}>✎</button>
-          {/* ⚠️ data-tip, NOT title alone. styles.css has said since it was
-              written that "Electron's native title tooltips are slow/flaky" and
-              ships a CSS tooltip for exactly that reason — but these buttons
-              were still on title, so six icon-only controls explained themselves
-              nowhere. Tony: "theres no tooltips with the session tools including
-              the new archive button". title stays for screen readers and the web
-              build; data-tip is what a person sees. data-tip-below because the
-              actions sit at the TOP of the row, where a tooltip above is clipped.
-
-              ⚠️ THE ICON HAS TO MEAN WHAT THE BUTTON DOES. Archiving shipped
-              behind a ✕, which every interface on earth uses for delete — so the
-              one control that keeps your chat looked like the one that destroys
-              it. Tony: "To me an X means delete." A box with an arrow going in
-              archives; a bin, and only inside the archive, deletes. */}
-          {s.archived
-            ? <>
-                <button data-tip='Restore from archive' data-tip-below title='Restore from archive' aria-label={`Restore "${s.title}" from the archive`}
-                  onClick={e => { e.stopPropagation(); onArchive(s.id, false) }}><Icon.unarchive size={13} /></button>
-                {/* The only route to a real delete. Everything it removes is
-                    unrecoverable, so it says so and names the session. */}
-                {/* ⚠️ NOT BECAUSE CONFIRM IS BROKEN — it is not; see HoldButton.jsx. A
-                    two-click arm puts the second click on a button whose meaning
-                    changed under the pointer, and Tony has twice reported one that
-                    "did nothing" when it had re-armed. Holding has no second click
-                    to miss, and letting go means nothing happened. */}
-                <HoldButton
-                  data-tip='Hold to delete permanently'
-                  data-tip-below
-                  label={`Delete "${s.title}" permanently — hold`}
-                  holdLabel={`Keep holding to delete "${s.title}" for good`}
-                  onConfirm={() => onDelete(s.id)}
-                ><Icon.trash size={13} /></HoldButton>
-              </>
-            : <button data-tip='Archive' data-tip-below title='Archive' aria-label={`Archive "${s.title}"`}
-                onClick={e => { e.stopPropagation(); onArchive(s.id, true) }}><Icon.archive size={13} /></button>}
-        </div>
-      </div>
-    )
-  }
+  const edit = { editing, setEditing, commit: commitEdit }
+  const rowCtx = { agentOf, activeId, working, onOpen, projects, onMoveSession, onPin, onArchive, onDelete, edit }
 
   return (
     <nav className='sidebar' style={{ width }}>
@@ -373,7 +400,7 @@ export default function Sidebar ({ section = 'chat', onSection, onOpenAgents, se
       <button className='new-session' onClick={() => onNew()}>+ New session</button>
       {view === 'chats' && onNewProject && (
         editing?.kind === 'new-project'
-          ? <div className='new-group-btn as-input'><InlineEdit placeholder='Project name…' /></div>
+          ? <div className='new-group-btn as-input'><InlineEdit placeholder='Project name…' edit={edit} /></div>
           : <button className='new-group-btn' onClick={() => setEditing({ kind: 'new-project', value: '' })}><Icon.folder size={13} /> New project</button>
       )}
       {view === 'bots' && agents.length >= 2 && onNewGroup && (
@@ -411,7 +438,7 @@ export default function Sidebar ({ section = 'chat', onSection, onOpenAgents, se
                       <span className='bot-head-caret'>{rows.length ? (isCollapsed ? '▸' : '▾') : ''}</span>
                       <span className='bot-head-icon' style={{ color: glyphColor(project.hue, 0.7, 0.16) }}><Icon.folder size={14} /></span>
                       {editing?.kind === 'project' && editing.id === project.id
-                        ? <InlineEdit placeholder='Project name…' />
+                        ? <InlineEdit placeholder='Project name…' edit={edit} />
                         : <span className='bot-head-name'>{project.name}</span>}
                       <span className='bot-head-count'>{rows.length}</span>
                     </button>
@@ -437,7 +464,7 @@ export default function Sidebar ({ section = 'chat', onSection, onOpenAgents, se
                     )}
                     </span>
                   </div>
-                  {!isCollapsed && rows.map(s => <SessionRow key={s.id} s={s} />)}
+                  {!isCollapsed && rows.map(s => <SessionRow key={s.id} s={s} ctx={rowCtx} />)}
                   {!isCollapsed && !rows.length && (
                     <div className='bot-empty'>No chats yet.</div>
                   )}
@@ -453,12 +480,12 @@ export default function Sidebar ({ section = 'chat', onSection, onOpenAgents, se
                     <span className='bot-head-count'>{loose.length}</span>
                   </button>
                 </div>
-                {!collapsed.__loose && loose.map(s => <SessionRow key={s.id} s={s} />)}
+                {!collapsed.__loose && loose.map(s => <SessionRow key={s.id} s={s} ctx={rowCtx} />)}
               </div>
             )}
             {/* Before the first project exists there is nothing to group by, so
                 the list stays exactly as it was. */}
-            {!projects.length && live.map(s => <SessionRow key={s.id} s={s} />)}
+            {!projects.length && live.map(s => <SessionRow key={s.id} s={s} ctx={rowCtx} />)}
             {/* Only when there are no shelves to speak for themselves. With
                 projects present each one already says "No chats yet.", and this
                 line underneath them said the same thing a third time. */}
@@ -475,7 +502,7 @@ export default function Sidebar ({ section = 'chat', onSection, onOpenAgents, se
                     <span className='bot-head-count'>{archived.length}</span>
                   </button>
                 </div>
-                {showArchive && archived.map(s => <SessionRow key={s.id} s={s} />)}
+                {showArchive && archived.map(s => <SessionRow key={s.id} s={s} ctx={rowCtx} />)}
               </div>
             )}
           </>}
@@ -509,7 +536,7 @@ export default function Sidebar ({ section = 'chat', onSection, onOpenAgents, se
                     </svg>
                   </button>
                 </div>
-                {!isCollapsed && own.map(s => <SessionRow key={s.id} s={s} showAgent={false} />)}
+                {!isCollapsed && own.map(s => <SessionRow key={s.id} s={s} showAgent={false} ctx={rowCtx} />)}
               </div>
               </React.Fragment>
             )
@@ -517,7 +544,7 @@ export default function Sidebar ({ section = 'chat', onSection, onOpenAgents, se
           {(() => { const orphans = live.filter(s => !agentOf(s.agentId)); return orphans.length > 0 && (
             <div className='bot-group'>
               <div className='bot-head'><span className='bot-head-name' style={{ color: 'var(--text-faint)' }}>No agent</span><span className='bot-head-count'>{orphans.length}</span></div>
-              {orphans.map(s => <SessionRow key={s.id} s={s} />)}
+              {orphans.map(s => <SessionRow key={s.id} s={s} ctx={rowCtx} />)}
             </div>
           )})()}
         </div>
