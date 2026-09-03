@@ -3,12 +3,17 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 /**
  * A button you have to hold, for the things that cannot be undone.
  *
- * ⚠️ THIS EXISTS BECAUSE "CLICK AGAIN TO CONFIRM" KEEPS FAILING HERE. The native
- * window.confirm is a no-op in these windows, so it was replaced by a two-click
- * arm — and that has its own failure: the second click lands on a button whose
- * meaning changed under the pointer, and Tony has twice reported a second click
- * that "did nothing" when it had in fact re-armed. A hold has no second click to
- * miss. It is also self-cancelling: let go and nothing happened.
+ * ⚠️ THE REASON IS THE SECOND CLICK, NOT A BROKEN CONFIRM. An earlier note here
+ * said window.confirm is a no-op in these windows. IT IS NOT — probed against the
+ * packaged app on 2026-09-02: it is the native implementation, it shows a real
+ * dialog, and it returns true when accepted. The belief came from window.prompt,
+ * which genuinely is unimplemented, and from an agent-removal bug whose real cause
+ * turned out to be a stale config write.
+ *
+ * The hold still earns its place on its own merits: a two-click arm puts the
+ * second click on a button whose meaning changed under the pointer, and Tony has
+ * twice reported one that "did nothing" when it had in fact re-armed. A hold has
+ * no second click to miss, and letting go means nothing happened.
  *
  * ⚠️ IT MUST WORK FROM A KEYBOARD. Holding Enter or Space fills it exactly as a
  * press does — keydown repeats while held, keyup cancels. A control that can only

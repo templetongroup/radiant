@@ -306,12 +306,11 @@ export default function Sidebar ({ section = 'chat', onSection, onOpenAgents, se
                   onClick={e => { e.stopPropagation(); onArchive(s.id, false) }}><Icon.unarchive size={13} /></button>
                 {/* The only route to a real delete. Everything it removes is
                     unrecoverable, so it says so and names the session. */}
-                {/* ⚠️ NO NATIVE CONFIRM, AND NO SECOND CLICK EITHER. window.confirm is a
-                    no-op in these windows, which is why this was a two-click arm —
-                    but a second click lands on a button whose meaning changed under
-                    the pointer, and Tony has twice reported one that "did nothing"
-                    when it had in fact re-armed. Holding has no second click to
-                    miss, and letting go means nothing happened. */}
+                {/* ⚠️ NOT BECAUSE CONFIRM IS BROKEN — it is not; see HoldButton.jsx. A
+                    two-click arm puts the second click on a button whose meaning
+                    changed under the pointer, and Tony has twice reported one that
+                    "did nothing" when it had re-armed. Holding has no second click
+                    to miss, and letting go means nothing happened. */}
                 <HoldButton
                   data-tip='Hold to delete permanently'
                   data-tip-below
