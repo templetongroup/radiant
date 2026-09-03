@@ -4,6 +4,7 @@ import { Icon } from './Icons.jsx'
 import { glyphColor } from '../theme.js'
 import { AgentGlyph } from './AgentIcons.jsx'
 import { api, getServer } from '../api.js'
+import { shouldDrainQueue } from '../queue.js'
 
 // An agent brought in from another app on this Mac (Hermes, OpenClaw). They sit
 // apart from your own agents and keep their icon's own color rather than taking
@@ -892,14 +893,22 @@ export default function Chat ({ session, live, todos = [], stats, approval, ques
 
   // drain the mid-turn queue once the agent's turn settles (finished OR stopped)
   const wasStreaming = useRef(streaming)
+  const streamedFor = useRef(null)   // which chat the settling turn belonged to
   useEffect(() => {
-    if (wasStreaming.current && !streaming && queued.length && session) {
+    if (shouldDrainQueue({
+      wasStreaming: wasStreaming.current,
+      streaming,
+      streamedFor: streamedFor.current,
+      sessionId: session?.id,
+      queuedCount: queued.length
+    })) {
       const text = queued.map(q => q.text).filter(Boolean).join('\n\n')
       const attachments = queued.flatMap(q => q.attachments || []).slice(0, 8)
       setQueued([])
       onSend({ text, attachments })
     }
     wasStreaming.current = streaming
+    if (streaming) streamedFor.current = session?.id
   }, [streaming, queued, session])
 
   // a session switch abandons anything still queued for the old turn

@@ -544,6 +544,24 @@ for (const r of results) console.log(`  ${r.ok ? '✓' : '✗'} ${r.name}${r.det
   ok(/designBusy \? ' is-capturing'/.test(chat), 'and the markup uses that name')
   // Capturing an element is not dangerous, and --danger is spoken for by "allow all".
   ok(/\.attach-btn\.is-capturing \{[^}]*var\(--accent\)/s.test(css), 'and it is not coloured as a danger')
+
+  // ⚠️ A NOTICE THAT IS ONLY STREAMED IS A NOTICE NOBODY READS. Notices were never
+  // written into the message, and when a turn ends the client drops the live
+  // message and refetches the saved session — so every notice was wiped. "Stopped
+  // after 30 tool rounds." is emitted immediately before `done`, so it existed for
+  // milliseconds. Tony: "sessions also seem to just stop with no warning." That IS
+  // the warning; it never survived to be read.
+  const prov2 = pfs.readFileSync('server/providers.js', 'utf8')
+  ok(/assistant\.parts\.push\(\{ type: 'notice'/.test(prov2), 'notices are saved with the message')
+  {
+    // Both must exist before comparing: indexOf returns -1 when one is gone, and
+    // -1 sorts before everything, which passed a deleted guard once already today.
+    const push = prov2.indexOf("session.messages.push(assistant)")
+    const wrap = prov2.indexOf("if (ev.type === 'notice' && ev.text)")
+    const firstNotice = prov2.indexOf("emit({ type: 'notice'")
+    ok(push !== -1 && wrap !== -1 && firstNotice !== -1 && push < wrap && wrap < firstNotice,
+       'and the wrapper is in place before the first notice is emitted')
+  }
   // ⚠️ With the outline gone the label IS the control, and --text-faint measured
   // 2.15:1 on a panel in the worst theme.
   ok(/\.pill-toggle \{[^}]*color: var\(--text-muted\)/s.test(css), 'and the label is readable as text')

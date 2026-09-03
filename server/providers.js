@@ -539,6 +539,21 @@ export async function runTurn ({ provider, model, apiKey, getAccessToken, getAcc
   const assistant = { role: 'assistant', model, parts: [] }
   if (agentId) assistant.agentId = agentId
   session.messages.push(assistant)
+
+  // ⚠️ A NOTICE THAT IS ONLY STREAMED IS A NOTICE NOBODY READS. Notices were
+  // emitted and never written into the message, so the client showed one for as
+  // long as the turn lasted and then wiped it: when the stream closes it clears the
+  // live message and refetches the saved session, which never had the notice in it.
+  //
+  // "Stopped after 30 tool rounds." is emitted immediately before `done`, so it
+  // existed for a few milliseconds and was gone. Tony: "sessions also seem to just
+  // stop with no warning." That IS the warning — it just never survived to be read.
+  // Same for "this model does not support tools" and the compaction note.
+  const emitRaw = emit
+  emit = ev => {
+    if (ev.type === 'notice' && ev.text) assistant.parts.push({ type: 'notice', text: ev.text })
+    emitRaw(ev)
+  }
   let compacted = false
 
   const accessToken = getAccessToken ? await getAccessToken() : null
