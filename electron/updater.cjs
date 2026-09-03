@@ -1,4 +1,4 @@
-const { app, Menu, dialog, shell, ipcMain } = require('electron')
+const { app, BrowserWindow, Menu, dialog, shell, ipcMain } = require('electron')
 const { autoUpdater } = require('electron-updater')
 const fs = require('fs')
 const path = require('path')
@@ -88,6 +88,8 @@ function innerVersion () {
   } catch { return null }
 }
 
+let state = { phase: 'idle', percent: 0, version: null }
+
 function installUpdater ({ getWindow }) {
   // Full downloads only. A slightly larger download is a fair price for never
   // assembling a half-patched app on someone's Mac.
@@ -127,8 +129,22 @@ function installUpdater ({ getWindow }) {
   }
 
   const send = (type, data) => {
-    const w = getWindow()
-    if (w && !w.isDestroyed()) w.webContents.send('rad:update-event', { type, data })
+    // ⚠️ EVERY WINDOW, NOT THE MAIN ONE. The update UI lives in the SETTINGS
+    // window, which is a separate BrowserWindow — so sending only to getWindow()
+    // meant the one window watching the progress bar was the one window that never
+    // heard a thing. Tony: "I just hit update on the app and it seems frozen." It
+    // was not frozen: the 163 MB download completed normally and the bar it was
+    // meant to fill sat at 0% in another window, listening to nobody.
+    for (const w of BrowserWindow.getAllWindows()) {
+      if (!w.isDestroyed()) w.webContents.send('rad:update-event', { type, data })
+    }
+    // ⚠️ AND REMEMBER IT. Events only reach a window that is open when they fire, so
+    // closing Settings mid-download and reopening it showed "Download & install" for
+    // an update already sitting on disk — pressing it again re-downloaded 163 MB.
+    state = type === 'progress' ? { phase: 'downloading', percent: data.percent || 0, version: state.version }
+      : type === 'downloaded' ? { phase: 'ready', percent: 100, version: data.version }
+        : type === 'error' ? { phase: 'idle', percent: 0, version: null }
+          : state
   }
 
   autoUpdater.on('update-available', info => { latest = info; send('available', { version: info.version, notes: info.releaseNotes }) })
@@ -151,6 +167,8 @@ function installUpdater ({ getWindow }) {
       return { error: String(e && e.message || e), current: app.getVersion() }
     }
   })
+  // What a window that just opened has missed.
+  ipcMain.handle('rad:update-state', () => state)
   ipcMain.on('rad:download-update', () => { autoUpdater.downloadUpdate().catch(e => send('error', { message: String(e.message || e) })) })
   ipcMain.on('rad:install-update', () => { setImmediate(() => autoUpdater.quitAndInstall(false, true)) })
   // A full process restart, not a window reopen. app.exit skips the quit

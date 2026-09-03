@@ -18,9 +18,10 @@
  */
 export const WHATS_NEW = [
   {
-    version: '0.6.229',
+    version: '0.6.230',
     items: [
-      ['Radiant says what is new', 'After it updates itself, the first launch shows a short list of what changed — once, and never on a fresh install.']
+      ['Radiant says what is new', 'After it updates itself, the first launch shows a short list of what changed — once, and never on a fresh install.'],
+      ['Updating shows real progress', 'The progress bar was being sent to a different window than the one you were watching, so it sat at 0% and looked frozen.']
     ]
   },
   {

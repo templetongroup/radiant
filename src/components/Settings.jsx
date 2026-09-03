@@ -1639,6 +1639,19 @@ function AboutPane ({ config, onSettings }) {
     else api.getVersion().then(v => setVersion(v.version)).catch(() => {})
   }, [native])
 
+  // ⚠️ ASK WHAT WAS MISSED, THEN LISTEN. Events only reach a window that is open
+  // when they fire, and this pane lives in the Settings window, which is opened and
+  // closed constantly. Without this, a finished download showed "Download & install"
+  // again and pressing it fetched the same 163 MB a second time.
+  useEffect(() => {
+    if (!native?.state) return
+    native.state().then(st => {
+      if (!st) return
+      if (st.phase === 'downloading') { setPhase('downloading'); setProgress(st.percent || 0) }
+      else if (st.phase === 'ready') { setPhase('ready'); setProgress(100) }
+    }).catch(() => {})
+  }, [native])
+
   // listen to auto-updater events in the packaged app
   useEffect(() => {
     if (!native) return
@@ -2507,6 +2520,7 @@ const GUIDE = [
   {
     title: 'Chat & agents',
     items: [
+      ['Updating shows real progress again', 'Pressing Download & install left the bar at 0% and looked frozen. The download was working the whole time \u2014 it finished normally and waited on disk \u2014 but the progress messages were being sent to the main window while the bar you were watching is in the Settings window, so nothing ever reached it. It updates properly now, and if you close Settings and come back it picks up where things actually are instead of offering to download the same 160 MB again. An update that has finished downloading installs when you quit Radiant.'],
       ['Radiant tells you what is new after it updates', 'Radiant updates itself quietly in the background, so features used to just appear with nothing to announce them. Now, the first time you open a version you have not run before, a short list of what changed is shown once. A brand-new install never sees it, and if several updates went by while your Mac was shut you get all of them, newest first. Settings \u203a Read me still has the full detail.'],
       ['A browser extension, so the agent works in your own Chrome', 'Settings \u203a Automation now has a small Chrome extension you install once. With it, the agent works inside the browser you are already signed into: it can list your open tabs, read the page you are looking at, take a picture of it, click things by name, and fill in fields \u2014 as you, with your logins. Chrome no longer lets any app connect to your everyday browser from outside, and it will not let Radiant install this for you either, so the panel gives you the folder and the four steps. The extension talks only to Radiant on this Mac and to nothing else; quitting Chrome or removing it unplugs it completely.'],
       ['The agent can use the Chrome you are already signed into', 'Chrome no longer lets any app attach to your everyday browser profile, so Radiant used to open a fresh, empty Chrome instead \u2014 no tabs, no extensions, signed in to nothing \u2014 and the agent would describe that one, or tell you your permissions were wrong. It now drives your real Chrome through macOS automation: it can list your open tabs, bring one to the front, read the page you are looking at, open a URL, and click things by their visible text. Ask it about \u201cmy GoDaddy tab\u201d and it can actually see it. It cannot take a picture of that browser \u2014 nothing can \u2014 so it reads the page instead and says so plainly. If macOS or Chrome needs a permission, it names the exact one.'],

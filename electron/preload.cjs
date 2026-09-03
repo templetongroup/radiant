@@ -39,6 +39,9 @@ contextBridge.exposeInMainWorld('radiantUpdater', {
   // window leaves the process running, so the old code keeps serving and the
   // "quit and reopen" advice appears to do nothing. This does it for them.
   relaunch: () => ipcRenderer.send('rad:relaunch'),
+  // What happened before this window existed. Settings can open long after a
+  // download started — or finished.
+  state: () => ipcRenderer.invoke('rad:update-state'),
   onEvent: cb => {
     const handler = (_e, payload) => cb(payload)
     ipcRenderer.on('rad:update-event', handler)
