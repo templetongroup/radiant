@@ -442,8 +442,14 @@ for (const r of results) console.log(`  ${r.ok ? '✓' : '✗'} ${r.name}${r.det
   // ⚠️ AND THEY FIT THEIR TEXT. Stacked full-width rows turned three short answers
   // into three banners across the transcript. Tony: "the answer chips span across
   // the whole chat window. that looks ridiculous."
-  ok(/\.relay \{[^}]*flex-wrap: wrap/s.test(css), 'the answers wrap like chips')
-  ok(!/\.relay \{[^}]*flex-direction: column/s.test(css), 'and are not stacked full width')
+  // ⚠️ STACKED, AND NATURAL WIDTH. Two mistakes in a row: stacked but STRETCHED
+  // ("three banners across the transcript"), then side by side, which no assistant
+  // does. Tony: "I want the chips stacked like they are in the template and in
+  // every other AI app I've seen. nobody places them side by side."
+  // align-items: stretch is the flex DEFAULT and is what made them banners, so the
+  // flex-start is the load-bearing half of this rule, not the column.
+  ok(/\.relay \{[^}]*flex-direction: column/s.test(css), 'the answers are stacked')
+  ok(/\.relay \{[^}]*align-items: flex-start/s.test(css), 'and only as wide as their text')
   ok(/\.relay-opt \{[^}]*max-width/s.test(css), 'with a cap so a long one cannot span the window')
 
   // ⚠️ "WORKING" WAS FOUR GREY CHARACTERS THAT NEVER MOVED, while a turn can run

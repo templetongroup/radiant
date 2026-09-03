@@ -2140,14 +2140,17 @@ button.hf-head:hover { background: var(--bg-hover); }
 
 @media (prefers-reduced-motion: reduce) { .working-dot { animation: none; } }
 
-/* ⚠️ THE ROWS FIT THEIR TEXT — THEY DO NOT SPAN THE WINDOW. Stacked full-width
-   rows turned three short answers into three banners across the whole transcript.
-   Tony: "the answer chips span across the whole chat window. that looks
-   ridiculous. thats not how the template I sent you looks." They wrap inline like
-   chips; the ring measures whatever box it lands on, so wrapping costs it
-   nothing. A long answer still gets a full line, because that is when it needs
-   one — max-width keeps it from running the entire width. */
-.relay { position: relative; display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; outline: none; }
+/* ⚠️ STACKED, AND EACH ROW ONLY AS WIDE AS ITS TEXT. Two separate mistakes, one
+   after the other: first they were stacked but STRETCHED, so three short answers
+   became three banners across the transcript — "that looks ridiculous". Then I
+   read that as an objection to stacking and laid them out side by side, which is
+   not what any assistant does. Tony: "I want the chips stacked like they are in
+   the template and in every other AI app I've seen. nobody places them side by
+   side."
+   Column plus align-items: flex-start is the combination — vertical order, natural
+   width. `align-items: stretch` is the flex default, and it is what made them
+   banners in the first place. */
+.relay { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin-bottom: 10px; outline: none; }
 .relay-ring {
   position: absolute; top: 0; left: 0; z-index: 0; pointer-events: none;
   border-radius: 9px; background: var(--accent-wash);
