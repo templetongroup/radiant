@@ -708,7 +708,7 @@ export function serverHost () {
 // merging from disk there would undo the very edit being made.
 const USER_OWNED = [
   'projectId', 'pinned', 'archived', 'agentId', 'cwd',
-  'useTools', 'computerControl', 'planMode', 'skillIds', 'model', 'provider'
+  'useTools', 'computerControl', 'planMode', 'skillIds', 'model', 'provider', 'effort'
 ]
 
 export function saveTurnSession (session) {

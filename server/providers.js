@@ -192,7 +192,28 @@ async function * sseEvents (response) {
 }
 
 // ---------- single API round, streaming; returns {parts, stopOnTools} ----------
-async function anthropicRound ({ baseUrl, apiKey, accessToken, model, messages, system, tools, toolDefs, emit, signal }) {
+// ⚠️ ONE SLIDER, THREE DIFFERENT PARAMETERS. Radiant never asked for a thinking
+// level at all — it rendered whatever reasoning came back and let every model run
+// at its provider's default, so there was nothing to display and nothing to
+// change. Tony: "when i pick a model like gpt 5.6 sol how do i know what thinking
+// level it is. can we make a slider?"
+//
+// The three APIs disagree on the shape:
+//   Anthropic          thinking: { type: 'enabled', budget_tokens: N }   (a BUDGET)
+//   OpenAI-compatible  reasoning_effort: 'low' | 'medium' | 'high'
+//   Responses/Codex    reasoning: { effort: 'low' | 'medium' | 'high' }
+//
+// ⚠️ 'auto' MEANS SEND NOTHING. It is the default, and it reproduces today's
+// behaviour byte for byte — so a model that does not do reasoning, or a provider
+// that rejects the parameter, is untouched unless the user deliberately asks for
+// a level. Anything else would break working chats to add a control.
+export const EFFORTS = ['auto', 'low', 'medium', 'high']
+
+// Anthropic budgets, in tokens. Minimum accepted is 1024; the reply needs room of
+// its own, so max_tokens is raised alongside rather than eaten into.
+const THINK_BUDGET = { low: 2048, medium: 6144, high: 12288 }
+
+async function anthropicRound ({ baseUrl, apiKey, accessToken, model, messages, system, tools, toolDefs, effort, emit, signal }) {
   // Subscription (OAuth) requests must present as Claude Code: the first system
   // block is the CLI's identity, auth is Bearer, and the oauth beta is set.
   const CLAUDE_CODE_ID = "You are Claude Code, Anthropic's official CLI for Claude."
@@ -200,6 +221,14 @@ async function anthropicRound ({ baseUrl, apiKey, accessToken, model, messages, 
     ? [{ type: 'text', text: CLAUDE_CODE_ID }, { type: 'text', text: system }]
     : system
   const body = { model, max_tokens: 8192, system: sys, messages, stream: true }
+  // ⚠️ RAISE max_tokens WITH THE BUDGET, do not carve the budget out of it — the
+  // thinking budget and the visible reply share this number, so a 12k budget under
+  // an 8k cap would leave nothing to answer with (and Anthropic rejects a budget
+  // that is not strictly smaller than max_tokens).
+  if (THINK_BUDGET[effort]) {
+    body.thinking = { type: 'enabled', budget_tokens: THINK_BUDGET[effort] }
+    body.max_tokens = 8192 + THINK_BUDGET[effort]
+  }
   if (tools) body.tools = (toolDefs || TOOL_DEFS).map(t => ({ name: t.name, description: t.description, input_schema: t.input_schema }))
   const headers = { 'content-type': 'application/json', 'anthropic-version': '2023-06-01' }
   if (accessToken) {
@@ -250,8 +279,9 @@ async function anthropicRound ({ baseUrl, apiKey, accessToken, model, messages, 
   return { parts, stopOnTools: stopReason === 'tool_use' }
 }
 
-async function openaiRound ({ baseUrl, apiKey, accessToken, model, messages, tools, toolDefs, extraHeaders, emit, signal }) {
+async function openaiRound ({ baseUrl, apiKey, accessToken, model, messages, tools, toolDefs, extraHeaders, effort, emit, signal }) {
   const body = { model, messages, stream: true }
+  if (effort && effort !== 'auto') body.reasoning_effort = effort
   if (tools) {
     body.tools = (toolDefs || TOOL_DEFS).map(t => ({ type: 'function', function: { name: t.name, description: t.description, parameters: t.input_schema } }))
   }
@@ -335,12 +365,13 @@ function toResponsesInput (messages) {
   return input
 }
 
-async function chatgptRound ({ accessToken, accountId, model, messages, system, tools, toolDefs, emit, signal }) {
+async function chatgptRound ({ accessToken, accountId, model, messages, system, tools, toolDefs, effort, emit, signal }) {
   // The Codex backend rejects retired ids (gpt-5, gpt-5-codex, gpt-5.1…); remap
   // those to the current default. Live ids (gpt-5.6-sol, gpt-5.5, …) pass through.
   const retired = /codex|^gpt-5$|^gpt-5\.1$|^gpt-4/i.test(model)
   const useModel = (!model || retired) ? CHATGPT_DEFAULT_MODEL : model
   const body = { model: useModel, instructions: system, input: toResponsesInput(messages), store: false, stream: true }
+  if (effort && effort !== 'auto') body.reasoning = { effort }
   if (tools) body.tools = (toolDefs || TOOL_DEFS).map(t => ({ type: 'function', name: t.name, description: t.description, parameters: t.input_schema, strict: false }))
   const headers = {
     'content-type': 'application/json',
@@ -498,7 +529,7 @@ async function compactSession (session, keepRecent, summarize, emit) {
 }
 
 // ---------- the agent loop ----------
-export async function runTurn ({ provider, model, apiKey, getAccessToken, getAccountId, session, useTools, computerControl, skills, persona, memory, agentId, groupSpeakerId, groupNames, mcpTools, callMcp, askAgent, peerAgents, planMode, onPlanExit, summarize, autoCompact, autoApproveComputer, emit, requestApproval, requestUserChoice, signal }) {
+export async function runTurn ({ provider, model, apiKey, getAccessToken, getAccountId, session, useTools, computerControl, skills, persona, memory, agentId, groupSpeakerId, groupNames, mcpTools, callMcp, askAgent, peerAgents, planMode, onPlanExit, effort, summarize, autoCompact, autoApproveComputer, emit, requestApproval, requestUserChoice, signal }) {
   const cwd = session.cwd || os.homedir()
   const system = systemPrompt(cwd, useTools, model, computerControl, skills, persona, planMode, memory)
   // proactive compaction before a very long turn
@@ -556,6 +587,7 @@ export async function runTurn ({ provider, model, apiKey, getAccessToken, getAcc
       tools: toolsEnabled,
       toolDefs,
       extraHeaders: provider.id === 'copilot' ? COPILOT_HEADERS : undefined,
+        effort,
       emit: emitS,
       signal
     }
@@ -576,6 +608,16 @@ export async function runTurn ({ provider, model, apiKey, getAccessToken, getAcc
         emit({ type: 'notice', text: 'This model does not support tools — continuing in chat-only mode.' })
         continue
       }
+        // ⚠️ AND A LEVEL THE MODEL CANNOT DO MUST NOT END THE TURN. Only some
+        // models reason, and the ones that do not reject the parameter outright.
+        // Dropping it and retrying keeps a wrong slider position from breaking a
+        // chat — the same shape as the tools fallback above, for the same reason.
+        if (args.effort && args.effort !== 'auto' && round === 0 &&
+            /reasoning|thinking|effort|budget/i.test(e.message) && /support|invalid|unknown|400/i.test(e.message)) {
+          args.effort = 'auto'
+          emit({ type: 'notice', text: 'This model does not take a thinking level — running at its default.' })
+          continue
+        }
       // Ran out of context -> summarize older messages and retry this round.
       if (isContextError(e.message) && autoCompact && summarize && !compacted) {
         compacted = true

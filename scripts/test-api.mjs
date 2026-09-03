@@ -380,5 +380,51 @@ server.kill('SIGKILL')
 const failed = results.filter(r => !r.ok)
 console.log('')
 for (const r of results) console.log(`  ${r.ok ? '✓' : '✗'} ${r.name}${r.detail ? `  — ${r.detail}` : ''}`)
+// ⚠️ RADIANT NEVER ASKED FOR A THINKING LEVEL. It rendered whatever reasoning came
+// back and let every model run at its provider's default, so there was nothing to
+// show and nothing to change. Tony: "when i pick a model like gpt 5.6 sol how do i
+// know what thinking level it is. can we make a slider?"
+{
+  const pfs = await import('node:fs')
+  const prov = pfs.readFileSync('server/providers.js', 'utf8')
+  // Three APIs, three shapes — one word from the UI has to map onto each.
+  ok(/thinking = \{ type: 'enabled', budget_tokens/.test(prov) || /body\.thinking = \{ type: 'enabled'/.test(prov), 'Anthropic gets a thinking budget')
+  ok(/body\.reasoning_effort = effort/.test(prov), 'OpenAI-compatible gets reasoning_effort')
+  ok(/body\.reasoning = \{ effort \}/.test(prov), 'the Responses API gets reasoning.effort')
+  // ⚠️ AUTO MUST SEND NOTHING, or adding a control breaks every model that does
+  // not reason and every provider that rejects the parameter.
+  ok((prov.match(/effort !== 'auto'/g) || []).length >= 2, '\'auto\' sends nothing at all')
+  ok(/THINK_BUDGET\[effort\]/.test(prov), 'and a budget is only set for a real level')
+  // Raising max_tokens matters: the budget and the reply share it.
+  ok(/max_tokens = 8192 \+ THINK_BUDGET/.test(prov), 'the reply still has room beside the budget')
+  // A wrong slider position must not end a turn.
+  ok(/args\.effort = 'auto'/.test(prov), 'an unsupported level degrades instead of failing')
+
+  const idx = pfs.readFileSync('server/index.js', 'utf8')
+  ok(/'effort'/.test(idx), 'the level is per chat and saved')
+  ok(/effort: session\.effort \|\| 'auto'/.test(idx), 'and sent with the turn')
+  const cfg = pfs.readFileSync('server/config.js', 'utf8')
+  ok(/'provider', 'effort'/.test(cfg), 'a running turn cannot clobber it')
+
+  const chat = pfs.readFileSync('src/components/Chat.jsx', 'utf8')
+  ok(/EFFORT_STOPS/.test(chat) && /think-rail/.test(chat), 'the composer has a four-stop rail')
+
+  // ⚠️ "FAILED" WAS COUNTING THREE UNRELATED THINGS. Tony: "whenever i ask agents
+  // to do something there are ALWAYS tool failures. why?" Because a probe into a
+  // folder that does not exist, a URL that 404s, and a tool HE declined all
+  // matched /^Error/ and rendered as one red count.
+  ok(/const declined = parts\.filter\(p => p\.denied\)/.test(chat), 'a declined tool is not a failure')
+  ok(/NOTHING_THERE/.test(chat), 'and finding nothing is not either')
+  ok(/const failed = errored\.filter\(p => !NOTHING_THERE/.test(chat), 'while real errors still count')
+
+  // The palette existed only as ⌘K, so it did not exist for anyone who did not
+  // know the shortcut.
+  ok(/palette-trigger/.test(chat), 'the command palette has a visible trigger')
+  const app = pfs.readFileSync('src/App.jsx', 'utf8')
+  ok(/onOpenPalette=\{\(\) => setPaletteOpen\(true\)\}/.test(app), 'and it opens the palette')
+  const css = pfs.readFileSync('src/styles.css', 'utf8')
+  ok(/bloom-in/.test(css) && /bloom-row/.test(css), 'which blooms open rather than appearing')
+}
+
 console.log(`\n${results.length - failed.length}/${results.length} passed`)
 process.exit(failed.length ? 1 : 0)

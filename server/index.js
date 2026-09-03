@@ -500,7 +500,7 @@ app.patch('/api/agents/:id', (req, res) => {
 
 const SAFE_SESSION_KEYS = [
   'title', 'agentId', 'group', 'participants', 'provider', 'model', 'cwd',
-  'useTools', 'computerControl', 'planMode', 'skillIds', 'createdAt', 'updatedAt', 'messages'
+  'useTools', 'computerControl', 'planMode', 'skillIds', 'effort', 'createdAt', 'updatedAt', 'messages'
 ]
 
 // ---- ChatGPT exports --------------------------------------------------------
@@ -2039,7 +2039,7 @@ app.patch('/api/sessions/:id', (req, res) => {
   // every conversation (the Settings checkbox) or bound to an agent — so a skill
   // you want occasionally had to live in every chat's system prompt. This is the
   // third source: skills the user added to THIS chat, and only this chat.
-  for (const k of ['title', 'model', 'provider', 'cwd', 'useTools', 'computerControl', 'agentId', 'projectId', 'pinned', 'archived', 'planMode', 'skillIds']) {
+  for (const k of ['title', 'model', 'provider', 'cwd', 'useTools', 'computerControl', 'agentId', 'projectId', 'pinned', 'archived', 'planMode', 'skillIds', 'effort']) {
     if (k in req.body) s[k] = req.body[k]
   }
   if ('title' in req.body) s.autoTitle = false // manual rename pins the title
@@ -2351,6 +2351,7 @@ app.post('/api/chat', async (req, res) => {
         askAgent,
         peerAgents,
         planMode: Boolean(session.planMode),
+        effort: session.effort || 'auto',
         onPlanExit: () => { session.planMode = false; emit({ type: 'plan_mode', on: false }) }
       })
     }

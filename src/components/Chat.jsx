@@ -167,7 +167,17 @@ function ToolChip ({ part, compact = false }) {
 // the group opens itself, because a hidden failure is worse than a cluttered
 // one. A single call still renders as a single chip.
 function ToolRun ({ parts }) {
-  const failed = parts.filter(p => p.denied || (p.result != null && /^Error/i.test(String(p.result))))
+  // ⚠️ "FAILED" WAS COUNTING THREE UNRELATED THINGS, and two of them are normal.
+  // Tony: "whenever i ask agents to do something there are ALWAYS tool failures.
+  // why?" Because a probe into a folder that does not exist, a URL that 404s, and
+  // a tool YOU declined all matched /^Error/ and rendered as a red failure count.
+  // An agent looking for a file and not finding it is how searching works; being
+  // told you said no is not a fault at all. Only the rest is worth alarming about.
+  const declined = parts.filter(p => p.denied)
+  const errored = parts.filter(p => !p.denied && p.result != null && /^Error/i.test(String(p.result)))
+  const NOTHING_THERE = /ENOENT|no such file|not found|404|does not exist|no matches|old_string not found/i
+  const empty = errored.filter(p => NOTHING_THERE.test(String(p.result)))
+  const failed = errored.filter(p => !NOTHING_THERE.test(String(p.result)))
   const pending = parts.some(p => p.pending)
   const [open, setOpen] = useState(failed.length > 0)
   const names = [...new Set(parts.map(p => p.name))]
@@ -181,7 +191,12 @@ function ToolRun ({ parts }) {
         <span className='tool-ico' aria-hidden>{TOOL_ICONS[names[0]] || '·'}</span>
         <span className='tool-run-label'>{label}</span>
         <span className={'tool-status' + (pending ? ' pending' : '')}>
-          {pending ? '⋯' : failed.length ? `✕ ${failed.length} failed` : '✓'}
+          {pending
+            ? '⋯'
+            : failed.length ? `✕ ${failed.length} failed`
+              : empty.length ? `${empty.length} found nothing`
+                : declined.length ? `${declined.length} declined`
+                  : '✓'}
         </span>
       </button>
       {open && (
@@ -359,6 +374,42 @@ const readPins = () => {
 // row a <select> got for free from an empty <option>. Without that second one,
 // swapping a select for this picker would quietly delete the ability to say
 // "no model" — which is what "Session default" and "No default" mean.
+// ⚠️ FOUR STOPS, AND "AUTO" IS ONE OF THEM. Radiant never asked for a thinking
+// level, so every model ran at its provider's default and there was nothing to
+// show. Tony: "when i pick a model like gpt 5.6 sol how do i know what thinking
+// level it is. can we make a slider?"
+//
+// Auto sends NOTHING, which is exactly today's behaviour — so a model that does
+// not reason, or a provider that rejects the parameter, is untouched until you
+// deliberately ask for a level. The three APIs each spell it differently; the
+// server maps this one word onto whichever shape the provider wants.
+const EFFORT_STOPS = [
+  ['auto', 'Auto', "The provider's own default"],
+  ['low', 'Low', 'Answer quickly, think briefly'],
+  ['medium', 'Medium', 'A balance of speed and care'],
+  ['high', 'High', 'Think hard before answering']
+]
+
+function ThinkRail ({ value, onPick }) {
+  const at = Math.max(0, EFFORT_STOPS.findIndex(([id]) => id === (value || 'auto')))
+  return (
+    <div className='think-rail' style={{ '--stop': at }} role='group' aria-label='Thinking level'>
+      <span className='think-pill' aria-hidden />
+      {EFFORT_STOPS.map(([id, label, hint], n) => (
+        <button
+          key={id}
+          className={'think-stop' + (n === at ? ' is-on' : '')}
+          aria-pressed={n === at}
+          data-tip={hint}
+          data-tip-below
+          title={hint}
+          onClick={() => onPick(id)}
+        >{label}</button>
+      ))}
+    </div>
+  )
+}
+
 export function ModelPicker ({ session, models, onPick, onRefresh, placeholder, clearLabel }) {
   const [open, setOpen] = useState(false)
   const [q, setQ] = useState('')
@@ -618,7 +669,8 @@ function RecipeMenu ({ recipes, onUse }) {
   }
   return (
     <div ref={ref} style={{ position: 'relative', display: 'flex' }}>
-      <button className='attach-btn' title='Recipes' data-tip={'Recipes — insert a reusable\ntask template into the message'} onClick={() => { setOpen(o => !o); setActive(null) }}><Icon.sparkle size={16} /></button>
+      
+              <button className='attach-btn' title='Recipes' data-tip={'Recipes — insert a reusable\ntask template into the message'} onClick={() => { setOpen(o => !o); setActive(null) }}><Icon.sparkle size={16} /></button>
       {open && (
         <div className='recipe-menu'>
           {!active ? recipes.map(r => (
@@ -669,7 +721,7 @@ export function GroupPicker ({ agents, onStart, onCancel }) {
   )
 }
 
-export default function Chat ({ session, live, todos = [], stats, approval, question, onAnswer, usage, error, models, agents = [], recipes = [], onSend, onStop, onApproval, onPickModel, onToggleTools, onToggleComputer, onTogglePlan, onSetCwd, onNew, onNewGroup, onTruncate, onRefreshModels, skillSuggestion, onReviewSkill, onDismissSuggestion, onOpenLibrary, rightOpen, onToggleRight, onMenu, approvalMode = 'ask', onCycleApproval, onFork, skills = [], onAddSkill, onRemoveSkill, serverHost }) {
+export default function Chat ({ session, live, todos = [], stats, approval, question, onAnswer, usage, error, models, agents = [], recipes = [], onSend, onStop, onApproval, onPickModel, onToggleTools, onToggleComputer, onTogglePlan, onSetCwd, onNew, onNewGroup, onTruncate, onRefreshModels, skillSuggestion, onReviewSkill, onDismissSuggestion, onOpenLibrary, rightOpen, onToggleRight, onMenu, approvalMode = 'ask', onCycleApproval, onFork, skills = [], onAddSkill, onRemoveSkill, serverHost, onSetEffort, onOpenPalette }) {
   // ⚠️ TOOLS RUN ON THE SERVER'S MAC. Computer control is the one where that is
   // dangerous rather than merely surprising: the mouse that moves, the keys that
   // get typed and the screen that is captured all belong to the machine running
@@ -1135,6 +1187,19 @@ export default function Chat ({ session, live, todos = [], stats, approval, ques
                 ref={fileInputRef} type='file' multiple hidden
                 onChange={e => { if (e.target.files.length) addFiles(e.target.files); e.target.value = '' }}
               />
+              {/* ⚠️ THE COMMAND PALETTE HAD NO BUTTON AT ALL — only ⌘K, so it did not exist
+                  for anyone who had not been told the shortcut. Tony, pointing at
+                  kinetics' Command Palette Bloom: "use command palette bloom on this
+                  page for the actual button." A compact trigger that unfolds into the
+                  actions is exactly what the palette is; it was just missing its
+                  visible half. The shortcut still works and is shown on the button. */}
+              <button
+                className='attach-btn palette-trigger'
+                title='Commands (⌘K)'
+                data-tip={'Commands — actions, agents,\nsessions and models  (⌘K)'}
+                aria-label='Open the command palette'
+                onClick={() => onOpenPalette?.()}
+              ><Icon.zap size={15} /></button>
               <button className='attach-btn' onClick={() => fileInputRef.current?.click()} title='Attach files or images' data-tip='Attach files or images'><Icon.plus size={17} /></button>
               <button className={'attach-btn' + (designBusy ? ' listening' : '')} onClick={startDesign} disabled={designBusy} title='Design Mode' data-tip={'Design Mode — open a web page and click\nan element to capture its HTML, CSS &\na screenshot as context'}><Icon.target size={16} /></button>
               {activeSkillIds.length > 0 && activeSkillIds.map(id => {
@@ -1171,6 +1236,10 @@ export default function Chat ({ session, live, todos = [], stats, approval, ques
               >
                 <Icon.clipboard size={13} /> plan {session.planMode ? 'on' : 'off'}
               </button>
+                <ThinkRail
+                  value={session.effort}
+                  onPick={v => onSetEffort?.(v)}
+                />
               <button
                 className={'pill-toggle' + (approvalMode === 'off' ? ' warn' : approvalMode === 'auto' ? ' on' : '')}
                 onClick={onCycleApproval}
