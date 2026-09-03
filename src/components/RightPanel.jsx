@@ -89,7 +89,14 @@ export default function RightPanel ({ tab, onTab, activity, cwd, mode, onClose }
         {tab === 'activity' && (
           <div className='activity-feed'>
             {!activity.length && <div className='activity-empty'>Agent tool calls will appear here as they run.</div>}
-            {activity.map(item => <ActivityItem key={item.id + item.at} item={item} />)}
+            {/* ⚠️ NEWEST FIRST. The feed appends as tools run and never follows the
+                bottom, so watching a long turn meant scrolling down again after
+                every call. Tony: "shouldnt newest be at the top so i dont have to
+                scroll down every time to see latest?"
+                Reversed on render rather than stored backwards, because the array
+                is updated by id — a completed call is patched in place, and
+                reversing the SOURCE would put the write and the read out of step. */}
+            {[...activity].reverse().map(item => <ActivityItem key={item.id + item.at} item={item} />)}
           </div>
         )}
         {tab === 'terminal' && <Terminal cwd={cwd} mode={mode} />}

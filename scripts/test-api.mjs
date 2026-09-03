@@ -464,6 +464,27 @@ for (const r of results) console.log(`  ${r.ok ? '✓' : '✗'} ${r.name}${r.det
   // The clock keeps counting when the pulse is switched off — a changing number is
   // not the motion anyone meant to disable.
   ok(/@media \(prefers-reduced-motion: reduce\) \{ \.working-dot \{ animation: none/.test(css), 'the pulse stops under Reduce Motion')
+
+  // ⚠️ A FINISHED TASK LIST GETS OUT OF THE WAY. It earned its place while the
+  // agent worked through it, then sat open above the composer for the rest of the
+  // conversation. Tony: "why does this tasks window stay open during the whole
+  // reast of the chat if its complete."
+  ok(/const wasAll = useRef\(false\)/.test(chat), 'a completed list folds itself away')
+  // On the TRANSITION, not the state — otherwise it slams shut every render after
+  // you open it to look.
+  ok(/if \(all && !wasAll\.current\) setCollapsed\(true\)/.test(chat), 'once, on the transition to complete')
+  // Hooks must run unconditionally; an early return above one changes the hook
+  // count between renders and React rejects it outright.
+  ok(chat.indexOf('const wasAll') < chat.indexOf("if (!todos?.length) return null"), 'and the early return sits below the hooks')
+
+  // ⚠️ NEWEST FIRST IN THE ACTIVITY FEED. It appended as tools ran and never
+  // followed the bottom, so a long turn meant scrolling down after every call.
+  // Tony: "shouldnt newest be at the top so i dont have to scroll down every time?"
+  const rp = pfs.readFileSync('src/components/RightPanel.jsx', 'utf8')
+  ok(/\[\.\.\.activity\]\.reverse\(\)\.map/.test(rp), 'the activity feed shows newest first')
+  // Reversed on RENDER: the array is patched by id when a call completes, so
+  // reversing the source would put the write and the read out of step.
+  ok(!/setActivity\(a => \[.*\.\.\.a\]/.test(pfs.readFileSync('src/App.jsx', 'utf8')), 'without reversing the source of truth')
 }
 
 console.log(`\n${results.length - failed.length}/${results.length} passed`)

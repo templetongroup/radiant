@@ -43,14 +43,31 @@ function agentBlurb (a) {
 // agent task checklist (from the todo_write tool)
 function TodoChecklist ({ todos }) {
   const [collapsed, setCollapsed] = useState(false)
+  const done = (todos || []).filter(t => t.status === 'done').length
+  const all = todos?.length ? done === todos.length : false
+
+  // ⚠️ A FINISHED LIST GETS OUT OF THE WAY BY ITSELF. It earns its place while the
+  // agent works through it, then sits open above the composer for the rest of the
+  // conversation, five struck-through lines deep. Tony: "why does this tasks
+  // window stay open during the whole reast of the chat if its complete."
+  //
+  // ⚠️ ON THE TRANSITION, NOT ON THE STATE. Collapsing whenever `all` is true would
+  // slam it shut again on every render after you opened it to look — so this fires
+  // once, as the last item lands, and your click wins from then on.
+  const wasAll = useRef(false)
+  useEffect(() => {
+    if (all && !wasAll.current) setCollapsed(true)
+    wasAll.current = all
+  }, [all])
+
+  // ⚠️ AFTER THE HOOKS, NEVER BEFORE. Returning early on an empty list above a
+  // useEffect changes the hook count between renders, which React rejects outright.
   if (!todos?.length) return null
-  const done = todos.filter(t => t.status === 'done').length
-  const all = done === todos.length
   return (
     <div className={'todo-panel' + (all ? ' complete' : '')}>
       <button className='todo-head' onClick={() => setCollapsed(c => !c)}>
         <span className='todo-caret'>{collapsed ? '▸' : '▾'}</span>
-        Tasks <span className='todo-count'>{done}/{todos.length}</span>
+        Tasks <span className='todo-count'>{all ? `✓ ${done}/${todos.length}` : `${done}/${todos.length}`}</span>
       </button>
       {!collapsed && todos.map((t, i) => (
         <div key={i} className={'todo-item ' + t.status}>
