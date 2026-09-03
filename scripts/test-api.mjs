@@ -525,6 +525,12 @@ for (const r of results) console.log(`  ${r.ok ? '✓' : '✗'} ${r.name}${r.det
   // says on — and the word beside it already reads "on", so the state survives for
   // anyone who cannot see colour.
   ok(/\.pill-toggle\.on \{[^}]*background: none/s.test(css), 'on is said in colour, not in chrome')
+  // ⚠️ AND SO IS THE WARNING STATE. I changed .pill-toggle and .pill-toggle.on and
+  // missed .warn, so "allow all" sat in a red chip among plain labels and read as
+  // the only real button in the row. Tony: "why does allow all appear in a bubble
+  // but not hte other options".
+  ok(/\.pill-toggle\.warn \{[^}]*background: none/s.test(css), 'allow all is text too')
+  ok(/\.pill-toggle\.warn:hover/.test(css), 'and earns its chip the same way')
   // ⚠️ With the outline gone the label IS the control, and --text-faint measured
   // 2.15:1 on a panel in the worst theme.
   ok(/\.pill-toggle \{[^}]*color: var\(--text-muted\)/s.test(css), 'and the label is readable as text')
