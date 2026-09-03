@@ -1,6 +1,7 @@
 import { desktop, screenshot as screenScreenshot, screenSize, helperAvailable, permissions } from './computer.js'
 import { web, browserAvailable, chromeReachable } from './browser.js'
 import * as osa from './chrome-osa.js'
+import { ext, extensionConnected } from './chrome-ext.js'
 
 // Two control surfaces the agent can drive when "computer control" is enabled:
 // the whole desktop (screen_*) and an automated browser (browser_*). Tools that
@@ -11,13 +12,13 @@ export const COMPUTER_TOOL_DEFS = [
   { name: 'browser_navigate', description: 'Open a URL in the controlled browser. Returns a screenshot of the page.', input_schema: { type: 'object', properties: { url: { type: 'string' } }, required: ['url'] } },
   { name: 'browser_screenshot', description: 'Take a screenshot of the current browser page.', input_schema: { type: 'object', properties: {}, required: [] } },
   { name: 'browser_click', description: 'Click in the browser at pixel coordinates from the latest browser screenshot (1280x800 space).', input_schema: { type: 'object', properties: { x: { type: 'number' }, y: { type: 'number' } }, required: ['x', 'y'] } },
-  { name: 'browser_type', description: 'Type text into the focused element in the browser.', input_schema: { type: 'object', properties: { text: { type: 'string' } }, required: ['text'] } },
+  { name: 'browser_type', description: "Type text into the browser. With the Radiant extension installed this types into the user's own signed-in Chrome: give a CSS selector for the field, or leave it out to use whatever is focused, and set submit to press Enter afterwards.", input_schema: { type: 'object', properties: { text: { type: 'string' }, selector: { type: 'string' }, submit: { type: 'boolean' }, tabId: { type: 'number' } }, required: ['text'] } },
   { name: 'browser_key', description: 'Press a key or combo in the browser, e.g. "Enter", "cmd+a".', input_schema: { type: 'object', properties: { keys: { type: 'string' } }, required: ['keys'] } },
   { name: 'browser_scroll', description: 'Scroll the browser page vertically. Positive dy scrolls up, negative down.', input_schema: { type: 'object', properties: { dy: { type: 'number' } }, required: ['dy'] } },
-  { name: 'browser_read', description: 'Get the visible text of the current browser page.', input_schema: { type: 'object', properties: {}, required: [] } },
+  { name: 'browser_read', description: "Get the visible text of a page in the user's own Chrome. Defaults to the tab they are looking at; pass tabId from browser_tabs for another one.", input_schema: { type: 'object', properties: { tabId: { type: 'number' } }, required: [] } },
   { name: 'browser_tabs', description: "List the tabs open in the user's own signed-in Chrome, with window and tab numbers. Use this FIRST when the user refers to a page they already have open ('my GoDaddy tab', 'the dashboard I'm looking at') — those pages are logged in, and the browser Radiant can launch itself is not.", input_schema: { type: 'object', properties: {}, required: [] } },
-  { name: 'browser_select_tab', description: "Bring one of the user's own Chrome tabs to the front, by the window and tab numbers from browser_tabs. Afterwards browser_read and browser_click_text act on it.", input_schema: { type: 'object', properties: { window: { type: 'number' }, tab: { type: 'number' } }, required: ['window', 'tab'] } },
-  { name: 'browser_click_text', description: "Click an element in the user's own Chrome by its visible text or a CSS selector — more reliable than pixel coordinates, and it works on the signed-in browser. Give either text or selector.", input_schema: { type: 'object', properties: { text: { type: 'string' }, selector: { type: 'string' } }, required: [] } },
+  { name: 'browser_select_tab', description: "Bring one of the user's own Chrome tabs to the front, by the window and tab numbers from browser_tabs. Afterwards browser_read and browser_click_text act on it.", input_schema: { type: 'object', properties: { tabId: { type: 'number' }, window: { type: 'number' }, tab: { type: 'number' } }, required: [] } },
+  { name: 'browser_click_text', description: "Click an element in the user's own Chrome by its visible text or a CSS selector — more reliable than pixel coordinates, and it works on the signed-in browser. Give either text or selector.", input_schema: { type: 'object', properties: { text: { type: 'string' }, selector: { type: 'string' }, tabId: { type: 'number' } }, required: [] } },
   { name: 'browser_network', description: 'List the XHR/fetch JSON API calls the current site has made — its hidden API. Use it AFTER performing an action in the browser (search, load more, submit) to see the underlying requests (method, URL, headers, body, response sample), then recreate them as a plain HTTP client. Sensitive header values (cookies, tokens) are shown as present-but-hidden. Optional filter matches the URL.', input_schema: { type: 'object', properties: { filter: { type: 'string', description: 'Only calls whose URL contains this substring (optional).' } }, required: [] } },
   // ---- desktop ----
   { name: 'screen_screenshot', description: 'Screenshot the whole Mac desktop. Coordinates for clicks are in this image space.', input_schema: { type: 'object', properties: {}, required: [] } },
@@ -53,6 +54,10 @@ const NOISE_HDR = /^(host|connection|content-length|accept-encoding|user-agent|s
  * needs to know which of the two it is looking at.
  */
 async function target () {
+  // The extension is the best of the three: it is inside the browser, so it has the
+  // user's session, it can screenshot the real page, and it needs no debugging port
+  // and no permission dialog beyond being installed.
+  if (extensionConnected()) return 'ext'
   if (await chromeReachable()) return 'cdp'
   if (await osa.running()) return 'osa'
   return 'cdp'   // nothing of the user's to drive: launch our own, as before
@@ -62,6 +67,13 @@ export async function runComputerTool (name, input) {
   try {
     switch (name) {
       case 'browser_tabs': {
+        if (extensionConnected()) {
+          const t = await ext.tabs()
+          if (!t.length) return { content: 'Chrome is running but has no open tabs.' }
+          return { content: `${t.length} tab(s) open in the user's own Chrome (id · title · url):\n` +
+            t.map(x => `${x.id}${x.active ? ' (active)' : ''} · ${x.title} · ${x.url}`).join('\n') +
+            '\n\nPass one of these ids as tabId to browser_select_tab, browser_read, browser_click_text or browser_type.' }
+        }
         if (!await osa.running()) return { content: "Chrome is not running, so there are no tabs of the user's own to list." }
         const t = await osa.tabs()
         if (!t.length) return { content: 'Chrome is running but has no open tabs.' }
@@ -69,7 +81,9 @@ export async function runComputerTool (name, input) {
           t.map(x => `${x.window}.${x.tab} · ${x.title} · ${x.url}`).join('\n') }
       }
       case 'browser_select_tab': {
-        const r = await osa.selectTab(input.window, input.tab)
+        const r = extensionConnected()
+          ? await ext.selectTab(input.tabId ?? input.tab)
+          : await osa.selectTab(input.window, input.tab)
         return { content: `Now on "${r.title}" — ${r.url}` }
       }
       case 'browser_click_text': {
@@ -77,11 +91,22 @@ export async function runComputerTool (name, input) {
           ? `document.querySelector(${JSON.stringify(input.selector)})`
           : `[...document.querySelectorAll('a,button,input[type=submit],[role=button],[role=link]')].find(e => (e.innerText||e.value||'').trim().toLowerCase().includes(${JSON.stringify(String(input.text || '').toLowerCase())}))`
         const js = `(() => { const el = ${what}; if (!el) return 'NOT_FOUND'; el.scrollIntoView({block:'center'}); el.click(); return 'CLICKED ' + (el.innerText||el.value||el.tagName).slice(0,60) })()`
+        if (extensionConnected()) {
+          const r = await ext.click({ text: input.text, selector: input.selector, tabId: input.tabId })
+          if (!r?.found) return { content: `Nothing on the page matched ${input.selector ? 'selector ' + input.selector : '"' + input.text + '"'}. Use browser_read to see what is actually there.` }
+          const img = await ext.screenshot(input.tabId).catch(() => null)
+          return { content: `Clicked "${r.what}".`, ...(img ? { image: img } : {}) }
+        }
         const out = await osa.evaluate(js)
         if (out === 'NOT_FOUND') return { content: `Nothing on the page matched ${input.selector ? 'selector ' + input.selector : '"' + input.text + '"'}. Use browser_read to see what is actually there.` }
         return { content: out }
       }
       case 'browser_navigate': {
+        if (extensionConnected()) {
+          const r = await ext.navigate(input.url, input.tabId)
+          const img = await ext.screenshot(r.id).catch(() => null)
+          return { content: `Opened ${r.url} — "${r.title}" in your own signed-in Chrome.`, ...(img ? { image: img } : {}) }
+        }
         if (await target() === 'osa') {
           const r = await osa.navigate(input.url)
           return { content: `Opened ${r.url} — "${r.title}" in your own signed-in Chrome. Use browser_read to see the page.` }
@@ -95,16 +120,32 @@ export async function runComputerTool (name, input) {
         // plainly beats returning a screenshot of a DIFFERENT, empty browser and
         // letting the agent describe it as if it were the user's — which is what
         // used to happen, and is why the agent's reports did not match the screen.
+        if (extensionConnected()) {
+          const img = await ext.screenshot(input.tabId)
+          return { content: 'Screenshot of your own Chrome.', image: img }
+        }
         if (await target() === 'osa') {
           return { content: "I can't photograph your own Chrome — Chrome no longer lets anything attach to your everyday profile. Use browser_read for the page's text (it works on the tab you're looking at), browser_tabs to see what's open, or screen_screenshot for the whole desktop if Screen Recording is granted." }
         }
         const img = await web.screenshot(); return { content: 'Browser screenshot.', image: img }
       }
       case 'browser_click': { await web.click(input.x, input.y); const img = await web.screenshot(); return { content: `Clicked (${input.x}, ${input.y}).`, image: img } }
-      case 'browser_type': { await web.type(input.text); const img = await web.screenshot(); return { content: `Typed ${input.text.length} chars.`, image: img } }
+      case 'browser_type': {
+        if (extensionConnected()) {
+          const r = await ext.type({ text: input.text, selector: input.selector, submit: input.submit, tabId: input.tabId })
+          if (!r?.ok) return { content: `Could not type: ${r?.why || 'no field was focused and no selector was given'}.` }
+          const img = await ext.screenshot(input.tabId).catch(() => null)
+          return { content: `Typed ${String(input.text).length} chars into ${r.into}.`, ...(img ? { image: img } : {}) }
+        }
+        await web.type(input.text); const img = await web.screenshot(); return { content: `Typed ${input.text.length} chars.`, image: img }
+      }
       case 'browser_key': { await web.key(input.keys); const img = await web.screenshot(); return { content: `Pressed ${input.keys}.`, image: img } }
       case 'browser_scroll': { await web.scroll(input.dy); const img = await web.screenshot(); return { content: 'Scrolled.', image: img } }
       case 'browser_read': {
+        if (extensionConnected()) {
+          const r = await ext.readText(12000, input.tabId)
+          return { content: `${r.title} (${r.url}) — your own Chrome\n\n${r.text}` }
+        }
         if (await target() === 'osa') {
           const r = await osa.readText()
           return { content: `${r.title} (${r.url}) — your own Chrome\n\n${r.text}` }

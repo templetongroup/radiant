@@ -478,7 +478,13 @@ for (const r of results) console.log(`  ${r.ok ? '✓' : '✗'} ${r.name}${r.det
   ok(/api\/browser\/status/.test(idx2), 'the UI can ask which Chrome is being driven')
   // The flag cannot be added to a running Chrome, so enabling means restarting it
   // — something to ask for, never to do quietly.
-  ok(/Which Chrome the agent drives/.test(set2), 'and Settings says which it is')
+  // ⚠️ THE EXTENSION IS THE HEADLINE NOW, and the separate-profile Chrome is the
+  // fallback beneath it — Chrome 137 removed --load-extension, so Radiant cannot
+  // install the extension for the user and the panel has to say the steps instead.
+  ok(/The Chrome you are already signed into/.test(set2), 'Settings leads with the extension')
+  ok(/If you would rather not install the extension/.test(set2), 'and offers the separate-profile Chrome as the fallback')
+  ok(/chrome:\/\/extensions/.test(set2) && /Load unpacked/.test(set2), 'with the exact steps, because nothing can do them for you')
+  ok(/api\/browser\/extension/.test(idx2), 'and can tell whether the extension is actually connected')
 
   // ⚠️ CHROME 136+ SILENTLY IGNORES --remote-debugging-port ON THE DEFAULT PROFILE.
   // The first version quit Tony's Chrome and relaunched it with the flag on his

@@ -266,6 +266,7 @@ async function json (method, path, body) {
 }
 
 export const api = {
+  browserExtension: () => json('GET', '/api/browser/extension'),
   getConfig: () => json('GET', '/api/config'),
   // ⚠️ ANNOUNCE HERE, NOT AT THE CALL SITES. Settings runs in its own Electron
   // window with its own copy of the config, so a change there is invisible to

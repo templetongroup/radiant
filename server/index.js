@@ -1497,6 +1497,18 @@ app.post('/api/dictate/stop', async (req, res) => {
   res.json({ ok: true })
 })
 
+// Where the extension lives on disk, so Settings can tell you the folder to load
+// and say whether Chrome has it.
+app.get('/api/browser/extension', async (req, res) => {
+  const { extensionConnected } = await import('./chrome-ext.js')
+  const candidates = [
+    path.join(__dirname, '..', 'extension'),
+    path.join(process.resourcesPath || '', 'extension')
+  ]
+  const dir = candidates.find(p => { try { return fs.existsSync(path.join(p, 'manifest.json')) } catch { return false } }) || null
+  res.json({ connected: extensionConnected(), dir })
+})
+
 app.get('/api/browser/status', async (req, res) => {
   const { chromeReachable, mode, CDP_PORT } = await import('./browser.js')
   res.json({
@@ -2549,7 +2561,39 @@ if (fs.existsSync(dist)) {
 
 // ---------- terminal over WebSocket ----------
 const server = http.createServer(app)
-const wss = new WebSocketServer({ server, path: '/term' })
+// ⚠️ ONE UPGRADE ROUTER, NOT TWO SERVERS EACH CLAIMING A PATH. Two
+// WebSocketServers constructed with { server, path } each add their own 'upgrade'
+// listener, and the one that does not match ABORTS THE HANDSHAKE — so adding the
+// extension socket made /term's server answer 400 to it, before the extension's
+// server ever saw the request. noServer + a single router is the supported way to
+// share a port, and it fails loudly for an unknown path instead of by whoever
+// happened to be listening first.
+const wss = new WebSocketServer({ noServer: true })
+
+// ---------- the browser extension ----------
+// ⚠️ LOOPBACK AND A CHROME EXTENSION ORIGIN, NOTHING ELSE. This socket can read any
+// page the user is signed into, so it must never be reachable from the network — a
+// remote client with a share token gets the rest of Radiant, not this. The Origin
+// header on an extension's WebSocket is chrome-extension://<id>, which a web page
+// cannot forge: a page's Origin is its own site.
+const extWss = new WebSocketServer({ noServer: true })
+extWss.on('error', e => console.error('[ext-ws]', e.message))
+server.on('upgrade', (req, socket, head) => {
+  const { pathname } = new URL(req.url, 'http://localhost')
+  if (pathname === '/term') return wss.handleUpgrade(req, socket, head, ws => wss.emit('connection', ws, req))
+  if (pathname === '/ws/extension') return extWss.handleUpgrade(req, socket, head, ws => extWss.emit('connection', ws, req))
+  socket.destroy()
+})
+
+extWss.on('connection', async (ws, req) => {
+  const origin = req.headers.origin || ''
+  if (!isLocalRequest(req) || !/^chrome-extension:\/\//.test(origin)) {
+    ws.close(1008, 'unauthorized')
+    return
+  }
+  const { attachExtension } = await import('./chrome-ext.js')
+  attachExtension(ws)
+})
 // ws re-emits the http server's 'error' events here; without a listener an
 // EADDRINUSE would throw and kill the port-fallback logic below
 wss.on('error', e => console.error('[ws]', e.message))

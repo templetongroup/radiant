@@ -2144,8 +2144,10 @@ function ChromeAttachBlock () {
 
   const on = Boolean(st?.reachable)
   return (
+    <>
+    <BrowserBridgeBlock />
     <div className='set-block'>
-      <div className='set-block-title'>Which Chrome the agent drives</div>
+      <div className='set-block-title'>If you would rather not install the extension</div>
       <div className='comp-stat'>
         <span className={on ? 'key-ok' : 'fit-badge fit-tight'}>
           {on ? '✓ A Chrome it can drive' : '— None yet'}
@@ -2168,6 +2170,65 @@ function ChromeAttachBlock () {
       </div>
       {st && !st.installed && <div className='error-note'>⚠ Google Chrome is not installed.</div>}
       {err && <div className='error-note'>⚠ {err}</div>}
+    </div>
+    </>
+  )
+}
+
+/**
+ * Installing the browser bridge.
+ *
+ * ⚠️ THE INSTALL IS FIVE CLICKS AND CHROME WILL NOT LET ANYONE SHORTEN IT. Chrome
+ * 137 removed --load-extension, so nothing — not Radiant, not a script, not a test
+ * — can load this for you; "Load unpacked" is a person clicking a button, which is
+ * exactly the distinction Google drew after the flag was used to sideload malware.
+ * So the honest thing is to give the folder, copyable, and say the steps in order.
+ */
+function BrowserBridgeBlock () {
+  const [st, setSt] = useState(null)
+  const [copied, setCopied] = useState(false)
+  useEffect(() => {
+    const load = () => api.browserExtension().then(setSt).catch(() => {})
+    load()
+    const t = setInterval(load, 3000)
+    return () => clearInterval(t)
+  }, [])
+  const copy = () => {
+    try { navigator.clipboard?.writeText(st?.dir || '') ; setCopied(true); setTimeout(() => setCopied(false), 1600) } catch {}
+  }
+  const on = Boolean(st?.connected)
+  return (
+    <div className='set-block'>
+      <div className='set-block-title'>The Chrome you are already signed into</div>
+      <div className='comp-stat'>
+        <span className={on ? 'key-ok' : 'fit-badge fit-tight'}>
+          {on ? '✓ Connected' : '— Not installed yet'}
+        </span>
+        <span className='desc'>
+          {on
+            ? 'the agent can see your tabs, read the page you are on, click, type and screenshot it'
+            : 'a small Chrome extension, installed once'}
+        </span>
+      </div>
+      <p className='hint'>
+        {on
+          ? <>The agent works in your own browser now — the tabs you have open, signed in as you.
+              Nothing is sent anywhere: the extension talks only to Radiant on this Mac.</>
+          : <>Chrome no longer lets any app connect to your everyday browser, so an extension is the
+              way in. It runs inside Chrome with your session and talks only to Radiant on this Mac.</>}
+      </p>
+      {!on && (
+        <ol className='hint' style={{ margin: '6px 0 0 18px', padding: 0 }}>
+          <li>Open <span className='mono'>chrome://extensions</span></li>
+          <li>Turn on <b>Developer mode</b>, top right</li>
+          <li>Click <b>Load unpacked</b></li>
+          <li>Press <span className='mono'>⇧⌘G</span>, paste the folder below, and choose it</li>
+        </ol>
+      )}
+      <div className='row' style={{ marginTop: 8 }}>
+        <code className='mono' style={{ fontSize: 11, opacity: .85, wordBreak: 'break-all' }}>{st?.dir || '…'}</code>
+        <button className='small-btn' onClick={copy} disabled={!st?.dir}>{copied ? 'Copied' : 'Copy folder'}</button>
+      </div>
     </div>
   )
 }
@@ -2446,6 +2507,7 @@ const GUIDE = [
   {
     title: 'Chat & agents',
     items: [
+      ['A browser extension, so the agent works in your own Chrome', 'Settings \u203a Automation now has a small Chrome extension you install once. With it, the agent works inside the browser you are already signed into: it can list your open tabs, read the page you are looking at, take a picture of it, click things by name, and fill in fields \u2014 as you, with your logins. Chrome no longer lets any app connect to your everyday browser from outside, and it will not let Radiant install this for you either, so the panel gives you the folder and the four steps. The extension talks only to Radiant on this Mac and to nothing else; quitting Chrome or removing it unplugs it completely.'],
       ['The agent can use the Chrome you are already signed into', 'Chrome no longer lets any app attach to your everyday browser profile, so Radiant used to open a fresh, empty Chrome instead \u2014 no tabs, no extensions, signed in to nothing \u2014 and the agent would describe that one, or tell you your permissions were wrong. It now drives your real Chrome through macOS automation: it can list your open tabs, bring one to the front, read the page you are looking at, open a URL, and click things by their visible text. Ask it about \u201cmy GoDaddy tab\u201d and it can actually see it. It cannot take a picture of that browser \u2014 nothing can \u2014 so it reads the page instead and says so plainly. If macOS or Chrome needs a permission, it names the exact one.'],
       ['You can always see whether the agent is working', 'The small badge beside the agent\u2019s name says what is happening for as long as a turn is running: waiting for the model, thinking, writing, or the name of the tool it is running, with a clock. If nothing has happened for 25 seconds and no tool is running, it turns red and adds how long it has been quiet, so a stuck turn looks different from a busy one. A tool that takes minutes is not called stuck \u2014 it is named instead. There is one badge, not two.'],
       ['A turn that ends with nothing says so', 'Occasionally a model finishes a turn having produced no reply at all. That used to render as blank space, which looked exactly like Radiant losing your message. It now says the turn ended without a reply. And if the connection to a running turn drops, the chat tells you that too instead of going quiet.'],

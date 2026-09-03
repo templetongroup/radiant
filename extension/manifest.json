@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "Radiant Browser Bridge",
+  "version": "1.0.0",
+  "description": "Lets Radiant see and act in the Chrome you are already signed into.",
+  "permissions": [
+    "tabs",
+    "scripting",
+    "activeTab",
+    "alarms"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "sw.js"
+  },
+  "action": {
+    "default_title": "Radiant \u2014 click for connection status",
+    "default_popup": "popup.html"
+  },
+  "icons": {
+    "128": "icon128.png"
+  }
+}
