@@ -529,8 +529,12 @@ export function ModelPicker ({ session, models, onPick, onRefresh, placeholder, 
 
   useEffect(() => {
     const close = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    // ⚠️ ESCAPE, NOT ONLY AN OUTSIDE CLICK. A panel you can only dismiss by
+    // clicking elsewhere is one a keyboard cannot dismiss at all.
+    const esc = e => { if (e.key === 'Escape') setOpen(false) }
     document.addEventListener('mousedown', close)
-    return () => document.removeEventListener('mousedown', close)
+    document.addEventListener('keydown', esc)
+    return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', esc) }
   }, [])
 
   const filtered = models.filter(m => (m.id + m.providerName).toLowerCase().includes(q.toLowerCase()))
@@ -549,7 +553,13 @@ export function ModelPicker ({ session, models, onPick, onRefresh, placeholder, 
 
   return (
     <div ref={ref} style={{ display: 'contents' }}>
-      <button className='model-btn' onClick={() => { setOpen(o => !o); onRefresh() }}>
+      <button
+        className='model-btn'
+        aria-expanded={open}
+        aria-haspopup='listbox'
+        aria-controls='model-bloom'
+        onClick={() => { setOpen(o => !o); onRefresh() }}
+      >
         {session?.model
           ? <>
               <span className='provider-tag'>{current?.providerName || session.provider}</span>
@@ -559,7 +569,7 @@ export function ModelPicker ({ session, models, onPick, onRefresh, placeholder, 
         <span aria-hidden style={{ fontSize: 9 }}>▲</span>
       </button>
       {open && (
-        <div className='model-menu'>
+        <div className='model-menu' id='model-bloom' role='listbox'>
           <input autoFocus placeholder='Search models…' value={q} onChange={e => setQ(e.target.value)} />
           <div className='model-groups'>
             {clearLabel && !searching && (
@@ -832,7 +842,7 @@ export function GroupPicker ({ agents, onStart, onCancel }) {
   )
 }
 
-export default function Chat ({ session, live, todos = [], stats, approval, question, onAnswer, usage, error, models, agents = [], recipes = [], onSend, onStop, onApproval, onPickModel, onToggleTools, onToggleComputer, onTogglePlan, onSetCwd, onNew, onNewGroup, onTruncate, onRefreshModels, skillSuggestion, onReviewSkill, onDismissSuggestion, onOpenLibrary, rightOpen, onToggleRight, onMenu, approvalMode = 'ask', onCycleApproval, onFork, skills = [], onAddSkill, onRemoveSkill, serverHost, onSetEffort, onOpenPalette }) {
+export default function Chat ({ session, live, todos = [], stats, approval, question, onAnswer, usage, error, models, agents = [], recipes = [], onSend, onStop, onApproval, onPickModel, onToggleTools, onToggleComputer, onTogglePlan, onSetCwd, onNew, onNewGroup, onTruncate, onRefreshModels, skillSuggestion, onReviewSkill, onDismissSuggestion, onOpenLibrary, rightOpen, onToggleRight, onMenu, approvalMode = 'ask', onCycleApproval, onFork, skills = [], onAddSkill, onRemoveSkill, serverHost, onSetEffort }) {
   // ⚠️ TOOLS RUN ON THE SERVER'S MAC. Computer control is the one where that is
   // dangerous rather than merely surprising: the mouse that moves, the keys that
   // get typed and the screen that is captured all belong to the machine running
@@ -1298,19 +1308,7 @@ export default function Chat ({ session, live, todos = [], stats, approval, ques
                 ref={fileInputRef} type='file' multiple hidden
                 onChange={e => { if (e.target.files.length) addFiles(e.target.files); e.target.value = '' }}
               />
-              {/* ⚠️ THE COMMAND PALETTE HAD NO BUTTON AT ALL — only ⌘K, so it did not exist
-                  for anyone who had not been told the shortcut. Tony, pointing at
-                  kinetics' Command Palette Bloom: "use command palette bloom on this
-                  page for the actual button." A compact trigger that unfolds into the
-                  actions is exactly what the palette is; it was just missing its
-                  visible half. The shortcut still works and is shown on the button. */}
-              <button
-                className='attach-btn palette-trigger'
-                title='Commands (⌘K)'
-                data-tip={'Commands — actions, agents,\nsessions and models  (⌘K)'}
-                aria-label='Open the command palette'
-                onClick={() => onOpenPalette?.()}
-              ><Icon.zap size={15} /></button>
+              
               <button className='attach-btn' onClick={() => fileInputRef.current?.click()} title='Attach files or images' data-tip='Attach files or images'><Icon.plus size={17} /></button>
               <button className={'attach-btn' + (designBusy ? ' listening' : '')} onClick={startDesign} disabled={designBusy} title='Design Mode' data-tip={'Design Mode — open a web page and click\nan element to capture its HTML, CSS &\na screenshot as context'}><Icon.target size={16} /></button>
               {activeSkillIds.length > 0 && activeSkillIds.map(id => {

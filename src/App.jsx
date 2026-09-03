@@ -560,7 +560,6 @@ function DesktopApp () {
         onToggleComputer={() => patchSession({ computerControl: !session.computerControl })}
         onTogglePlan={() => patchSession({ planMode: !session.planMode })}
         onSetEffort={v => patchSession({ effort: v })}
-        onOpenPalette={() => setPaletteOpen(true)}
         approvalMode={config.settings.approvalMode || 'ask'}
         onCycleApproval={() => { const order = ['ask', 'auto', 'off']; const cur = config.settings.approvalMode || 'ask'; saveSettings({ approvalMode: order[(order.indexOf(cur) + 1) % 3] }) }}
         question={question}

@@ -424,13 +424,25 @@ for (const r of results) console.log(`  ${r.ok ? '✓' : '✗'} ${r.name}${r.det
   ok(/NOTHING_THERE/.test(chat), 'and finding nothing is not either')
   ok(/const failed = errored\.filter\(p => !NOTHING_THERE/.test(chat), 'while real errors still count')
 
-  // The palette existed only as ⌘K, so it did not exist for anyone who did not
-  // know the shortcut.
-  ok(/palette-trigger/.test(chat), 'the command palette has a visible trigger')
   const app = pfs.readFileSync('src/App.jsx', 'utf8')
-  ok(/onOpenPalette=\{\(\) => setPaletteOpen\(true\)\}/.test(app), 'and it opens the palette')
   const css = pfs.readFileSync('src/styles.css', 'utf8')
-  ok(/bloom-in/.test(css) && /bloom-row/.test(css), 'which blooms open rather than appearing')
+  // ⚠️ THE BLOOM IS ON THE MODEL SELECTOR, NOT ON A BUTTON I INVENTED. I first read
+  // "use command palette bloom for the actual button" as "the palette needs a
+  // button" and added one. Tony: "I meant the Command Palette Bloom UI template on
+  // this page. I wanted that as the selector button."
+  ok(!/palette-trigger/.test(chat), 'the invented Commands button is gone')
+  ok(/bloom-clip/.test(css), 'the model selector blooms open with a clip-path wipe')
+  ok(/cubic-bezier\(0\.16, 1, 0\.3, 1\)/.test(css), "on the template's own curve")
+  // ⚠️ clip-path cuts box-shadow too, so ending at inset(0) would clip the panel to
+  // its own box and lose its shadow for good — not just during the wipe.
+  ok(/clip-path: inset\(-60px round 12px\)/.test(css), 'and ends outside the box so the shadow survives')
+  ok(/\.model-menu \.model-menu-think \{ animation: bloom-row-up/.test(css), 'the thinking level blooms with it')
+  // Two animations on one element, resolved by file order, is not a decision.
+  ok(!/^\.model-menu, \.recipe-menu/m.test(css), 'and the old menu-in rule no longer also claims it')
+  // The ask came with a condition attached.
+  ok(/aria-expanded=\{open\}/.test(chat), 'the trigger reports whether it is open')
+  ok(/e\.key === 'Escape'/.test(chat), 'Escape closes it')
+  ok(/toggleGroup/.test(chat), 'and the provider groups still collapse')
 
   // ⚠️ THE ANSWER CHIPS WERE SOLID ACCENT BUTTONS. Each option is a sentence, so
   // they arrived as fat wrapping blue pills shouting over the question. Tony:

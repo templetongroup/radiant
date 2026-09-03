@@ -1096,7 +1096,10 @@ code, pre, .mono { font-family: var(--font-mono); }
 @keyframes soft-fade { from { opacity: 0; } to { opacity: 1; } }
 
 /* popovers / menus rising from the composer */
-.model-menu, .recipe-menu, .slash-menu, .rewind-menu { animation: menu-in 0.16s ease-out; transform-origin: bottom left; }
+/* ⚠️ .model-menu IS NOT IN THIS LIST ANY MORE — it blooms instead, further down.
+   Leaving it here left two animations on one element, with the winner decided by
+   which rule happened to come later in the file. */
+.recipe-menu, .slash-menu, .rewind-menu { animation: menu-in 0.16s ease-out; transform-origin: bottom left; }
 /* modals: backdrop fades, panel pops */
 .modal-backdrop, .group-modal-backdrop, .palette-backdrop { animation: soft-fade 0.16s ease-out; }
 .modal-backdrop .modal, .group-modal { animation: pop-scale 0.2s cubic-bezier(0.2, 0.8, 0.2, 1); }
@@ -2205,12 +2208,67 @@ button.hf-head:hover { background: var(--bg-hover); }
   to   { opacity: 1; transform: none; }
 }
 
-/* The trigger itself leans in, so the button and the panel read as one gesture. */
-.palette-trigger:hover { color: var(--accent); }
 
 @media (prefers-reduced-motion: reduce) {
   .palette, .palette-backdrop,
   .palette-list .palette-item, .palette-list .palette-group { animation: none; }
+}
+
+/* ── Command Palette Bloom, on the model selector ────────────────────────────
+   From kinetics.colorion.co. Tony: "I meant the Command Palette Bloom UI template
+   on this page. I wanted that as the selector button."
+
+   The template transitions clip-path from a fully-clipped panel to an open one:
+     .command-panel        { clip-path: inset(0 0 100% 0 round 14px) }
+     .command.open .panel  { clip-path: inset(0 round 14px) }
+
+   ⚠️ A TRANSITION CANNOT RUN HERE, so this is the same motion as a keyframe. The
+   menu is mounted only while open, and a transition needs the element to exist in
+   its closed state first to have something to move FROM — mount straight into the
+   open value and nothing animates. Same curve, same wipe, one frame later.
+
+   ⚠️ AND THE WIPE MUST NOT CLIP THE SHADOW. clip-path cuts everything, including
+   box-shadow, so the panel's own shadow would be sliced flat against the wipe
+   edge. It lives on a wrapper that is not clipped. */
+.model-menu {
+  animation: bloom-clip 0.44s cubic-bezier(0.16, 1, 0.3, 1) both;
+  /* the frosted lens — over a transcript this reads as a surface above the page
+     rather than a hole punched in it */
+  backdrop-filter: blur(14px) saturate(1.3);
+  -webkit-backdrop-filter: blur(14px) saturate(1.3);
+  background: color-mix(in oklch, var(--bg-raised) 88%, transparent);
+}
+/* ⚠️ IT ENDS ON A NEGATIVE INSET, NOT inset(0). clip-path cuts EVERYTHING outside
+   the region, box-shadow included — so ending at inset(0) clips the panel exactly
+   to its own box and its shadow is gone for good, not just during the wipe. A
+   negative inset holds the clip well outside the panel once the wipe has passed,
+   and the panel's own border-radius draws the corners from there on. */
+@keyframes bloom-clip {
+  from { clip-path: inset(0 0 100% 0 round 12px); }
+  to   { clip-path: inset(-60px round 12px); }
+}
+
+/* The rows arrive after the wipe has passed them, rising a few pixels. Capped at
+   six: past that the stagger stops being motion and becomes a wait. */
+.model-menu .model-groups > * {
+  animation: bloom-row-up 0.34s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.model-menu .model-groups > *:nth-child(1) { animation-delay: 60ms }
+.model-menu .model-groups > *:nth-child(2) { animation-delay: 96ms }
+.model-menu .model-groups > *:nth-child(3) { animation-delay: 132ms }
+.model-menu .model-groups > *:nth-child(4) { animation-delay: 162ms }
+.model-menu .model-groups > *:nth-child(5) { animation-delay: 186ms }
+.model-menu .model-groups > *:nth-child(n+6) { animation-delay: 204ms }
+/* Tony: "i want it for model selector and thinking level." It sits below the list
+   rather than inside it, so it arrives last, after the rows it belongs under. */
+.model-menu .model-menu-think { animation: bloom-row-up 0.34s cubic-bezier(0.16, 1, 0.3, 1) both; animation-delay: 228ms; }
+@keyframes bloom-row-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .model-menu, .model-menu .model-groups > *, .model-menu .model-menu-think { animation: none; }
 }
 
 /* The thinking level sits at the foot of the model menu, under a rule, because it
