@@ -531,6 +531,19 @@ for (const r of results) console.log(`  ${r.ok ? '✓' : '✗'} ${r.name}${r.det
   // but not hte other options".
   ok(/\.pill-toggle\.warn \{[^}]*background: none/s.test(css), 'allow all is text too')
   ok(/\.pill-toggle\.warn:hover/.test(css), 'and earns its chip the same way')
+
+  // ⚠️ A CLASS MUST BE NAMED FOR WHAT IT DOES. Design Mode's busy state was called
+  // `listening` and pulsed with a keyframe named `mic-pulse`, left over from a
+  // microphone this app does not have — convincing enough that I described it to
+  // Tony as the mic recording. He asked "what microphone button?" There isn't one.
+  {
+    const cssCode = css.replace(/\/\*[\s\S]*?\*\//g, '')
+    ok(!/\.attach-btn\.listening|mic-pulse/.test(cssCode), 'no mic names for a thing that is not a mic')
+  }
+  ok(/\.attach-btn\.is-capturing/.test(css), 'the design capture state says so')
+  ok(/designBusy \? ' is-capturing'/.test(chat), 'and the markup uses that name')
+  // Capturing an element is not dangerous, and --danger is spoken for by "allow all".
+  ok(/\.attach-btn\.is-capturing \{[^}]*var\(--accent\)/s.test(css), 'and it is not coloured as a danger')
   // ⚠️ With the outline gone the label IS the control, and --text-faint measured
   // 2.15:1 on a panel in the worst theme.
   ok(/\.pill-toggle \{[^}]*color: var\(--text-muted\)/s.test(css), 'and the label is readable as text')

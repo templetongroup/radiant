@@ -1856,8 +1856,19 @@ button.hf-head:hover { background: var(--bg-hover); }
   display: grid; place-items: center; flex-shrink: 0;
 }
 .attach-btn:hover { background: var(--bg-hover); border-color: var(--border); color: var(--accent); }
-.attach-btn.listening { color: var(--danger); border-color: var(--danger); animation: mic-pulse 1.2s ease-in-out infinite; }
-@keyframes mic-pulse { 0%,100% { box-shadow: 0 0 0 0 oklch(0.6 0.2 25 / 0.4); } 50% { box-shadow: 0 0 0 4px oklch(0.6 0.2 25 / 0); } }
+/* ⚠️ THIS IS DESIGN MODE CAPTURING, NOT A MICROPHONE. It was called `listening`
+   and pulsed with a keyframe named `mic-pulse`, left over from a mic that this app
+   does not have — and the names were convincing enough that I described it to Tony
+   as "the microphone while recording". He asked "what microphone button?" There
+   isn't one.
+   It is also no longer red: capturing an element is not dangerous, and --danger is
+   spoken for by "allow all" two controls along. */
+.attach-btn.is-capturing { color: var(--accent); border-color: var(--accent); animation: capture-pulse 1.2s ease-in-out infinite; }
+@keyframes capture-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklch, var(--accent) 40%, transparent); }
+  50%      { box-shadow: 0 0 0 4px color-mix(in oklch, var(--accent) 0%, transparent); }
+}
+@media (prefers-reduced-motion: reduce) { .attach-btn.is-capturing { animation: none; } }
 .msg-attach { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
 .msg-attach img { max-width: 220px; max-height: 220px; border-radius: 8px; border: 1px solid var(--border); }
 .msg-attach-file { font-size: 12px; color: var(--text-muted); background: var(--bg-input); border: 1px solid var(--border); border-radius: 6px; padding: 3px 8px; }
