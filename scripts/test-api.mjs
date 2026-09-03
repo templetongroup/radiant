@@ -424,6 +424,21 @@ for (const r of results) console.log(`  ${r.ok ? '✓' : '✗'} ${r.name}${r.det
   ok(/onOpenPalette=\{\(\) => setPaletteOpen\(true\)\}/.test(app), 'and it opens the palette')
   const css = pfs.readFileSync('src/styles.css', 'utf8')
   ok(/bloom-in/.test(css) && /bloom-row/.test(css), 'which blooms open rather than appearing')
+
+  // ⚠️ THE ANSWER CHIPS WERE SOLID ACCENT BUTTONS. Each option is a sentence, so
+  // they arrived as fat wrapping blue pills shouting over the question. Tony:
+  // "these selection cards are awful. ugly.. use this instead. use Focus Relay."
+  ok(/function ChoiceRelay/.test(chat), 'the answers use a focus relay')
+  ok(!/question-options/.test(chat), 'and not the old row of filled buttons')
+  // ONE ring that moves — a per-row highlight cannot travel, which is the effect.
+  ok(/relay-ring/.test(chat) && /setRing\(\{ top:/.test(chat), 'a single ring measures and moves')
+  ok(/useLayoutEffect/.test(chat), 'measured after layout, since rows size to their text')
+  // A list you can only mouse at is a list some people cannot answer.
+  ok(/ArrowDown|ArrowUp/.test(chat), 'arrow keys move it')
+  ok(/role="option"/.test(chat) && /aria-activedescendant/.test(chat), 'and it announces as a listbox')
+  // The ring sits BEHIND the rows so it can travel under them; an opaque row hides
+  // it completely, which shipped for one build and read as a barely-there hover.
+  ok(/\.relay-opt \{[^}]*background: none/s.test(css), 'the rows let the ring show through')
 }
 
 console.log(`\n${results.length - failed.length}/${results.length} passed`)

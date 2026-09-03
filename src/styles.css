@@ -2111,6 +2111,37 @@ button.hf-head:hover { background: var(--bg-hover); }
   .hold-btn.is-holding { transform: none; }
 }
 
+/* Focus Relay — one ring travels between the answers.
+   ⚠️ THE RING IS A SINGLE ELEMENT THAT MOVES. A highlight applied per row cannot
+   travel between rows, and travelling is the whole effect: it reads as one thing
+   choosing rather than four things lit at once. Position and size come from
+   measuring the target, so rows may be any height their text needs. */
+.relay { position: relative; display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; outline: none; }
+.relay-ring {
+  position: absolute; top: 0; left: 0; z-index: 0; pointer-events: none;
+  border-radius: 9px; background: var(--accent-wash);
+  box-shadow: inset 0 0 0 1px var(--accent);
+  transition: transform 0.28s var(--spring-soft), width 0.28s var(--spring-soft),
+              height 0.28s var(--spring-soft), opacity 0.16s ease;
+}
+.relay-opt {
+  position: relative; z-index: 1; text-align: left;
+  padding: 9px 12px; border-radius: 9px;
+  /* ⚠️ TRANSPARENT, OR THE RING IS INVISIBLE. The ring sits BEHIND the rows so it
+     can travel under them; an opaque row covers it completely, and all you see is
+     a hairline where the row's own border switches off. It shipped that way for
+     one build and read as a barely-there hover. */
+  border: 1px solid var(--border); background: none;
+  color: var(--text); font: inherit; font-size: 12.5px; line-height: 1.45;
+  cursor: pointer; transition: border-color 0.18s ease, color 0.18s ease;
+}
+/* The row under the ring gives up its own border so the ring is the only edge. */
+.relay-opt.is-at { border-color: transparent; color: var(--text); }
+.relay:focus-visible { outline: none; }
+.relay:focus-visible .relay-ring { box-shadow: inset 0 0 0 2px var(--accent); }
+
+@media (prefers-reduced-motion: reduce) { .relay-ring { transition: opacity 0.16s ease; } }
+
 /* Command Palette Bloom — the trigger unfolds into its actions rather than the
    panel simply existing. After kinetics.colorion.co.
    ⚠️ THE STAGGER IS CAPPED AND SHORT. Ten rows at 26ms is a quarter of a second;

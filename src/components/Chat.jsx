@@ -85,17 +85,67 @@ function Deliverables ({ parts }) {
   )
 }
 
+// ⚠️ THESE WERE THREE SOLID ACCENT BUTTONS. Each option is a sentence, so the
+// answers arrived as fat wrapping blue pills that shouted over the question they
+// belonged to. Tony: "these selection cards are awful. ugly.. use this instead.
+// use Focus Relay."
+//
+// Focus Relay: the options are quiet rows, and ONE ring travels between them.
+// The ring is a single element that measures its target and moves, which is what
+// makes it read as one thing choosing rather than four things lit at once — a
+// per-row highlight cannot travel, the same reason the sidebar pill had to move
+// off the button and onto the track.
+function ChoiceRelay ({ options, onPick }) {
+  const wrap = useRef(null)
+  const [at, setAt] = useState(0)
+  const [ring, setRing] = useState(null)
+
+  // ⚠️ MEASURE AFTER LAYOUT, NOT DURING RENDER. The rows wrap to their text, so
+  // their height is not known until the browser has laid them out; reading it in
+  // render gives the ring a stale box on the first paint.
+  useLayoutEffect(() => {
+    const el = wrap.current?.children?.[at + 1]   // +1: the ring itself is first
+    if (!el) return setRing(null)
+    setRing({ top: el.offsetTop, left: el.offsetLeft, width: el.offsetWidth, height: el.offsetHeight })
+  }, [at, options])
+
+  const onKey = e => {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowRight') { e.preventDefault(); setAt(i => Math.min(options.length - 1, i + 1)) }
+    else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') { e.preventDefault(); setAt(i => Math.max(0, i - 1)) }
+    else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onPick(options[at]) }
+  }
+
+  return (
+    <div
+      className='relay' ref={wrap} role='listbox' tabIndex={0}
+      aria-label='Choose an answer' aria-activedescendant={`relay-opt-${at}`}
+      onKeyDown={onKey}
+    >
+      <span className='relay-ring' aria-hidden style={ring ? { transform: `translate(${ring.left}px, ${ring.top}px)`, width: ring.width, height: ring.height, opacity: 1 } : { opacity: 0 }} />
+      {options.map((o, i) => (
+        <button
+          key={i}
+          id={`relay-opt-${i}`}
+          role="option"
+          aria-selected={i === at}
+          tabIndex={-1}
+          className={'relay-opt' + (i === at ? ' is-at' : '')}
+          onMouseEnter={() => setAt(i)}
+          onFocus={() => setAt(i)}
+          onClick={() => onPick(o)}
+        >{o}</button>
+      ))}
+    </div>
+  )
+}
+
 // the agent paused to ask the user something (ask_user / plan approval)
 function QuestionCard ({ question, onAnswer }) {
   const [other, setOther] = useState('')
   return (
     <div className='question-card'>
       <div className='q'>{question.question}</div>
-      <div className='question-options'>
-        {(question.options || []).map((o, i) => (
-          <button key={i} className='small-btn primary' onClick={() => onAnswer(o)}>{o}</button>
-        ))}
-      </div>
+      <ChoiceRelay options={question.options || []} onPick={onAnswer} />
       <div className='question-other'>
         <input placeholder='Or type your own answer…' value={other} onChange={e => setOther(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && other.trim()) onAnswer(other.trim()) }} />
         <button className='small-btn' onClick={() => other.trim() && onAnswer(other.trim())} disabled={!other.trim()}>Send</button>
