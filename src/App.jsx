@@ -333,6 +333,9 @@ function DesktopApp () {
     send(text)
   }, [pendingPrompt, session, live])
 
+  const openSessionRef = useRef(null)
+  useEffect(() => { openSessionRef.current = session?.id || null }, [session?.id])
+
   const send = async content => {
     if (!session || live?.streaming) return
     // content is { text, attachments } from the composer
@@ -349,9 +352,17 @@ function DesktopApp () {
     const sessionId = target.id
     streamingSessionRef.current = sessionId
     setSession(prev => ({ ...prev, messages: [...prev.messages, { role: 'user', text, attachments }] }))
-    const liveMsg = { parts: [], thinking: '', thinkingActive: false, thinkingSecs: 0, streaming: true }
+    const liveMsg = { parts: [], thinking: '', thinkingActive: false, thinkingSecs: 0, streaming: true, startedAt: Date.now(), lastEventAt: Date.now() }
     setLive({ ...liveMsg })
 
+    // ⚠️ A STREAM CAN END WITHOUT ENDING THE TURN. The server aborts the turn when
+    // the response closes and then deliberately emits NO error — correct, because
+    // the connection it would travel down is gone. So a dropped connection reached
+    // the client as a stream that simply stopped: no error, live cleared, and an
+    // assistant message saved empty. Two of those are sitting in Tony's chats.
+    // "this is the 'dropping chat' bug i was talking about... chat box is not
+    // blinking, no working or thinking notice, nothing."
+    let sawEnd = false
     const endThinking = () => {
       if (liveMsg.thinkingActive) {
         liveMsg.thinkingActive = false
@@ -367,7 +378,16 @@ function DesktopApp () {
 
     try {
       await streamChat(sessionId, content, ev => {
+        // ⚠️ BEFORE THE IDENTITY GUARD, NOT AFTER. Whether the STREAM ended is a
+        // fact about the stream, not about which chat is on screen — checking it
+        // after the guard meant switching chats mid-turn made every turn look like
+        // a dropped connection.
+        if (ev.type === 'done' || ev.type === 'closed') sawEnd = true
         if (streamingSessionRef.current !== sessionId) return
+        // ⚠️ EVERY EVENT IS STAMPED so the status strip can tell "thinking" from
+        // "stuck". Without it the only honest thing it could say was "working",
+        // with equal confidence whether or not anything was still happening.
+        liveMsg.lastEventAt = Date.now()
         switch (ev.type) {
           case 'text_delta': pushText(ev.text); break
           case 'thinking_delta':
@@ -429,6 +449,9 @@ function DesktopApp () {
     if (streamingSessionRef.current === sessionId) {
       streamingSessionRef.current = null
       setApproval(null)
+      // Only in the chat it happened in — an error banner about a turn you have
+      // already navigated away from belongs to a conversation you are not reading.
+      if (!sawEnd && openSessionRef.current === sessionId) setError(prev => prev || 'The connection to that turn dropped before it finished. Anything the agent had already done is saved; ask again to carry on.')
       setLive(null)
       try {
         const fresh = await api.getSession(sessionId)

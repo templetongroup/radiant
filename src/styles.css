@@ -1871,6 +1871,55 @@ button.hf-head:hover { background: var(--bg-hover); }
 }
 @media (prefers-reduced-motion: reduce) { .attach-btn.is-capturing { animation: none; } }
 
+/* The turn status strip. It sits above the composer, pinned, because the thing it
+   reports is exactly what you cannot see when you have scrolled up — and because
+   the old indicator lived inside the assistant bubble and went away with it. */
+.turn-status {
+  display: flex; align-items: center; gap: 8px;
+  margin: 0 0 8px; padding: 7px 11px;
+  border: 1px solid var(--border); border-radius: 999px;
+  background: var(--bg-subtle); color: var(--text);
+  font-size: 12.5px; width: fit-content; max-width: 100%;
+}
+.turn-status-dot {
+  width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+  background: var(--accent);
+  animation: turn-pulse 1.5s ease-in-out infinite;
+}
+@keyframes turn-pulse {
+  0%, 100% { opacity: 1;   box-shadow: 0 0 0 0 color-mix(in oklch, var(--accent) 55%, transparent); }
+  50%      { opacity: .55; box-shadow: 0 0 0 5px color-mix(in oklch, var(--accent) 0%, transparent); }
+}
+.turn-status-what { font-weight: 500; }
+.turn-status-clock { color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.turn-status-quiet { color: var(--text-muted); }
+/* Silence is the one state the old indicator could not express. It gets a colour of
+   its own so you can tell it apart at a glance without reading the words. */
+.turn-status.is-stalled { border-color: var(--danger); }
+/* ⚠️ --warn DOES NOT EXIST IN THIS THEME. The first cut used var(--warn, …),
+   whose fallback made a stall look exactly like a healthy turn — a warning nobody
+   would ever see. The tokens are in theme.js; --danger is one of them. */
+.turn-status.is-stalled .turn-status-dot { background: var(--danger); animation-duration: 2.6s; }
+.turn-status-stop {
+  margin-left: 4px; padding: 2px 9px; border-radius: 999px;
+  border: 1px solid var(--border); background: none;
+  color: var(--text-muted); font-size: 11.5px;
+}
+.turn-status-stop:hover { color: var(--text); border-color: var(--text-muted); }
+/* ⚠️ THE PULSE IS THE SIGNAL HERE, so reduce-motion keeps a visible state rather
+   than a still dot that says nothing: it holds at reduced opacity instead. */
+@media (prefers-reduced-motion: reduce) {
+  .turn-status-dot { animation: none; opacity: .8; }
+}
+
+/* A turn that ended with no content at all. Rendering it as an empty bubble is
+   indistinguishable from the app having lost your message. */
+.turn-empty {
+  margin: 6px 0 14px; padding: 9px 12px;
+  border: 1px dashed var(--border); border-radius: 10px;
+  color: var(--text-muted); font-size: 12.5px; font-style: italic;
+}
+
 /* Dictation. A labelled control, not a bare glyph: a microphone icon on its own
    reads as "record a voice message" at least as often as "type what I say", and
    this one types into the message box. It names its state for the same reason —

@@ -6,6 +6,7 @@ import { AgentGlyph } from './AgentIcons.jsx'
 import { api, getServer, apiUrl, authHeaders } from '../api.js'
 import { shouldDrainQueue } from '../queue.js'
 import { emptyDictation, applyDictationEvent, dictationText } from '../dictation.js'
+import { turnStatus, clock } from '../turnstatus.js'
 
 // An agent brought in from another app on this Mac (Hermes, OpenClaw). They sit
 // apart from your own agents and keep their icon's own color rather than taking
@@ -384,6 +385,45 @@ function WorkingBadge ({ parts, thinkingActive }) {
       <span className='working-what'>{what}</span>
       <span className='working-clock'>{clock}</span>
     </span>
+  )
+}
+
+/**
+ * Whether the agent is thinking, working, or has stopped — pinned above the
+ * composer, where it cannot scroll away.
+ *
+ * ⚠️ THERE WAS ALREADY AN INDICATOR AND IT WAS NOT ENOUGH. WorkingBadge sits
+ * INSIDE the live assistant bubble, so it scrolls off with the transcript, and it
+ * disappears entirely the moment a turn ends — including when a turn ends badly.
+ * Tony: "I have no idea if the agent is thinking, working or stopped. this is a
+ * real problem. it happens in almost every chat but never happens in gpt or claude
+ * app. there's always a thinking/working notification that pulsates."
+ *
+ * ⚠️ AND IT MUST BE ABLE TO SAY "STALLED". An indicator that only ever says
+ * "working" is worse than none, because it is equally confident whether or not
+ * anything is happening — which is exactly the state Tony could not distinguish.
+ * Every event stamps `at`; when nothing has arrived for a while, this says so and
+ * how long it has been. That is the difference between "it is thinking" and "it is
+ * stuck", and no other part of the app knows it.
+ */
+function TurnStatus ({ live, onStop }) {
+  const [, tick] = useState(0)
+  useEffect(() => {
+    if (!live?.streaming) return
+    const id = setInterval(() => tick(n => n + 1), 500)
+    return () => clearInterval(id)
+  }, [live?.streaming])
+  const st = turnStatus({ ...live, parts: live?.parts || [], now: Date.now() })
+  if (!st) return null
+
+  return (
+    <div className={'turn-status' + (st.stalled ? ' is-stalled' : '')} role='status' aria-live='polite'>
+      <span className='turn-status-dot' aria-hidden />
+      <span className='turn-status-what'>{st.what}</span>
+      <span className='turn-status-clock'>{clock(st.elapsed)}</span>
+      {st.stalled && <span className='turn-status-quiet'>· nothing for {clock(st.quiet)}</span>}
+      {onStop && <button className='turn-status-stop' onClick={onStop}>Stop</button>}
+    </div>
   )
 }
 
@@ -1250,7 +1290,19 @@ export default function Chat ({ session, live, todos = [], stats, approval, ques
                     </div>
                   )}
                 </div>
-              : <AssistantMessage key={i} parts={m.parts || []} model={m.model} agent={m.agentId ? agents.find(a => a.id === m.agentId) || sessionAgent : sessionAgent} onChoose={onWidgetChoice} />
+              : (m.parts || []).length === 0
+                ? (
+                  /* ⚠️ AN EMPTY ASSISTANT MESSAGE RENDERS AS NOTHING AT ALL, which is
+                     indistinguishable from the app losing your turn. Two of these were
+                     sitting in Tony's own chats — "this is the 'dropping chat' bug i was
+                     talking about... chat box is not blinking, no working or thinking
+                     notice, nothing." The turn did end; it just ended with no content and
+                     said nothing about it. */
+                  <div key={i} className='turn-empty'>
+                    This turn ended without a reply. The model returned nothing — ask again, or try another model.
+                  </div>
+                )
+                : <AssistantMessage key={i} parts={m.parts || []} model={m.model} agent={m.agentId ? agents.find(a => a.id === m.agentId) || sessionAgent : sessionAgent} onChoose={onWidgetChoice} />
           )}
           {live && (
             <AssistantMessage
@@ -1292,6 +1344,7 @@ export default function Chat ({ session, live, todos = [], stats, approval, ques
         </div>
       )}
       <div className='composer'>
+        <TurnStatus live={live} onStop={onStop} />
         <TodoChecklist todos={todos} />
         {designAsk !== null && (
           <div className='design-ask'>
