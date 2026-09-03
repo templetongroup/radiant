@@ -1592,12 +1592,18 @@ app.get('/api/registry-files', async (req, res) => {
       quants: Object.entries(quants)
         .map(([label, v]) => ({
           label,
-          sizeGB: +(v.bytes / 1024 ** 3).toFixed(1),
+          // ⚠️ ZERO BYTES MEANS UNKNOWN, NOT EMPTY. Hugging Face sometimes returns
+          // siblings carrying no size, and `bytes += s.size || 0` then leaves the
+          // total at 0 — so a real multi-gigabyte quant was offered as "0 GB
+          // download · ~2 GB RAM", a confident number that is simply false. null
+          // says so, and the fit and disk checks already treat a missing size as
+          // "cannot judge" rather than "fits easily".
+          sizeGB: v.bytes ? +(v.bytes / 1024 ** 3).toFixed(1) : null,
           files: v.files.sort(),
           sharded: v.files.length > 1,
           model: `${base}:${label.toLowerCase()}`
         }))
-        .sort((a, b) => a.sizeGB - b.sizeGB)
+        .sort((a, b) => (a.sizeGB ?? Infinity) - (b.sizeGB ?? Infinity))  // unknown sizes last
     })
   } catch (e) {
     res.status(502).json({ error: e.message })

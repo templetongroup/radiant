@@ -277,7 +277,9 @@ function HFRepoRow ({ repo, installedCheck, pulls, onPull, onCancel, systemRam, 
         return (
           <div key={qt.label} className='variant-row'>
             <span className='v-tag mono'>{qt.label.toLowerCase()}{qt.sharded ? ` · ${qt.files.length} parts` : ''}</span>
-            <span className='v-meta'>{qt.sizeGB} GB download · ~{ram} GB RAM</span>
+            <span className='v-meta'>{qt.sizeGB == null
+                ? 'size unknown — the registry did not report one'
+                : `${qt.sizeGB} GB download · ~${ram} GB RAM`}</span>
             <span className={'fit-badge ' + fit}>{FIT_TEXT[fit] || ''}</span>
             {noDisk && <span className='fit-badge fit-no' title={`Only ${diskFree} GB free on disk`}>not enough disk</span>}
             <span className='v-action'>
@@ -2362,6 +2364,7 @@ const GUIDE = [
   {
     title: 'Chat & agents',
     items: [
+      ['No more "0 GB" downloads', 'Some model repos do not tell Hugging Face how big their files are, and Radiant was turning that silence into a number: a real multi-gigabyte download offered as "0 GB \u00b7 ~2 GB RAM". It now says the size is unknown, sorts those last, and does not pretend to judge whether they fit.'],
       ['A finished task list folds itself away', 'When an agent works through a checklist, the list stayed open above the composer for the rest of the conversation \u2014 five struck-through lines you had already read. It collapses to a single "Tasks \u2713 5/5" line the moment the last item is done. Click it any time to open it back up, and it stays open once you do.'],
       ['Newest activity at the top', 'The Activity panel added each tool call to the bottom and never scrolled, so watching a long turn meant scrolling down again after every call. It runs newest first now.'],
       ['You can see when an agent is working', 'A turn can run for minutes on tool calls with nothing else on screen, and the only sign of life was the word "working" in gray beside the model name. There is a live badge now: a pulsing dot, what it is doing right this second \u2014 thinking, or the name of the tool it is running \u2014 and a clock counting how long the turn has been going. Tony: "id also like some sort of indicator that an agent is working."'],

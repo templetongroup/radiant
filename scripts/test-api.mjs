@@ -485,6 +485,15 @@ for (const r of results) console.log(`  ${r.ok ? '✓' : '✗'} ${r.name}${r.det
   // Reversed on RENDER: the array is patched by id when a call completes, so
   // reversing the source would put the write and the read out of step.
   ok(!/setActivity\(a => \[.*\.\.\.a\]/.test(pfs.readFileSync('src/App.jsx', 'utf8')), 'without reversing the source of truth')
+
+  // ⚠️ A QUANT WITH NO REPORTED SIZE MUST NOT CLAIM 0 GB. Hugging Face sometimes
+  // returns siblings with no size, and `bytes += s.size || 0` left the total at 0
+  // — so a real multi-gigabyte download was offered as "0 GB · ~2 GB RAM", which
+  // is a confident number that happens to be false.
+  const srv2 = pfs.readFileSync('server/index.js', 'utf8')
+  ok(/sizeGB: v\.bytes \? \+\(v\.bytes/.test(srv2), 'an unsized quant reports null, not zero')
+  ok(/\(a\.sizeGB \?\? Infinity\)/.test(srv2), 'and sorts last rather than first')
+  ok(/size unknown/.test(pfs.readFileSync('src/components/Settings.jsx', 'utf8')), 'the row says the size is unknown')
 }
 
 console.log(`\n${results.length - failed.length}/${results.length} passed`)
