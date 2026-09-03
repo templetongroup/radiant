@@ -364,70 +364,42 @@ function AgentWidget ({ spec, onChoose }) {
 // thinking, the tool it is running, or writing. Motion says alive; the clock says
 // how long it has been; the verb says what it is doing. A spinner alone says only
 // the first of those, which is the part you can already guess.
-function WorkingBadge ({ parts, thinkingActive }) {
-  const [secs, setSecs] = useState(0)
+/**
+ * ONE indicator, not two.
+ *
+ * ⚠️ THE SECOND ONE CONTRADICTED THE FIRST. A pinned strip above the composer was
+ * added alongside this badge, and because they computed their state differently the
+ * screen said "writing" in one place and "Waiting for the model" in the other, at
+ * the same moment, about the same turn. Tony: "that waiting for the model is way to
+ * big and too distracting. why 2 different notifications? cant you just put the
+ * waiting next to the thinking/writing notification or add waiting to that
+ * notification?"
+ *
+ * So the waiting and stalled states moved INTO this badge, and the strip is gone.
+ * Both now come from turnStatus() in ../turnstatus.js, so there is one definition
+ * of what is happening and it cannot disagree with itself.
+ */
+function WorkingBadge ({ parts, thinkingActive, startedAt, lastEventAt }) {
+  const [, tick] = useState(0)
   useEffect(() => {
-    const t0 = Date.now()
-    const id = setInterval(() => setSecs(Math.floor((Date.now() - t0) / 1000)), 1000)
+    const id = setInterval(() => tick(n => n + 1), 1000)
     return () => clearInterval(id)
   }, [])
 
-  // The last tool with no result yet is the one running right now.
-  const running = [...(parts || [])].reverse().find(p => p.type === 'tool' && p.result == null && !p.denied)
-  const what = thinkingActive ? 'thinking'
-    : running ? (running.name || 'running a tool').replace(/_/g, ' ')
-      : 'writing'
-  const clock = secs >= 60 ? `${Math.floor(secs / 60)}m ${String(secs % 60).padStart(2, '0')}s` : `${secs}s`
+  const st = turnStatus({ streaming: true, thinkingActive, parts: parts || [], startedAt, lastEventAt, now: Date.now() })
+  if (!st) return null
 
   return (
-    <span className='working-badge' role='status'>
+    <span className={'working-badge' + (st.stalled ? ' is-stalled' : '')} role='status'>
       <span className='working-dot' aria-hidden />
-      <span className='working-what'>{what}</span>
-      <span className='working-clock'>{clock}</span>
+      <span className='working-what'>{st.what.toLowerCase()}</span>
+      <span className='working-clock'>{clock(st.elapsed)}</span>
+      {st.stalled && <span className='working-quiet'>quiet {clock(st.quiet)}</span>}
     </span>
   )
 }
 
-/**
- * Whether the agent is thinking, working, or has stopped — pinned above the
- * composer, where it cannot scroll away.
- *
- * ⚠️ THERE WAS ALREADY AN INDICATOR AND IT WAS NOT ENOUGH. WorkingBadge sits
- * INSIDE the live assistant bubble, so it scrolls off with the transcript, and it
- * disappears entirely the moment a turn ends — including when a turn ends badly.
- * Tony: "I have no idea if the agent is thinking, working or stopped. this is a
- * real problem. it happens in almost every chat but never happens in gpt or claude
- * app. there's always a thinking/working notification that pulsates."
- *
- * ⚠️ AND IT MUST BE ABLE TO SAY "STALLED". An indicator that only ever says
- * "working" is worse than none, because it is equally confident whether or not
- * anything is happening — which is exactly the state Tony could not distinguish.
- * Every event stamps `at`; when nothing has arrived for a while, this says so and
- * how long it has been. That is the difference between "it is thinking" and "it is
- * stuck", and no other part of the app knows it.
- */
-function TurnStatus ({ live, onStop }) {
-  const [, tick] = useState(0)
-  useEffect(() => {
-    if (!live?.streaming) return
-    const id = setInterval(() => tick(n => n + 1), 500)
-    return () => clearInterval(id)
-  }, [live?.streaming])
-  const st = turnStatus({ ...live, parts: live?.parts || [], now: Date.now() })
-  if (!st) return null
-
-  return (
-    <div className={'turn-status' + (st.stalled ? ' is-stalled' : '')} role='status' aria-live='polite'>
-      <span className='turn-status-dot' aria-hidden />
-      <span className='turn-status-what'>{st.what}</span>
-      <span className='turn-status-clock'>{clock(st.elapsed)}</span>
-      {st.stalled && <span className='turn-status-quiet'>· nothing for {clock(st.quiet)}</span>}
-      {onStop && <button className='turn-status-stop' onClick={onStop}>Stop</button>}
-    </div>
-  )
-}
-
-function AssistantMessage ({ parts, thinking, thinkingActive, thinkingSecs, streaming, model, agent, local, onChoose }) {
+function AssistantMessage ({ parts, thinking, thinkingActive, thinkingSecs, streaming, model, agent, local, onChoose, startedAt, lastEventAt }) {
   const waiting = streaming && !parts.length && !thinking
   // A local model that isn't resident cold-loads its weights before the first token.
   // Reveal the note only after a beat, so a warm model (fast first token) never shows it.
@@ -444,7 +416,7 @@ function AssistantMessage ({ parts, thinking, thinkingActive, thinkingSecs, stre
           ? <><span className='who-agent-emoji' style={isImported(agent) ? undefined : { '--ah': agent.hue ?? 'var(--accent-h)', color: glyphColor(agent.hue, 0.7, 0.16) }}><AgentGlyph agent={agent} size={14} /></span><span className='who-word'>{agent.name}</span></>
           : <><span className='logo-mark' aria-hidden /><span className='wordmark who-word'>Radiant</span></>}
         {model && <span className='who-model'>{model}</span>}
-        {streaming && <WorkingBadge parts={parts} thinkingActive={thinkingActive} />}
+        {streaming && <WorkingBadge parts={parts} thinkingActive={thinkingActive} startedAt={startedAt} lastEventAt={lastEventAt} />}
       </div>
       {thinking ? <ThinkingTrace thinking={thinking} active={Boolean(thinkingActive)} seconds={thinkingSecs} /> : null}
       {(() => {
@@ -1314,6 +1286,8 @@ export default function Chat ({ session, live, todos = [], stats, approval, ques
               thinkingActive={live.thinkingActive}
               thinkingSecs={live.thinkingSecs}
               streaming={live.streaming}
+              startedAt={live.startedAt}
+              lastEventAt={live.lastEventAt}
               onChoose={onWidgetChoice}
             />
           )}
@@ -1344,7 +1318,6 @@ export default function Chat ({ session, live, todos = [], stats, approval, ques
         </div>
       )}
       <div className='composer'>
-        <TurnStatus live={live} onStop={onStop} />
         <TodoChecklist todos={todos} />
         {designAsk !== null && (
           <div className='design-ask'>

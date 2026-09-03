@@ -598,9 +598,16 @@ for (const r of results) console.log(`  ${r.ok ? '✓' : '✗'} ${r.name}${r.det
   // some sort of indicator that an agent is working. there's nothing like that in
   // the chat."
   ok(/function WorkingBadge/.test(chat), 'a working badge exists')
-  ok(/setSecs\(Math\.floor/.test(chat), 'it counts how long the turn has run')
-  ok(/p\.type === 'tool' && p\.result == null/.test(chat), 'and names the tool running right now')
-  ok(/thinkingActive \? 'thinking'/.test(chat), 'or says it is thinking')
+  ok(/turnStatus\(\{ streaming: true/.test(chat), 'it reads its state from the tested turnStatus()')
+  ok(/clock\(st\.elapsed\)/.test(chat), 'it counts how long the turn has run')
+  ok(/st\.stalled && <span className='working-quiet'/.test(chat), 'and the quiet/stalled state lives in that same badge')
+  // ⚠️ ONE INDICATOR. A second one, pinned above the composer, computed its state
+  // separately — so the screen said "writing" in the badge and "Waiting for the
+  // model" in the strip, at once, about the same turn. Tony: "why 2 different
+  // notifications? cant you just put the waiting next to the thinking/writing
+  // notification". Two of anything that reports the same fact will disagree.
+  ok(!/TurnStatus/.test(chat), 'there is exactly one turn indicator, not two')
+  ok(!/\.turn-status/.test(css), 'and no styling left behind for a second one')
   ok(/\.working-dot/.test(css) && /working-pulse/.test(css), 'with a pulse that says alive')
   // The clock keeps counting when the pulse is switched off — a changing number is
   // not the motion anyone meant to disable.
