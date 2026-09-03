@@ -2116,7 +2116,38 @@ button.hf-head:hover { background: var(--bg-hover); }
    travel between rows, and travelling is the whole effect: it reads as one thing
    choosing rather than four things lit at once. Position and size come from
    measuring the target, so rows may be any height their text needs. */
-.relay { position: relative; display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; outline: none; }
+/* The agent is working — a pulse, what it is doing, and how long it has been.
+   ⚠️ THE DOT MUST KEEP MOVING UNDER REDUCE MOTION'S ABSENCE OF MOTION. It is the
+   one thing here that says "alive", so when the animation goes the clock stays:
+   a number that changes every second is motion nobody asked to switch off. */
+.working-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  /* ⚠️ THE HEADER ROW IS UPPERCASE, AND A STATUS SHOULD NOT SHOUT. Inheriting it
+     turned the clock into "5S" and the verb into a headline competing with the
+     agent's own name beside it. This is the quiet half of that row. */
+  text-transform: none; letter-spacing: 0;
+  font-size: 11px; color: var(--accent);
+  padding: 1px 8px 1px 6px; border-radius: 999px;
+  background: var(--accent-wash); border: 1px solid color-mix(in oklch, var(--accent) 30%, transparent);
+}
+.working-dot {
+  width: 6px; height: 6px; border-radius: 50%; background: currentColor;
+  animation: working-pulse 1.1s ease-in-out infinite;
+}
+@keyframes working-pulse { 0%, 100% { opacity: 1; transform: scale(1) } 50% { opacity: 0.35; transform: scale(0.72) } }
+.working-what { font-variant: none; }
+.working-clock { color: color-mix(in oklch, var(--accent) 70%, var(--text-muted)); font-family: var(--font-mono); font-size: 10.5px; }
+
+@media (prefers-reduced-motion: reduce) { .working-dot { animation: none; } }
+
+/* ⚠️ THE ROWS FIT THEIR TEXT — THEY DO NOT SPAN THE WINDOW. Stacked full-width
+   rows turned three short answers into three banners across the whole transcript.
+   Tony: "the answer chips span across the whole chat window. that looks
+   ridiculous. thats not how the template I sent you looks." They wrap inline like
+   chips; the ring measures whatever box it lands on, so wrapping costs it
+   nothing. A long answer still gets a full line, because that is when it needs
+   one — max-width keeps it from running the entire width. */
+.relay { position: relative; display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; outline: none; }
 .relay-ring {
   position: absolute; top: 0; left: 0; z-index: 0; pointer-events: none;
   border-radius: 9px; background: var(--accent-wash);
@@ -2126,7 +2157,8 @@ button.hf-head:hover { background: var(--bg-hover); }
 }
 .relay-opt {
   position: relative; z-index: 1; text-align: left;
-  padding: 9px 12px; border-radius: 9px;
+  max-width: min(100%, 460px);
+  padding: 7px 12px; border-radius: 9px;
   /* ⚠️ TRANSPARENT, OR THE RING IS INVISIBLE. The ring sits BEHIND the rows so it
      can travel under them; an opaque row covers it completely, and all you see is
      a hairline where the row's own border switches off. It shipped that way for

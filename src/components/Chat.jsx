@@ -335,6 +335,39 @@ function AgentWidget ({ spec, onChoose }) {
   )
 }
 
+// ⚠️ "WORKING" WAS FOUR GREY CHARACTERS THAT NEVER MOVED. A turn can run for
+// minutes on tool calls with nothing else on screen, and the only sign of life was
+// a static "· working" beside the model name. Tony: "id also like some sort of
+// indicator that an agent is working. there's nothing like that in the chat."
+//
+// So: a dot that pulses, a clock that counts, and the CURRENT activity named —
+// thinking, the tool it is running, or writing. Motion says alive; the clock says
+// how long it has been; the verb says what it is doing. A spinner alone says only
+// the first of those, which is the part you can already guess.
+function WorkingBadge ({ parts, thinkingActive }) {
+  const [secs, setSecs] = useState(0)
+  useEffect(() => {
+    const t0 = Date.now()
+    const id = setInterval(() => setSecs(Math.floor((Date.now() - t0) / 1000)), 1000)
+    return () => clearInterval(id)
+  }, [])
+
+  // The last tool with no result yet is the one running right now.
+  const running = [...(parts || [])].reverse().find(p => p.type === 'tool' && p.result == null && !p.denied)
+  const what = thinkingActive ? 'thinking'
+    : running ? (running.name || 'running a tool').replace(/_/g, ' ')
+      : 'writing'
+  const clock = secs >= 60 ? `${Math.floor(secs / 60)}m ${String(secs % 60).padStart(2, '0')}s` : `${secs}s`
+
+  return (
+    <span className='working-badge' role='status'>
+      <span className='working-dot' aria-hidden />
+      <span className='working-what'>{what}</span>
+      <span className='working-clock'>{clock}</span>
+    </span>
+  )
+}
+
 function AssistantMessage ({ parts, thinking, thinkingActive, thinkingSecs, streaming, model, agent, local, onChoose }) {
   const waiting = streaming && !parts.length && !thinking
   // A local model that isn't resident cold-loads its weights before the first token.
@@ -352,7 +385,7 @@ function AssistantMessage ({ parts, thinking, thinkingActive, thinkingSecs, stre
           ? <><span className='who-agent-emoji' style={isImported(agent) ? undefined : { '--ah': agent.hue ?? 'var(--accent-h)', color: glyphColor(agent.hue, 0.7, 0.16) }}><AgentGlyph agent={agent} size={14} /></span><span className='who-word'>{agent.name}</span></>
           : <><span className='logo-mark' aria-hidden /><span className='wordmark who-word'>Radiant</span></>}
         {model && <span className='who-model'>{model}</span>}
-        {streaming && <span className='who-model'>· working</span>}
+        {streaming && <WorkingBadge parts={parts} thinkingActive={thinkingActive} />}
       </div>
       {thinking ? <ThinkingTrace thinking={thinking} active={Boolean(thinkingActive)} seconds={thinkingSecs} /> : null}
       {(() => {

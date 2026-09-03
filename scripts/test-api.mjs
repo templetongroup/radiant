@@ -439,6 +439,25 @@ for (const r of results) console.log(`  ${r.ok ? '✓' : '✗'} ${r.name}${r.det
   // The ring sits BEHIND the rows so it can travel under them; an opaque row hides
   // it completely, which shipped for one build and read as a barely-there hover.
   ok(/\.relay-opt \{[^}]*background: none/s.test(css), 'the rows let the ring show through')
+  // ⚠️ AND THEY FIT THEIR TEXT. Stacked full-width rows turned three short answers
+  // into three banners across the transcript. Tony: "the answer chips span across
+  // the whole chat window. that looks ridiculous."
+  ok(/\.relay \{[^}]*flex-wrap: wrap/s.test(css), 'the answers wrap like chips')
+  ok(!/\.relay \{[^}]*flex-direction: column/s.test(css), 'and are not stacked full width')
+  ok(/\.relay-opt \{[^}]*max-width/s.test(css), 'with a cap so a long one cannot span the window')
+
+  // ⚠️ "WORKING" WAS FOUR GREY CHARACTERS THAT NEVER MOVED, while a turn can run
+  // for minutes on tool calls with nothing else on screen. Tony: "id also like
+  // some sort of indicator that an agent is working. there's nothing like that in
+  // the chat."
+  ok(/function WorkingBadge/.test(chat), 'a working badge exists')
+  ok(/setSecs\(Math\.floor/.test(chat), 'it counts how long the turn has run')
+  ok(/p\.type === 'tool' && p\.result == null/.test(chat), 'and names the tool running right now')
+  ok(/thinkingActive \? 'thinking'/.test(chat), 'or says it is thinking')
+  ok(/\.working-dot/.test(css) && /working-pulse/.test(css), 'with a pulse that says alive')
+  // The clock keeps counting when the pulse is switched off — a changing number is
+  // not the motion anyone meant to disable.
+  ok(/@media \(prefers-reduced-motion: reduce\) \{ \.working-dot \{ animation: none/.test(css), 'the pulse stops under Reduce Motion')
 }
 
 console.log(`\n${results.length - failed.length}/${results.length} passed`)
