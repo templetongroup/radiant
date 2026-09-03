@@ -1,4 +1,4 @@
-import { desktop, screenshot as screenScreenshot, screenSize, helperAvailable } from './computer.js'
+import { desktop, screenshot as screenScreenshot, screenSize, helperAvailable, permissions } from './computer.js'
 import { web, browserAvailable } from './browser.js'
 
 // Two control surfaces the agent can drive when "computer control" is enabled:
@@ -73,5 +73,12 @@ export async function runComputerTool (name, input) {
 }
 
 export async function computerStatus () {
-  return { desktop: helperAvailable(), browser: await browserAvailable() }
+  // ⚠️ `desktop` MEANS "macOS WILL LET US", not "the binary is present". The old
+  // version answered the second question and the UI printed it as the first.
+  const p = await permissions()
+  return {
+    desktop: p.helper && p.screenRecording !== false && p.accessibility !== false,
+    browser: await browserAvailable(),
+    ...p
+  }
 }

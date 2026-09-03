@@ -228,7 +228,18 @@ code, pre, .mono { font-family: var(--font-mono); }
 
 
 
+/* ⚠️ ONE RHYTHM, NOT A MARGIN PER ELEMENT. Every block was spacing itself with
+   inline marginTop values — 14 here, 10 there, 8, 6 — so no two gaps matched and
+   the Automation pane read as a pile. Tony: "also your spacing here is bad."
+   A flow rule between children, and one between blocks, is the whole fix; the
+   inline values that remain elsewhere now stack on top of a sane baseline rather
+   than being the only thing holding the layout up. */
 .set-block { padding: 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--bg-panel); }
+.set-block > * + * { margin-top: 8px; }
+.set-block + .set-block { margin-top: 12px; }
+/* the paragraph under a title is explanation, not a sibling section */
+.set-block > .hint { margin-top: 4px; }
+.set-block > .row { margin-top: 10px; }
 .set-block-title { font-weight: 600; font-size: 13.5px; }
 .connect-field { display: flex; flex-direction: column; gap: 5px; font-size: 12px; color: var(--text-muted); margin-top: 6px; }
 .share-token { user-select: all; overflow-wrap: anywhere; }

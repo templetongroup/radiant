@@ -17,6 +17,31 @@ function helperPath () {
   return candidates.find(p => { try { return fs.existsSync(p) } catch { return false } }) || candidates[0]
 }
 
+/**
+ * What macOS actually allows, asked of macOS.
+ *
+ * ⚠️ THE STATUS USED TO BE `helperAvailable()` — a check that this binary exists on
+ * disk — presented in Settings as "Screen Recording and Accessibility are granted
+ * — ready to use". It never asked about permissions at all. So the screen said
+ * everything was fine while screencapture returned a wallpaper-only image (exit 0,
+ * no error) and CGEvents went nowhere, and an agent handed the same lie invented
+ * tccutil commands for a bundle id that does not exist.
+ *
+ * Both underlying calls are read-only and never prompt, so this is safe to poll.
+ */
+export async function permissions () {
+  if (!helperAvailable()) return { helper: false, screenRecording: false, accessibility: false }
+  try {
+    const out = await execFileP(helperPath(), ['permissions'], { timeout: 5000 })
+    const j = JSON.parse(out.stdout.trim())
+    return { helper: true, screenRecording: Boolean(j.screenRecording), accessibility: Boolean(j.accessibility) }
+  } catch {
+    // An older helper has no `permissions` command. Say we do not know rather than
+    // claiming either answer.
+    return { helper: true, screenRecording: null, accessibility: null }
+  }
+}
+
 export function helperAvailable () {
   try { return fs.existsSync(helperPath()) } catch { return false }
 }

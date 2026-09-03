@@ -50,6 +50,24 @@ func flagsFor(_ mods: [String]) -> CGEventFlags {
 guard args.count >= 2 else { print("usage: radiant-control <cmd> ..."); exit(1) }
 
 switch args[1] {
+// ⚠️ ASK macOS, DO NOT ASSUME. computerStatus() reported desktop control as
+// "granted — ready to use" on the strength of this binary EXISTING on disk. It
+// never asked about permissions at all, so the Settings screen said everything was
+// fine while screencapture returned a wallpaper-only image and CGEvents went
+// nowhere. Tony spent a session on that: "the agent is saying it cant control my
+// active chrome because of settings but Radiant has access in privacy and disk
+// access" — and an agent, told the same lie, invented tccutil commands for a bundle
+// id that does not exist.
+//
+// CGPreflightScreenCaptureAccess and AXIsProcessTrusted are the real answers. Both
+// are read-only: neither shows a prompt, so this is safe to call on every status
+// poll. TCC attributes a bundled, co-signed helper to the app that spawned it, so
+// these report Radiant's own grants rather than the helper's.
+case "permissions":
+    let screen = CGPreflightScreenCaptureAccess()
+    let ax = AXIsProcessTrusted()
+    print("{\"screenRecording\":\(screen),\"accessibility\":\(ax)}")
+
 case "screensize":
     let b = CGDisplayBounds(CGMainDisplayID())
     print("\(Int(b.width)) \(Int(b.height))")

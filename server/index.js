@@ -1468,33 +1468,49 @@ app.get('/api/models', async (req, res) => {
 // ---------- local models (Ollama) ----------
 const OLLAMA = 'http://127.0.0.1:11434'
 
-// ---------- controlling the user's own Chrome ----------
+// ---------- the Chrome the agent drives ----------
 //
-// ⚠️ CHROME ONLY ACCEPTS CONTROL IF IT WAS STARTED WITH A DEBUGGING PORT, and the
-// flag cannot be added to a Chrome that is already running — `open -na` with args
-// just focuses the existing process. So enabling it means quitting Chrome and
-// starting it again, which is a thing to ask for, never to do quietly.
+// ⚠️ CHROME 136+ SILENTLY IGNORES --remote-debugging-port ON THE DEFAULT PROFILE.
+// Not an error, not a warning: the flag is accepted and discarded. The first
+// version of this quit Tony's Chrome and relaunched it with the flag on his normal
+// profile — `ps` confirmed the flag was there and nothing was ever listening.
+// "i clicked the Quit Chrome button. it quit chrome but this message did not
+// change. even when i restarted radiant."
+//
+// A dedicated --user-data-dir is the only way to get a debuggable Chrome, and it
+// has a happy consequence: a distinct profile means a SEPARATE instance, so his
+// own Chrome never has to close. He signs into this one once and it persists.
+const CHROME_APP = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+const chromeProfile = () => path.join(RADIANT_DIR, 'chrome')
+
 app.get('/api/browser/status', async (req, res) => {
   const { chromeReachable, mode, CDP_PORT } = await import('./browser.js')
-  res.json({ port: CDP_PORT, mode, reachable: await chromeReachable() })
+  res.json({
+    port: CDP_PORT,
+    mode,
+    reachable: await chromeReachable(),
+    profile: chromeProfile(),
+    installed: fs.existsSync(CHROME_APP)
+  })
 })
 
 app.post('/api/browser/enable', async (req, res) => {
-  const { CDP_PORT } = await import('./browser.js')
+  const { CDP_PORT, chromeReachable } = await import('./browser.js')
+  if (!fs.existsSync(CHROME_APP)) return res.status(400).json({ error: 'Google Chrome is not installed.' })
   try {
-    // `quit` through AppleScript, not a kill: it is the graceful path, so Chrome
-    // writes its session out and can restore the tabs on the way back up.
-    try { execSync('osascript -e \'quit app "Google Chrome"\'', { timeout: 15000 }) } catch {}
-    for (let i = 0; i < 40; i++) {                       // wait for it to actually go
-      try { execSync('pgrep -x "Google Chrome"', { stdio: 'ignore' }) } catch { break }
-      await new Promise(r => setTimeout(r, 250))
-    }
-    execSync(`open -na "Google Chrome" --args --remote-debugging-port=${CDP_PORT} --restore-last-session`, { timeout: 15000 })
-    // Give it a moment to open the port before we claim success.
+    fs.mkdirSync(chromeProfile(), { recursive: true })
+    // Detached and not through `open`, so the flags are certain to arrive and this
+    // window outlives the request.
+    const child = spawn(CHROME_APP, [
+      `--remote-debugging-port=${CDP_PORT}`,
+      `--user-data-dir=${chromeProfile()}`,
+      '--no-first-run',
+      '--no-default-browser-check'
+    ], { detached: true, stdio: 'ignore' })
+    child.unref()
     let up = null
-    for (let i = 0; i < 24 && !up; i++) {
+    for (let i = 0; i < 30 && !up; i++) {
       await new Promise(r => setTimeout(r, 500))
-      const { chromeReachable } = await import('./browser.js')
       up = await chromeReachable()
     }
     res.json({ ok: Boolean(up), reachable: up })

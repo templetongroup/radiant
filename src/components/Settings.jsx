@@ -1543,30 +1543,50 @@ function AgentPane ({ config, onSettings }) {
           privacy and disk access." It never was permissions. */}
       <ChromeAttachBlock />
 
-      <div className='set-block' style={{ marginTop: 14 }}>
+      <div className='set-block'>
         <div className='set-block-title'>What works on {config?.serverHost || 'this Mac'}</div>
-        <div className='comp-stat' style={{ marginTop: 8 }}>
+        <div className='comp-stat'>
           <span className={comp?.browser ? 'key-ok' : 'fit-badge fit-no'}>{comp?.browser ? '✓' : '—'} Browser control</span>
           <span className='desc'>drives your system Chrome. Nothing to set up.</span>
         </div>
-        <div className='comp-stat' style={{ marginTop: 4 }}>
-          <span className={comp?.desktop ? 'key-ok' : 'fit-badge fit-no'}>{comp?.desktop ? '✓' : '—'} Desktop control</span>
-          <span className='desc'>
-            {comp?.desktop
-              ? 'Screen Recording and Accessibility are granted — ready to use.'
-              : 'not available yet — macOS has not granted Radiant permission.'}
-          </span>
-        </div>
-        {!comp?.desktop && (
-          <div className='spec-note' style={{ marginTop: 10 }}>
-            Grant Radiant <strong>Screen Recording</strong> to see the screen and <strong>Accessibility</strong> to
-            click and type, in System Settings → Privacy &amp; Security. macOS asks the first time the agent
-            tries. Browser control needs neither.
+        {/* ⚠️ NAME THE PERMISSION THAT IS MISSING. This said "Screen Recording and
+              Accessibility are granted — ready to use" whenever the helper binary
+              existed on disk, which it always does — so it claimed both while
+              screencapture returned a wallpaper-only image and clicks went nowhere,
+              and nobody could tell which of the two was wrong. */}
+          <div className='comp-stat'>
+            <span className={comp?.screenRecording ? 'key-ok' : 'fit-badge fit-no'}>
+              {comp?.screenRecording ? '✓' : '—'} Screen Recording
+            </span>
+            <span className='desc'>
+              {comp?.screenRecording === null ? 'cannot tell — the helper in this build is older than the check.'
+                : comp?.screenRecording ? 'the agent can see the screen.'
+                  : 'not granted — screenshots come back showing only your wallpaper.'}
+            </span>
           </div>
-        )}
+          <div className='comp-stat'>
+            <span className={comp?.accessibility ? 'key-ok' : 'fit-badge fit-no'}>
+              {comp?.accessibility ? '✓' : '—'} Accessibility
+            </span>
+            <span className='desc'>
+              {comp?.accessibility === null ? 'cannot tell — the helper in this build is older than the check.'
+                : comp?.accessibility ? 'the agent can click and type.'
+                  : 'not granted — clicks and keystrokes are silently discarded.'}
+            </span>
+          </div>
+          {comp && (!comp.screenRecording || !comp.accessibility) && (
+            <div className='spec-note'>
+              Add <strong>Radiant</strong> under System Settings → Privacy &amp; Security →{' '}
+              {!comp.screenRecording && <strong>Screen Recording</strong>}
+              {!comp.screenRecording && !comp.accessibility && ' and '}
+              {!comp.accessibility && <strong>Accessibility</strong>}
+              , then quit and reopen Radiant — macOS only re-reads these at launch.
+              Browser control needs neither.
+            </div>
+          )}
       </div>
 
-      <div className='set-block' style={{ marginTop: 14 }}>
+      <div className='set-block'>
         <div className='set-block-title'>How much it may do without asking</div>
         <label className={'auto-choice' + (!s.fullAutomation ? ' is-on' : '')}>
           <input type='radio' name='automation' checked={!s.fullAutomation} onChange={() => onSettings({ fullAutomation: false })} />
@@ -2103,42 +2123,51 @@ function ChromeAttachBlock () {
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState(null)
   const load = () => api.browserStatus().then(setSt).catch(() => {})
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    load()
+    // ⚠️ IT HAS TO KEEP LOOKING. Chrome can be started or quit outside Radiant, and
+    // the first version read this once on mount — so the panel went on insisting
+    // nothing was connected long after it was.
+    const t = setInterval(load, 4000)
+    return () => clearInterval(t)
+  }, [])
 
   const enable = async () => {
     setBusy(true); setErr(null)
-    try { await api.browserEnable(); await load() } catch (e) { setErr(e.message) }
+    try {
+      const r = await api.browserEnable()
+      if (!r?.ok) setErr('Chrome opened but did not accept control. Quit that window and try again.')
+      await load()
+    } catch (e) { setErr(e.message) }
     setBusy(false)
   }
 
   const on = Boolean(st?.reachable)
   return (
-    <div className='set-block' style={{ marginTop: 14 }}>
+    <div className='set-block'>
       <div className='set-block-title'>Which Chrome the agent drives</div>
-      <div className='comp-stat' style={{ marginTop: 8 }}>
+      <div className='comp-stat'>
         <span className={on ? 'key-ok' : 'fit-badge fit-tight'}>
-          {on ? '\u2713 Your own Chrome' : '\u2014 A separate, empty Chrome'}
+          {on ? '✓ A Chrome it can drive' : '— None yet'}
         </span>
-        {on && st.reachable.browser && <span className='v-meta'>{st.reachable.browser}</span>}
+        {on && st.reachable.browser && <span className='desc'>{st.reachable.browser}</span>}
       </div>
-      <p className='hint' style={{ marginTop: 6 }}>
+      <p className='hint'>
         {on
-          ? <>The agent works in the Chrome you already have open — your tabs, your extensions,
-              and the sites you are signed in to. Quit Chrome normally and this turns off again.</>
-          : <>Right now the agent opens its <b>own</b> Chrome: a clean window with no extensions,
-              signed in to nothing, so your open tabs are invisible to it. Chrome only lets an app
-              drive it when it was started for that, and the setting cannot be added to a Chrome
-              that is already running — so this quits Chrome and starts it again, restoring
-              your tabs.</>}
+          ? <>The agent works in that window — your tabs there, and whatever you are signed
+              into in it. Sign in to a site once and it stays signed in.</>
+          : <>Chrome only accepts being driven when it is started with its own separate profile:
+              since version 136 it silently ignores the setting on your everyday one. So this opens
+              a <b>second</b> Chrome window with a profile of its own and leaves your normal Chrome
+              alone. Sign in to what the agent needs once, in that window, and it is remembered.</>}
       </p>
-      {!on && (
-        <div className='row' style={{ marginTop: 8 }}>
-          <button className='small-btn primary' onClick={enable} disabled={busy}>
-            {busy ? 'Restarting Chrome\u2026' : 'Quit Chrome and let Radiant drive it'}
-          </button>
-        </div>
-      )}
-      {err && <div className='error-note' style={{ marginTop: 8 }}>\u26a0 {err}</div>}
+      <div className='row'>
+        <button className='small-btn primary' onClick={enable} disabled={busy || !st?.installed}>
+          {busy ? 'Opening Chrome…' : on ? 'Open it again' : "Open the agent's Chrome"}
+        </button>
+      </div>
+      {st && !st.installed && <div className='error-note'>⚠ Google Chrome is not installed.</div>}
+      {err && <div className='error-note'>⚠ {err}</div>}
     </div>
   )
 }
@@ -2417,7 +2446,8 @@ const GUIDE = [
   {
     title: 'Chat & agents',
     items: [
-      ['The agent can drive the Chrome you already have open', 'Until now Radiant always opened its own Chrome for computer control \u2014 a clean window with no extensions, signed in to nothing \u2014 so an agent asked to look at a page you had open saw an empty browser instead, and often blamed macOS permissions, which had nothing to do with it. It now uses your real Chrome when it can: your tabs, your extensions, the sites you are signed in to. Chrome only allows this when it was started for it, and that cannot be switched on afterwards, so Settings \u2192 Automation has a button that quits Chrome and starts it again with your tabs restored. If you skip that, everything behaves as it did before.'],
+      ['The agent gets a Chrome of its own', 'Computer control used to open a throwaway Chrome \u2014 no extensions, signed in to nothing \u2014 so an agent asked to look at a page saw an empty browser. Settings \u2192 Automation now opens a second Chrome with a profile that persists: sign in to what the agent needs once, in that window, and it stays signed in. Your everyday Chrome is never touched. Chrome refuses to be driven on your normal profile at all since version 136, which is why it has to be a separate window.'],
+      ['Settings tells the truth about screen permissions', 'The Automation screen used to say "Screen Recording and Accessibility are granted \u2014 ready to use" whenever it could find its own helper file, which is always. It never asked macOS. So it claimed everything was fine while screenshots came back showing only your wallpaper and clicks went nowhere \u2014 and there was no way to tell which of the two permissions was missing. It now asks macOS and lists them separately, naming the one to fix.'],
       ['The model selector blooms open', 'Picking a model now wipes open from the button instead of appearing all at once \u2014 a frosted panel that unfolds downward, its rows arriving in sequence, with the thinking level last. Providers still collapse and expand exactly as before, Escape closes it, and Reduce Motion turns all of it off.'],
       ['No more "0 GB" downloads', 'Some model repos do not tell Hugging Face how big their files are, and Radiant was turning that silence into a number: a real multi-gigabyte download offered as "0 GB \u00b7 ~2 GB RAM". It now says the size is unknown, sorts those last, and does not pretend to judge whether they fit.'],
       ['A finished task list folds itself away', 'When an agent works through a checklist, the list stayed open above the composer for the rest of the conversation \u2014 five struck-through lines you had already read. It collapses to a single "Tasks \u2713 5/5" line the moment the last item is done. Click it any time to open it back up, and it stays open once you do.'],

@@ -464,12 +464,42 @@ for (const r of results) console.log(`  ${r.ok ? '✓' : '✗'} ${r.name}${r.det
   ok(/mode = 'launched'/.test(br) && /mode = 'attached'/.test(br), 'and reports which of the two it did')
 
   const idx2 = pfs.readFileSync('server/index.js', 'utf8')
+  const set2 = pfs.readFileSync('src/components/Settings.jsx', 'utf8')
   ok(/api\/browser\/status/.test(idx2), 'the UI can ask which Chrome is being driven')
   // The flag cannot be added to a running Chrome, so enabling means restarting it
   // — something to ask for, never to do quietly.
-  ok(/quit app "Google Chrome"/.test(idx2), 'enabling quits Chrome gracefully')
-  ok(/--restore-last-session/.test(idx2), 'and brings the tabs back')
-  ok(/Which Chrome the agent drives/.test(pfs.readFileSync('src/components/Settings.jsx', 'utf8')), 'and Settings says which it is')
+  ok(/Which Chrome the agent drives/.test(set2), 'and Settings says which it is')
+
+  // ⚠️ CHROME 136+ SILENTLY IGNORES --remote-debugging-port ON THE DEFAULT PROFILE.
+  // The first version quit Tony's Chrome and relaunched it with the flag on his
+  // normal profile: `ps` confirmed the flag was present and nothing ever listened.
+  // "i clicked the Quit Chrome button. it quit chrome but this message did not
+  // change." A dedicated --user-data-dir is the only way, and it means his own
+  // Chrome never has to close.
+  ok(/--user-data-dir=/.test(idx2), 'the agent Chrome gets a profile of its own')
+  ok(!/quit app "Google Chrome"/.test(idx2), 'and nothing quits the browser he is using')
+
+  // ⚠️ THE STATUS WAS A LIE. computerStatus reported desktop control ready on the
+  // strength of the helper binary EXISTING, and Settings printed that as "Screen
+  // Recording and Accessibility are granted". It never asked macOS.
+  const ct = pfs.readFileSync('server/computer-tools.js', 'utf8')
+  ok(!/desktop: helperAvailable\(\)/.test(ct), 'desktop status no longer means "the file is present"')
+  const cp = pfs.readFileSync('server/computer.js', 'utf8')
+  ok(/export async function permissions/.test(cp), 'there is a real permission check')
+  const sw = pfs.readFileSync('native/RadiantControl.swift', 'utf8')
+  ok(/CGPreflightScreenCaptureAccess/.test(sw), 'Screen Recording is asked of macOS')
+  ok(/AXIsProcessTrusted/.test(sw), 'and so is Accessibility')
+  // Both are read-only; a prompting variant would fire a dialog on every poll.
+  ok(!/CGRequestScreenCaptureAccess/.test(sw), 'without prompting on every status poll')
+  ok(/Screen Recording<\/strong>/.test(set2) && /Accessibility<\/strong>/.test(set2), 'and Settings names whichever is missing')
+
+  // ⚠️ \uXXXX IS AN ESCAPE ONLY INSIDE A STRING. In JSX text it is six literal
+  // characters, and it reached the screen twice in this one feature.
+  {
+    const i = set2.indexOf('function ChromeAttachBlock')
+    const blk = i === -1 ? '' : set2.slice(i, set2.indexOf('function DevicesPane', i))
+    ok(blk.length > 0 && !/>\s*\\u[0-9a-f]{4}/i.test(blk), 'no raw \\uXXXX left in the JSX text')
+  }
 
   // ⚠️ THE ANSWER CHIPS WERE SOLID ACCENT BUTTONS. Each option is a sentence, so
   // they arrived as fat wrapping blue pills shouting over the question. Tony:
