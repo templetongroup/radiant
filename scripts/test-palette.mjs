@@ -86,5 +86,20 @@ ok(good.warnings.length === 0, 'a sound pair produces no noise')
 ok(derivePalette({ bg: '#3A3A3A', fg: '#4A4A4A' })['--text'] === '#4a4a4a',
    'a bad choice is still APPLIED — the picker warns, it does not overrule you')
 
+// ── which preset a themeId means ───────────────────────────────────────────
+// ⚠️ THE CUSTOM ACCENT WAS SILENTLY IGNORED FOR AS LONG AS THE UNKNOWN-THEME GUARD
+// EXISTED. The picker sets themeId:'custom'; no theme has that id; 'custom' is
+// truthy; so the guard handed back THEMES[0] and painted everything Radiant blue.
+// The swatch showed the chosen colour, the app did not use it.
+import { resolvePreset, THEMES } from '../src/theme.js'
+ok(resolvePreset('custom') === null,
+   "'custom' means use the picked colour, not the first theme")
+ok(resolvePreset('radiant')?.id === 'radiant', 'a real theme id resolves to that theme')
+ok(resolvePreset('everforest')?.id === 'everforest', 'including a pinned one')
+ok(resolvePreset('a-theme-that-was-removed') === THEMES[0],
+   'a genuinely unknown id still falls back to the brand theme rather than a colour nobody chose')
+ok(resolvePreset(null) === null && resolvePreset(undefined) === null,
+   'nothing chosen yet is not the same as an unknown theme')
+
 console.log(`  ${pass}/${pass + fail} passed  ·  two colours you chose, still readable`)
 process.exit(fail ? 1 : 0)

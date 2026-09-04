@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { api } from '../api.js'
 import { whatsNewSince } from '../whatsnew.js'
 
@@ -46,7 +47,18 @@ export default function WhatsNew () {
   if (!items) return null
   const newest = items[0].version
 
-  return (
+  // ⚠️ A PORTAL, NOT A CHILD OF .app. Rendered inside the app tree this became a
+  // FLEX ITEM: styles.css has `.app > *:not(.motion-bg) { position: relative }`,
+  // two classes to this rule's one, so `position: fixed` lost and the backdrop
+  // took a column of its own. The sidebar was shoved from x 0 to x 1152 while the
+  // dialog was open and snapped back when it closed, and the dialog centred itself
+  // in the leftover space rather than the window — 124px off. Tony: "the read me
+  // looks clumsy on the left. when i click got it. the nav bar shifts over to the
+  // right. looks bad."
+  //
+  // Raising specificity would have fixed this one modal and left the trap set for
+  // the next. An overlay belongs outside the layout it covers.
+  return createPortal((
     <div className='wn-backdrop' onClick={() => setItems(null)}>
       <div className='wn' role='dialog' aria-modal='true' aria-labelledby='wn-title' onClick={e => e.stopPropagation()}>
         <div className='wn-head'>
@@ -75,5 +87,5 @@ export default function WhatsNew () {
         </div>
       </div>
     </div>
-  )
+  ), document.body)
 }

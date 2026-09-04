@@ -1413,6 +1413,11 @@ function AppearancePane ({ config, onSettings }) {
           <div className='mono' style={{ fontSize: 12 }}>{currentAccentHex}</div>
           <div style={{ fontSize: 11.5, color: 'var(--text-faint)' }}>Click the swatch to open the full palette{isCustom ? ' · custom' : ''}</div>
         </div>
+          {/* ⚠️ AN UNLABELLED SLIDER BESIDE A COLOUR SWATCH READS AS A STRAY BAR.
+              It sets the accent's vividness, and nothing on screen said so. */}
+          {isCustom && (
+            <label style={{ fontSize: 11.5, color: 'var(--text-faint)', flexShrink: 0 }}>Vividness</label>
+          )}
         {isCustom && (
           <input
             type='range' min='0' max='0.25' step='0.005' className='chroma-slider' style={{ flex: 1 }}
@@ -1477,6 +1482,12 @@ function AppearancePane ({ config, onSettings }) {
         </>
       )}
 
+      {/* ⚠️ MUTUALLY EXCLUSIVE WITH THE CUSTOM BACKGROUND ABOVE, so only ever one
+          on screen. This slider tints the background along the ACCENT's hue; once
+          an explicit background colour is set it does nothing at all, and a dead
+          slider sitting beside a live one that looks identical is what made this
+          screen unreadable. Tony: "this screen is now a convoluted mess." */}
+      {!s.customBg && (<>
       <div className='sub-label'>Background tint</div>
       <div className='hue-row'>
         <label htmlFor='bgtint'>Amount</label>
@@ -1489,6 +1500,7 @@ function AppearancePane ({ config, onSettings }) {
           {(s.bgTint != null ? s.bgTint : (THEMES.find(t => t.id === s.themeId)?.tint ?? 1)) < 0.4 ? 'neutral' : 'how much the accent colors the background'}
         </span>
       </div>
+      </>)}
 
       <div className='sub-label'>Animated background</div>
       <div className='accent-picker' style={{ gap: 10 }}>
@@ -2580,6 +2592,8 @@ const GUIDE = [
   {
     title: 'Chat & agents',
     items: [
+      ['The accent color picker works again', 'Choosing your own accent color did nothing \u2014 the app quietly went back to Radiant blue every time, so anything tinted by the accent stayed blue no matter what you picked. The swatch showed your color; the app ignored it. Fixed.'],
+      ['Appearance is less cluttered', 'Background tint and the new Background & text pickers do the same job in different ways, and only one of them can be in effect \u2014 so only one is shown. Pick your own background and the tint slider goes away; clear it and the slider comes back. The vividness slider next to the accent swatch is labeled now instead of being an unexplained bar.'],
       ['Pick your own background and text color', 'Settings \u203a Appearance has a Background & text row: two color wells, one for the page and one for the text, chosen independently of the accent. Until now the background could only be a stronger or weaker version of the accent color \u2014 you could not have, say, a warm grey page under a blue accent. You can now. Everything else \u2014 panels, raised surfaces, hover states, secondary labels \u2014 is worked out from the two colors you pick, and a Contrast slider controls how far apart they sit. If a pairing would make text hard to read, it says so and gives the actual contrast ratio, but it still applies what you chose: it warns, it does not overrule you. Clear puts you back on the theme.'],
       ['Updating shows real progress again', 'Pressing Download & install left the bar at 0% and looked frozen. The download was working the whole time \u2014 it finished normally and waited on disk \u2014 but the progress messages were being sent to the main window while the bar you were watching is in the Settings window, so nothing ever reached it. It updates properly now, and if you close Settings and come back it picks up where things actually are instead of offering to download the same 160 MB again. An update that has finished downloading installs when you quit Radiant.'],
       ['Radiant tells you what is new after it updates', 'Radiant updates itself quietly in the background, so features used to just appear with nothing to announce them. Now, the first time you open a version you have not run before, a short list of what changed is shown once. A brand-new install never sees it, and if several updates went by while your Mac was shut you get all of them, newest first. Settings \u203a Read me still has the full detail.'],

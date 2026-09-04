@@ -42,6 +42,18 @@ ok(WHATS_NEW.every((e, i, a) => i === 0 || cmpVersion(a[i - 1].version, e.versio
 // ⚠️ THE LIST MUST NOT DRIFT FROM THE APP, which is exactly what happened to the
 // Read me before it was checked. A release that adds a feature and forgets to say so
 // does not build.
+// ⚠️ AN OVERLAY MUST NOT BE A CHILD OF THE APP LAYOUT. Rendered inside .app this
+// dialog became a flex item: styles.css has `.app > *:not(.motion-bg) { position:
+// relative }`, which outranks a single-class `position: fixed`, so the backdrop
+// claimed a column. The sidebar jumped from x 0 to x 1152 while the dialog was
+// open and snapped back on dismiss, and the dialog centred in the leftover space
+// instead of the window. Tony: "the nav bar shifts over to the right. looks bad."
+const wn = readFileSync('src/components/WhatsNew.jsx', 'utf8')
+ok(/createPortal\(/.test(wn), 'the dialog renders through a portal, outside the app layout')
+ok(/document\.body\)/.test(wn), 'and lands on document.body, where no flex parent can size it')
+ok(!/return \(\s*<div className='wn-backdrop'/.test(wn),
+   'it is not returned as a plain child of the app tree')
+
 const pkg = JSON.parse(readFileSync('package.json', 'utf8'))
 ok(WHATS_NEW.some(e => e.version === pkg.version),
    `this build (${pkg.version}) has a what's-new entry — add one to src/whatsnew.js`)

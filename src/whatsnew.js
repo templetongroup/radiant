@@ -18,6 +18,13 @@
  */
 export const WHATS_NEW = [
   {
+    version: '0.6.233',
+    items: [
+      ['The accent color picker works again', 'Picking your own accent quietly reverted to Radiant blue every time. The swatch showed your color; the app ignored it.'],
+      ['Appearance is less cluttered', 'Background tint and the new background/text pickers do the same job two ways, so only the one in effect is shown.']
+    ]
+  },
+  {
     version: '0.6.232',
     items: [
       ['Pick your own background and text color', 'Settings › Appearance. Two color wells, independent of the accent — a warm grey page under a blue accent is now possible. It warns you if a pairing would be hard to read, and still applies it.']

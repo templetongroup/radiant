@@ -172,13 +172,41 @@ export function accentHex (hue, chroma) {
 export const glyphColor = (hue, L = 0.7, C = 0.16) =>
   hue == null || hue === undefined ? 'var(--accent)' : `oklch(${L} ${C} ${hue})`
 
+/**
+ * Which preset a themeId means. null means "use the custom hue".
+ *
+ * ⚠️ 'custom' IS A SENTINEL, NOT AN UNKNOWN THEME. The colour picker sets
+ * themeId:'custom' and puts the chosen hue in customHue. The fallback below exists
+ * for a genuinely unrecognised id — renamed, removed, a bad default — which used to
+ * fall through to customHue and turn the app a colour nobody chose. But 'custom'
+ * matches no theme and IS truthy, so it hit that fallback and every custom accent
+ * was silently replaced by THEMES[0], Radiant's blue. Tony: "i changed the accent
+ * color but some of the elements remained blue." All of them did; the picker had
+ * not worked since the guard landed.
+ *
+ * Exported so the distinction is testable without a DOM — applyTheme writes to
+ * document, this decides.
+ */
+export function resolvePreset (themeId) {
+  if (themeId === 'custom') return null            // the user picked a colour
+  if (!themeId) return null                        // nothing chosen yet
+  return THEMES.find(t => t.id === themeId) || THEMES[0]
+}
+
 export function applyTheme (settings) {
   const root = document.documentElement
   // An unrecognized themeId (renamed, removed, or a bad default) used to fall
   // through to customHue, which turned the app a color nobody chose. Fall back
   // to the first theme — the brand one — so the app is always on a real palette.
-  const preset = THEMES.find(t => t.id === settings.themeId) ||
-    (settings.themeId ? THEMES[0] : null)
+  // ⚠️ 'custom' IS A SENTINEL, NOT AN UNKNOWN THEME. The colour picker sets
+  // themeId:'custom' and puts the chosen hue in customHue. The guard below exists
+  // for a genuinely unrecognised id — renamed, removed, a bad default — which used
+  // to fall through to customHue and turn the app a colour nobody chose. But
+  // 'custom' matches no theme and IS truthy, so it hit that fallback and every
+  // custom accent was silently replaced by THEMES[0], Radiant's blue. Tony: "i
+  // changed the accent color but some of the elements remained blue." They all
+  // did; the picker had never worked since the guard landed.
+  const preset = resolvePreset(settings.themeId)
   const hue = preset ? preset.hue : (settings.customHue ?? 258)
   const chroma = preset ? preset.chroma : (settings.customChroma ?? 0.11)
   // background tint: an explicit user override wins, else the theme's default
