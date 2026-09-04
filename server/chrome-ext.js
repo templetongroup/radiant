@@ -73,6 +73,6 @@ export const ext = {
   readText: (limit, tabId) => callExtension('readText', { limit, tabId }),
   screenshot: tabId => callExtension('screenshot', { tabId }),
   click: ({ text, selector, tabId }) => callExtension('click', { text, selector, tabId }),
-  type: ({ text, selector, submit, tabId }) => callExtension('type', { text, selector, submit, tabId }),
-  evaluate: (js, tabId) => callExtension('evaluate', { js, tabId })
+  type: ({ text, selector, submit, tabId }) => callExtension('type', { text, selector, submit, tabId })
+  // No evaluate: the extension executes only its own bundled functions. See sw.js.
 }

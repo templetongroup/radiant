@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		E1D481BC15E14381BA3003EA /* LocalModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0ABDDFEC3FD340BAA3089F7C /* LocalModels.swift */; };
 		E1D481BC15E14381BA3003D3 /* DownloadMath.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0ABDDFEC3FD340BAA3089FD3 /* DownloadMath.swift */; };
+		E1D481BC15E14381BA3003D4 /* RemoteCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0ABDDFEC3FD340BAA3089FD5 /* RemoteCatalog.swift */; };
 		E1D481BC15E14381BA3003C2 /* ProviderChat.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0ABDDFEC3FD340BAA3089FC2 /* ProviderChat.swift */; };
 		E1D481BC15E14381BA3003A11 /* AppleModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0ABDDFEC3FD340BAA3089A11 /* AppleModel.swift */; };
 		E1D481BC15E14381BA3003B1 /* SecureStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0ABDDFEC3FD340BAA3089FF1 /* SecureStore.swift */; };
@@ -27,6 +28,7 @@
 /* Begin PBXFileReference section */
 		0ABDDFEC3FD340BAA3089F7C /* LocalModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LocalModels.swift; path = App/plugins/LocalModels.swift; sourceTree = "<group>"; };
 		0ABDDFEC3FD340BAA3089FD3 /* DownloadMath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DownloadMath.swift; path = App/plugins/DownloadMath.swift; sourceTree = "<group>"; };
+		0ABDDFEC3FD340BAA3089FD5 /* RemoteCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = RemoteCatalog.swift; path = App/plugins/RemoteCatalog.swift; sourceTree = "<group>"; };
 		0ABDDFEC3FD340BAA3089FC2 /* ProviderChat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ProviderChat.swift; path = App/plugins/ProviderChat.swift; sourceTree = "<group>"; };
 		0ABDDFEC3FD340BAA3089A11 /* AppleModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppleModel.swift; path = App/plugins/AppleModel.swift; sourceTree = "<group>"; };
 		0ABDDFEC3FD340BAA3089FF1 /* SecureStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SecureStore.swift; path = App/plugins/SecureStore.swift; sourceTree = "<group>"; };
@@ -174,6 +176,7 @@
 			files = (
 				E1D481BC15E14381BA3003EA /* LocalModels.swift in Sources */,
 				E1D481BC15E14381BA3003D3 /* DownloadMath.swift in Sources */,
+				E1D481BC15E14381BA3003D4 /* RemoteCatalog.swift in Sources */,
 				E1D481BC15E14381BA3003C2 /* ProviderChat.swift in Sources */,
 				E1D481BC15E14381BA3003A11 /* AppleModel.swift in Sources */,
 				E1D481BC15E14381BA3003B1 /* SecureStore.swift in Sources */,

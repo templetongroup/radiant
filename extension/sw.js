@@ -73,6 +73,17 @@ async function inPage (tabId, func, args = []) {
   return res?.result
 }
 
+/**
+ * ⚠️ NO REMOTE CODE, DELIBERATELY. There was an `evaluate` op here that took a
+ * JavaScript string over the socket and ran it in the page with new Function().
+ * Manifest V3 forbids executing code that is not in the package, and the Chrome Web
+ * Store asks about it directly — answering honestly would have meant "yes", which
+ * gets an extension rejected. Nothing called it: every tool uses the bundled
+ * functions below, which take DATA as arguments and never code.
+ *
+ * Do not add an op that executes a string. If a new capability seems to need one,
+ * it needs a new bundled function instead.
+ */
 async function handle (op, a) {
   switch (op) {
     case 'ping': return { ok: true, version: chrome.runtime.getManifest().version }
@@ -149,17 +160,6 @@ async function handle (op, a) {
         if (submit) el.form?.requestSubmit?.()
         return { ok: true, into: el.name || el.id || el.tagName }
       }, [a.selector || null, String(a.text ?? ''), Boolean(a.submit)])
-    }
-
-    case 'evaluate': {
-      const t = a.tabId ? await chrome.tabs.get(Number(a.tabId)) : await activeTab()
-      // ⚠️ NEW Function, NOT eval OF A STRING WE BUILT. The expression arrives as an
-      // argument and is compiled inside the page, so nothing is spliced into source
-      // text here and there is no quoting to get wrong.
-      return await inPage(t.id, src => {
-        try { return { ok: true, value: String(new Function('return (' + src + ')')()) } }
-        catch (e) { return { ok: false, error: String(e.message || e) } }
-      }, [String(a.js || 'null')])
     }
 
     default: throw new Error(`Unknown op: ${op}`)

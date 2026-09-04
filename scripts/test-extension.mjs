@@ -127,8 +127,18 @@ const sw = readFileSync('extension/sw.js', 'utf8')
 ok(/chrome\.tabs\.captureVisibleTab/.test(sw), 'the extension photographs the page with the documented API')
 ok(/Object\.getOwnPropertyDescriptor\(proto, 'value'\)\?\.set/.test(sw),
    'typing sets the value the way React sees it — a plain .value assignment leaves the page looking filled and submitting empty')
-ok(/new Function\('return \(' \+ src/.test(sw),
-   'evaluated expressions are compiled inside the page from an argument, never spliced into source')
+// ⚠️ MANIFEST V3 FORBIDS CODE THAT IS NOT IN THE PACKAGE, and the Chrome Web Store
+// asks outright. An `evaluate` op used to take a JavaScript string over the socket
+// and run it with new Function() — nothing called it, and it would have forced a
+// "yes, this uses remote code" on the listing, which is grounds for rejection.
+// ⚠️ STRIP THE COMMENTS FIRST. The note explaining why this op was removed contains
+// the words "new Function", so a grep over the raw source matches the explanation
+// and fails. That mistake has been made four separate times today in this repo.
+const code = sw.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+ok(!/new Function/.test(code), 'the extension never executes a string as code')
+ok(!/\beval\s*\(/.test(code), 'and does not eval')
+ok(!/'evaluate'/.test(readFileSync('server/chrome-ext.js', 'utf8')),
+   'and the server offers no way to ask it to')
 ok(/chrome\.alarms\.create/.test(sw),
    'an alarm reconnects the worker — MV3 kills an idle one after ~30s and takes the socket with it')
 ok(/DEFAULT_PORTS = \[5834, 5934/.test(sw), 'it looks for Radiant on the ports Radiant actually uses')

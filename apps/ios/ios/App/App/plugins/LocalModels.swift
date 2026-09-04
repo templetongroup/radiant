@@ -341,6 +341,9 @@ public class LocalModels: CAPPlugin, CAPBridgedPlugin {
     /// which is 28% of the device, and is the whole reason a 3 GB model reports
     /// "won't run" on a 12 GB phone.
     override public func load() {
+        // The published catalogue, if the network offers one. Never waited on: the
+        // picker draws the built-in list now and takes the fresh one when it lands.
+        loadPublishedCatalogue()
         // ⚠️ DEBUG ONLY. It prints no user data, but a Release build should not
         // narrate itself in the device console — and device installs are Debug
         // config, so the diagnostic survives exactly where it is used.
@@ -388,8 +391,58 @@ public class LocalModels: CAPPlugin, CAPBridgedPlugin {
         )
     }
 
+    // MARK: - the published catalogue
+
+    /// Rows fetched from the web, or nil until one arrives. Written once on the
+    /// main actor, read by `list`.
+    private var published: [RemoteCatalog.Row]?
+
+    /// ⚠️ FETCHED, NEVER WAITED ON. The picker draws from the built-in array
+    /// immediately; if a catalogue arrives it is applied to the next `list`. A
+    /// model picker that blocks on the network is a model picker that is empty on
+    /// a train.
+    ///
+    /// ⚠️ AND CACHED, SO THE SECOND LAUNCH IS OFFLINE-FRESH. Without the cache,
+    /// every flight would show a months-old built-in list even though the phone
+    /// had already been told better.
+    private var cacheURL: URL {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("radiant-catalog.json")
+    }
+
+    func loadPublishedCatalogue() {
+        if let data = try? Data(contentsOf: cacheURL), let rows = RemoteCatalog.decode(data) {
+            published = rows
+        }
+        var req = URLRequest(url: RemoteCatalog.url)
+        req.timeoutInterval = 8
+        req.cachePolicy = .reloadIgnoringLocalCacheData
+        URLSession.shared.dataTask(with: req) { [weak self] data, response, _ in
+            guard let self,
+                  let data,
+                  (response as? HTTPURLResponse)?.statusCode == 200,
+                  let rows = RemoteCatalog.decode(data)
+            else { return }                       // any failure: keep what we have
+            self.published = rows
+            try? data.write(to: self.cacheURL, options: .atomic)
+        }.resume()
+    }
+
+    /// The built-in array with the published one applied over it.
+    private var effectiveCatalog: [Entry] {
+        guard let published, !published.isEmpty else { return catalog }
+        let onDisk = Set(catalog.filter { isOnDisk($0) }.map(\.id))
+        var rows: [Entry] = published.map { r in
+            Entry(id: r.id, name: r.name, maker: r.maker, blurb: r.blurb, gb: r.gb,
+                  config: rxRepo(r.repo, stop: r.stop), vision: r.vision, video: r.video)
+        }
+        let publishedIDs = Set(published.map(\.id))
+        rows += catalog.filter { !publishedIDs.contains($0.id) && onDisk.contains($0.id) }
+        return rows
+    }
+
     @objc func list(_ call: CAPPluginCall) {
-        call.resolve(["models": catalog.map { [
+        call.resolve(["models": effectiveCatalog.map { [
             "id": $0.id, "name": $0.name, "maker": $0.maker, "blurb": $0.blurb,
             "sizeGB": $0.gb, "downloaded": isOnDisk($0),
             "vision": $0.vision, "video": $0.video
@@ -397,7 +450,7 @@ public class LocalModels: CAPPlugin, CAPBridgedPlugin {
     }
 
     @objc func downloaded(_ call: CAPPluginCall) {
-        call.resolve(["ids": catalog.filter { isOnDisk($0) }.map(\.id)])
+        call.resolve(["ids": effectiveCatalog.filter { isOnDisk($0) }.map(\.id)])
     }
 
     /// Which models are on the device.
@@ -501,7 +554,7 @@ public class LocalModels: CAPPlugin, CAPBridgedPlugin {
     }
 
     @objc func download(_ call: CAPPluginCall) {
-        guard let entry = catalog.first(where: { $0.id == call.getString("id") }) else {
+        guard let entry = effectiveCatalog.first(where: { $0.id == call.getString("id") }) else {
             return call.reject("Unknown model")
         }
         let id = entry.id
@@ -688,7 +741,7 @@ public class LocalModels: CAPPlugin, CAPBridgedPlugin {
     }
 
     @objc func remove(_ call: CAPPluginCall) {
-        guard let entry = catalog.first(where: { $0.id == call.getString("id") }) else {
+        guard let entry = effectiveCatalog.first(where: { $0.id == call.getString("id") }) else {
             return call.reject("Unknown model")
         }
         if loaded?.id == entry.id { loaded = nil }
@@ -702,7 +755,7 @@ public class LocalModels: CAPPlugin, CAPBridgedPlugin {
     // MARK: - generation
 
     @objc func generate(_ call: CAPPluginCall) {
-        guard let entry = catalog.first(where: { $0.id == call.getString("id") }) else {
+        guard let entry = effectiveCatalog.first(where: { $0.id == call.getString("id") }) else {
             return call.reject("Unknown model")
         }
         let prompt = call.getString("prompt") ?? ""
