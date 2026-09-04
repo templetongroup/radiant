@@ -16,6 +16,24 @@
   terminal — all in one window.
 </p>
 
+<p align="center">
+  <img src="docs/screenshots/chat.png" alt="Radiant: an agent reading files in a workspace and answering in a chat, with the model picker and tool toggles along the composer" width="900">
+</p>
+
+<p align="center">
+  <em>An agent working in a real folder — every file it touched is listed, and the
+  composer shows which model is answering and what it is allowed to do.</em>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/tasks.png" alt="Radiant's task board with columns for Queued, Working, Needs you, Review and Done" width="900">
+</p>
+
+<p align="center">
+  <em>Longer jobs run as tasks. "Needs you" is the column that matters: an agent
+  that hits a decision stops there instead of guessing.</em>
+</p>
+
 ## Features
 
 - **Agent chat** with streaming responses and visible model thinking
