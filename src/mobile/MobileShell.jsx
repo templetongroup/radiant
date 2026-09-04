@@ -322,30 +322,43 @@ const Chevron = ({ size = 17 }) => (
   </svg>
 )
 
-/**
- * gearshape. ⚠️ IT IS ONE CONTINUOUS OUTLINE, NOT A RING WITH THINGS AROUND IT.
- * Two earlier attempts drew the teeth as separate marks over a circle — first
- * eight radial strokes (a sun with uneven rays), then eight small rects over a
- * ring at r 6.6 with a second ring at r 2.5 inside it, which reads as chunky
- * triangular teeth around an oversized centre dot. The SF Symbol is a single
- * closed path that alternates between an outer and an inner radius, stroked at
- * a constant weight with round joins, plus one hollow centre. The path below is
- * generated from Ro 10.1 / Ri 7.4 on a 22 box: 8 teeth, each 22° of outer arc,
- * 6° flanks and a 23° valley, so the teeth are as wide as the gaps the way the
- * symbol's are. The round joins are what make the corners read as Apple's, and
- * the centre is a hole at r 3.55, not a dot.
- */
-const GEAR_PATH = 'M9.07 1.09 L12.93 1.09 L13.16 3.92 L14.47 4.47 L16.65 2.63 L19.37 5.35 '
-  + 'L17.53 7.53 L18.08 8.84 L20.91 9.07 L20.91 12.93 L18.08 13.16 L17.53 14.47 L19.37 16.65 '
-  + 'L16.65 19.37 L14.47 17.53 L13.16 18.08 L12.93 20.91 L9.07 20.91 L8.84 18.08 L7.53 17.53 '
-  + 'L5.35 19.37 L2.63 16.65 L4.47 14.47 L3.92 13.16 L1.09 12.93 L1.09 9.07 L3.92 8.84 '
-  + 'L4.47 7.53 L2.63 5.35 L5.35 2.63 L7.53 4.47 L8.84 3.92 Z'
+  /**
+   * gearshape.
+   *
+   * ⚠️ THREE ATTEMPTS FAILED BEFORE THIS ONE, ALWAYS FOR THE SAME REASON: each was
+   * judged at the size it was drawn, not the size it is used at. First eight radial
+   * strokes (a sun with uneven rays). Then eight rects over a ring (chunky teeth
+   * around an oversized dot). Then a 32-point straight-line path traced from the SF
+   * Symbol, which looks correct at 44px and turns to mush at 22 — its teeth are 2.7
+   * units deep against a 1.6 stroke, so barely one stroke-width clears the body, and
+   * the valleys are flat because every segment is a line. Tony: "this settings icon
+   * is terrible."
+   *
+   * ⚠️ IT IS ONLY EVER DRAWN AT 22px. Rendered at 22 and magnified, six deep teeth
+   * read instantly and eight do not: at this size a feature has to be several times
+   * the stroke weight to survive. Hence six teeth where the SF Symbol has eight —
+   * legibility at the used size beats fidelity to a symbol nobody is comparing it
+   * against.
+   *
+   * ⚠️ AND IT IS ARCS, NOT LINES. Tooth tops follow the outer radius and valleys the
+   * inner one, so the silhouette is round rather than a stamped polygon.
+   *
+   * Generated: 6 teeth, Ro 10.5 / Ri 6.7 on a 22 box, 27° of outer arc per tooth
+   * with 8° flanks. Judge any retune at 22px magnified, never at 44.
+   */
+  const GEAR_PATH = 'M 8.55 0.79 A 10.50 10.50 0 0 1 13.45 0.79 L 13.46 4.77 A 6.70 6.70 0 0 1 15.17 '
+    + '5.76 L 18.62 3.77 A 10.50 10.50 0 0 1 21.07 8.02 L 17.63 10.01 A 6.70 6.70 0 0 1 '
+    + '17.63 11.99 L 21.07 13.98 A 10.50 10.50 0 0 1 18.62 18.23 L 15.17 16.24 A 6.70 '
+    + '6.70 0 0 1 13.46 17.23 L 13.45 21.21 A 10.50 10.50 0 0 1 8.55 21.21 L 8.54 17.23 A '
+    + '6.70 6.70 0 0 1 6.83 16.24 L 3.38 18.23 A 10.50 10.50 0 0 1 0.93 13.98 L 4.37 '
+    + '11.99 A 6.70 6.70 0 0 1 4.37 10.01 L 0.93 8.02 A 10.50 10.50 0 0 1 3.38 3.77 L '
+    + '6.83 5.76 A 6.70 6.70 0 0 1 8.54 4.77 L 8.55 0.79 Z'
 
 const Gearshape = ({ size = 22 }) => (
   <svg width={size} height={size} viewBox="0 0 22 22" fill="none" aria-hidden="true">
-    <path d={GEAR_PATH} stroke="currentColor" strokeWidth="1.6"
+    <path d={GEAR_PATH} stroke="currentColor" strokeWidth="1.9"
       strokeLinejoin="round" strokeLinecap="round" />
-    <circle cx="11" cy="11" r="3.55" stroke="currentColor" strokeWidth="1.6" />
+    <circle cx="11" cy="11" r="3.2" stroke="currentColor" strokeWidth="1.9" />
   </svg>
 )
 
