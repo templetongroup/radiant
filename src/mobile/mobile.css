@@ -45,7 +45,21 @@
      able to darken the tint could make the app unreadable. */
   --rx-accent-h: 262;
   --rx-accent-c: 0.11;
+  /* The welcome screen paints in the accent RICHER than the rest of the app —
+     it is a branded moment, not a control. That richness used to be hardcoded
+     (0.13–0.18), so it ignored the theme's chroma entirely: pick a deliberately
+     grey theme like Graphite (0.01) or Templeton (0.02) and the hero still came
+     back fully saturated — at Templeton's hue, gold. This keeps the extra
+     richness for a colorful theme and lets a quiet one stay quiet. */
+  --rx-hero-c: min(0.18, var(--rx-accent-c) * 1.6);
   --rx-tint: oklch(0.52 var(--rx-accent-c) var(--rx-accent-h));
+  /* The tint DRAWN AS TEXT, which is not always the tint drawn as a fill. A tint
+     works as a fill whenever the label on top of it contrasts; it works as text
+     only if it contrasts with the surface BEHIND it, and a theme with a light
+     background can satisfy the first and fail the second. Templeton did: sage
+     background, tan tint, and every section header at 1.97:1. Themes on a dark
+     background alias this to the tint and are unchanged. */
+  --rx-tint-text: var(--rx-tint);
   --rx-on-tint: #FFFFFF;
   --rx-tint-pressed: oklch(0.46 var(--rx-accent-c) var(--rx-accent-h));
 
@@ -535,7 +549,7 @@
 .is-native .rx-l1 { color: var(--rx-label); }
 .is-native .rx-l2 { color: var(--rx-label-2); }
 .is-native .rx-l3 { color: var(--rx-label-3); }
-.is-native .rx-tinted { color: var(--rx-tint); }
+.is-native .rx-tinted { color: var(--rx-tint-text); }
 .is-native .rx-warm { color: var(--rx-amber); }
 .is-native .rx-destructive { color: var(--rx-red-text); }
 
@@ -721,7 +735,7 @@
   min-height: var(--rx-sp-44);
   margin: 0 calc(-1 * var(--rx-sp-8));   /* optical: pull back to the 16pt margin */
   padding: 0 var(--rx-sp-8);
-  color: var(--rx-tint);
+  color: var(--rx-tint-text);
   font-size: calc(17px * var(--rx-dt));
   line-height: 1.294;
   font-weight: 400;
@@ -831,7 +845,7 @@
   font: -apple-system-body;
   font-weight: 600;
   line-height: 1.3;
-  color: var(--rx-tint);
+  color: var(--rx-tint-text);
   margin: var(--rx-sp-28, 28px) 0 0;
   padding: 0 calc(var(--rx-sp-20) + var(--rx-sp-16)) var(--rx-sp-8, 8px);
 }
@@ -1028,7 +1042,7 @@
   margin: calc(-1 * var(--rx-sp-8)) calc(-1 * var(--rx-sp-8)) calc(-1 * var(--rx-sp-8)) 0;
   color: var(--rx-label-2);
 }
-.is-native .rx-accessory .rx-tinted { color: var(--rx-tint); }
+.is-native .rx-accessory .rx-tinted { color: var(--rx-tint-text); }
 
 /* The stop control: a square centred inside the turning download arc. This is
    how iCloud, the App Store and Music all present "stop this transfer" — the
@@ -1128,7 +1142,7 @@
   justify-content: center;
   min-height: var(--rx-sp-44);
   padding: 0 var(--rx-sp-12);
-  color: var(--rx-tint);
+  color: var(--rx-tint-text);
   font-size: calc(17px * var(--rx-dt));
   line-height: 1.294;
   font-weight: 400;
@@ -1256,7 +1270,7 @@
   font-size: calc(13px * var(--rx-dt));
   line-height: 1.385;
   font-weight: 400;
-  color: var(--rx-tint);
+  color: var(--rx-tint-text);
 }
 
 /* "Jump to latest". Auto-follow stops the instant the user scrolls up — yanking
@@ -1275,7 +1289,7 @@
   background: var(--rx-mat-regular-bg);
   -webkit-backdrop-filter: var(--rx-mat-regular-blur);
   backdrop-filter: var(--rx-mat-regular-blur);
-  color: var(--rx-tint);
+  color: var(--rx-tint-text);
   font-size: calc(13px * var(--rx-dt));
   line-height: 1.385;
   font-weight: 400;
@@ -1539,7 +1553,7 @@
 
 .is-native .rx-gauge {
   display: block;
-  color: var(--rx-tint);
+  color: var(--rx-tint-text);
   /* the ONE indulgence: differential rotation. Crossfading the whole SVG's
      currentColor is what keeps the hue rule honest — no per-ring color. */
   transition: color 600ms var(--rx-down);
@@ -1680,7 +1694,7 @@
   background: radial-gradient(circle,
     transparent 0%,
     transparent 26%,
-    oklch(0.70 0.18 var(--rx-accent-h) / 0.55) 40%,
+    oklch(0.70 var(--rx-hero-c) var(--rx-accent-h) / 0.55) 40%,
     transparent 62%);
   filter: blur(6px);
 }
@@ -1706,7 +1720,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--rx-tint);
+  color: var(--rx-tint-text);
 }
 .is-native .rx-brand-spin-mark {
   display: block;
@@ -1729,7 +1743,7 @@
   display: block;
   flex: 0 0 auto;
   /* the mask is painted with currentColor, so the mark follows the theme */
-  color: var(--rx-tint);
+  color: var(--rx-tint-text);
 }
 
 /* ═══ first run ════════════════════════════════════════════════════════════
@@ -1767,7 +1781,7 @@
 /* the site's radial-gradient(120% 80% at 50% -10%) */
 .is-native .rx-intro-glow-a {
   left: -10%; top: -34%; width: 120%; height: 80%;
-  background: radial-gradient(circle, oklch(0.40 0.14 var(--rx-accent-h) / 0.55), transparent 62%);
+  background: radial-gradient(circle, oklch(0.40 calc(var(--rx-hero-c) * 0.78) var(--rx-accent-h) / 0.55), transparent 62%);
 }
 /* and (80% 60% at 82% 8%), the violet one */
 /* Blue, not violet. The site's second glow is at hue 280 and Tony does not want
@@ -1776,14 +1790,14 @@
    variety comes from light, not from a second colour. */
 .is-native .rx-intro-glow-b {
   left: 42%; top: -12%; width: 80%; height: 60%;
-  background: radial-gradient(circle, oklch(0.58 0.15 var(--rx-accent-h) / 0.34), transparent 60%);
+  background: radial-gradient(circle, oklch(0.58 calc(var(--rx-hero-c) * 0.83) var(--rx-accent-h) / 0.34), transparent 60%);
   animation-delay: 120ms;
 }
 /* a third, low and quiet, so the bottom of the screen is not dead black behind
    the button — "glow here and there" */
 .is-native .rx-intro-glow-c {
   left: -6%; bottom: -22%; width: 78%; height: 46%;
-  background: radial-gradient(circle, oklch(0.52 0.13 var(--rx-accent-h) / 0.26), transparent 62%);
+  background: radial-gradient(circle, oklch(0.52 calc(var(--rx-hero-c) * 0.72) var(--rx-accent-h) / 0.26), transparent 62%);
   animation-delay: 240ms;
 }
 .is-native .rx-intro-stage {
@@ -1821,7 +1835,7 @@
   background: radial-gradient(circle,
     transparent 0%,
     transparent 26%,
-    oklch(0.70 0.18 var(--rx-accent-h) / 0.55) 40%,
+    oklch(0.70 var(--rx-hero-c) var(--rx-accent-h) / 0.55) 40%,
     transparent 62%);
   filter: blur(7px);
   transform: scale(0.6);
@@ -1925,8 +1939,8 @@
   color: oklch(0.16 0.03 var(--rx-accent-h));
   /* One blue, lit from above — not a two-hue sweep. The old gradient ran into
      oklch hue 288, which is the violet Tony rejected. */
-  background: linear-gradient(180deg, oklch(0.78 0.16 var(--rx-accent-h)), oklch(0.68 0.17 var(--rx-accent-h)));
-  box-shadow: 0 16px 44px oklch(0.62 0.16 var(--rx-accent-h) / 0.45);
+  background: linear-gradient(180deg, oklch(0.78 calc(var(--rx-hero-c) * 0.89) var(--rx-accent-h)), oklch(0.68 calc(var(--rx-hero-c) * 0.94) var(--rx-accent-h)));
+  box-shadow: 0 16px 44px oklch(0.62 calc(var(--rx-hero-c) * 0.89) var(--rx-accent-h) / 0.45);
   transition: transform 200ms var(--rx-ease, cubic-bezier(.22,1,.36,1));
 }
 .is-native .rx-intro-cta.is-pressed { transform: scale(0.97); }
@@ -1939,7 +1953,7 @@
   border: 0;
   border-radius: 16px;
   font: -apple-system-headline;
-  color: var(--rx-tint);
+  color: var(--rx-tint-text);
   background: color-mix(in srgb, var(--rx-tint) 16%, transparent);
   transition: transform 200ms var(--rx-ease, cubic-bezier(.22,1,.36,1));
 }
@@ -1950,7 +1964,7 @@
   border: 0;
   background: none;
   font: -apple-system-body;
-  color: oklch(0.70 0.17 var(--rx-accent-h));
+  color: oklch(0.70 calc(var(--rx-hero-c) * 0.94) var(--rx-accent-h));
 }
 .is-native .rx-intro-alt.is-pressed { opacity: 0.6; }
 
@@ -2154,7 +2168,7 @@
   flex: 0 0 auto;
   margin-left: auto;
   font: -apple-system-subheadline;
-  color: var(--rx-tint);
+  color: var(--rx-tint-text);
 }
 .is-native .rx-provider-edit {
   display: flex;
@@ -2281,7 +2295,11 @@
   width: 132px;
   /* a mask has no intrinsic size; the box carries the artwork's 1180 x 210 */
   aspect-ratio: 1180 / 210;
-  background: var(--rx-tint);
+  /* the mask paints this straight onto the app background, so the wordmark is
+     text, not a fill behind text — it takes the text tint for the same reason
+     the section headers do. The intro wordmark above keeps the plain tint: it
+     sits on the intro’s black, where any tint contrasts. */
+  background: var(--rx-tint-text);
   margin-top: 10px;
 }
 .is-native .rx-home-greeting {
@@ -2455,7 +2473,7 @@
   margin-left: 8px;
   font-size: 0.82em;
   font-weight: 400;
-  color: var(--rx-tint);
+  color: var(--rx-tint-text);
 }
 
 /* The provider model list: a search field over a short list, because a provider
@@ -2505,13 +2523,13 @@
   color: var(--rx-label-2); font-size: 13px;
 }
 .is-native .rx-chat-skillpick.is-on {
-  border-color: var(--rx-tint); color: var(--rx-tint); background: var(--rx-cell-2);
+  border-color: var(--rx-tint); color: var(--rx-tint-text); background: var(--rx-cell-2);
 }
 
 .is-native .rx-screen-intro { padding: 4px 16px 14px; color: var(--rx-label-2); font-size: 14px; line-height: 1.45; }
 .is-native .rx-skill-add {
   margin: 0 16px 12px; padding: 11px 14px; border-radius: 12px;
-  background: var(--rx-cell); color: var(--rx-tint); font-size: 16px;
+  background: var(--rx-cell); color: var(--rx-tint-text); font-size: 16px;
   border: 1px solid var(--rx-separator); text-align: center;
 }
 .is-native .rx-skill-edit { margin: 0 16px 14px; padding: 12px; border-radius: 12px; background: var(--rx-cell); }
@@ -2524,7 +2542,7 @@
 .is-native .rx-mac-row:last-of-type { border-bottom: none; }
 .is-native .rx-mac-row.is-off { opacity: 0.45; }
 .is-native .rx-mac-row.is-pressed { background: var(--rx-fill-2); }
-.is-native .rx-mac-take { flex-shrink: 0; align-self: center; color: var(--rx-tint); font-size: 15px; }
+.is-native .rx-mac-take { flex-shrink: 0; align-self: center; color: var(--rx-tint-text); font-size: 15px; }
 .is-native .rx-mac-row.is-off .rx-mac-take { color: var(--rx-label-2); }
 
 .is-native .rx-skill-name, .is-native .rx-skill-body {
@@ -2538,4 +2556,4 @@
 .is-native .rx-skill-count.is-tight { color: var(--rx-amber); }
 .is-native .rx-skill-actions { display: flex; justify-content: flex-end; gap: 16px; }
 .is-native .rx-skill-cancel { color: var(--rx-label-2); font-size: 16px; }
-.is-native .rx-skill-save { color: var(--rx-tint); font-size: 16px; font-weight: 600; }
+.is-native .rx-skill-save { color: var(--rx-tint-text); font-size: 16px; font-weight: 600; }

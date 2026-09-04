@@ -468,7 +468,9 @@ function NavBar ({ config, chrome, title, subtitle, backTitle, onBack, trailing,
               display: 'flex', alignItems: 'center', gap: 4,
               minWidth: 44, padding: '0 8px',
               appearance: 'none', border: 0, background: 'none',
-              color: 'var(--rx-tint, #3F69A7)',
+              // a glyph drawn on the bar, so it is text: --rx-tint-text aliases the tint on
+    // every dark-backgrounded theme and diverges only where the tint would vanish
+    color: 'var(--rx-tint-text, var(--rx-tint, #3F69A7))',
               fontSize: 'calc(17px * var(--rx-dt, 1))', lineHeight: 1.294, fontWeight: 400,
               touchAction: 'manipulation'
             }}

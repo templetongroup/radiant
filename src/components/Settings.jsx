@@ -2605,7 +2605,7 @@ const GUIDE = [
   {
     title: 'Chat & agents',
     items: [
-      ['A Templeton theme', 'The sage green and warm tan combination, saved as a proper theme so you can pick it from the Theme row rather than rebuilding it. It has light, medium and dark versions.'],
+      ['A Templeton theme', 'The sage green and warm tan combination, saved as a proper theme so you can pick it from the Theme row rather than rebuilding it. It has light, medium and dark versions, and it is on the iPhone app too.'],
       ['The accent color uses the color you actually picked', 'Choosing white gave you a mid-tone tan, because the picker read only the hue and vividness of your color and drew the accent at a fixed lightness. It now uses the whole color. Very light or very dark picks are nudged into a range where they stay visible \u2014 an accent has to work both as a button and as text \u2014 and the swatch shows what you will actually get. The text drawn on accent-colored buttons now follows the accent rather than the mode, so a pale accent gets dark text instead of vanishing.'],
       ['A better settings icon', 'The gear was redrawn several times and kept looking wrong at the size it is actually displayed. It is now a proven icon from the Heroicons set, the same one in both the Mac app and the iPhone app.'],
       ['The window has no black bar across the top', 'macOS was drawing its own title bar above the app, which stayed black whatever theme you chose. The app now paints all the way to the top edge, so your background color reaches the window controls.'],

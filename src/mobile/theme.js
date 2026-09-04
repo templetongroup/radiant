@@ -40,6 +40,27 @@ export const THEMES = [
       '--rx-mat-opaque': '#363E44'
     }
   },
+  // ⚠️ THE SAME PALETTE AS THE MAC'S TEMPLETON, generated from the same colours by
+  // the same functions (#4f5b4c under #8b8679) so the two apps cannot drift. Pinned
+  // rather than derived for the reason Everforest is: its background is chosen
+  // independently of its accent, which a hue-and-chroma theme cannot express.
+  {
+    id: 'templeton',
+    name: 'Templeton',
+    hue: 89.4,
+    chroma: 0.02,
+    vars: {
+        '--rx-bg': '#4f5b4c', '--rx-bg-grouped': '#576354', '--rx-cell': '#606d5d',
+        '--rx-cell-2': '#6a7666', '--rx-separator': 'rgba(242, 244, 248, 0.26)',
+        '--rx-separator-opaque': '#778373', '--rx-hairline': 'rgba(242, 244, 248, 0.16)',
+        '--rx-label': '#f2f4f8', '--rx-label-2': 'rgba(242, 244, 248, 0.72)',
+        '--rx-label-3': 'rgba(242, 244, 248, 0.42)',
+        '--rx-label-4': 'rgba(242, 244, 248, 0.2)', '--rx-tint': '#8b8679', '--rx-tint-text': '#fef8ea',
+        '--rx-on-tint': '#0e0b03', '--rx-tint-pressed': '#3a3831',
+        '--rx-mat-regular-bg': 'rgba(79, 91, 76, 0.78)',
+        '--rx-mat-thick-bg': 'rgba(69, 80, 66, 0.92)', '--rx-mat-opaque': '#606d5d'
+    }
+  },
   { id: 'gruvbox', name: 'Gruvbox', hue: 60, chroma: 0.13 },
   { id: 'nord', name: 'Nord', hue: 240, chroma: 0.08 },
   { id: 'dracula', name: 'Dracula', hue: 290, chroma: 0.15 },
@@ -92,7 +113,7 @@ export const PINNABLE = [
   '--rx-separator', '--rx-separator-opaque', '--rx-hairline',
   '--rx-label', '--rx-label-2', '--rx-label-3', '--rx-label-4',
   '--rx-tint', '--rx-on-tint', '--rx-tint-pressed',
-  '--rx-mat-regular-bg', '--rx-mat-thick-bg', '--rx-mat-opaque'
+  '--rx-mat-regular-bg', '--rx-mat-thick-bg', '--rx-mat-opaque', '--rx-tint-text'
 ]
 
 // The Mac's UI scale, which on iOS rides on top of Dynamic Type rather than

@@ -71,7 +71,7 @@ const SECTIONS = [
     title: 'How it looks',
     body: [
       'Settings → Appearance chooses Dark, Medium, Light, or System — Medium is dark without the true black, and System follows your phone. Radiant opens dark unless you change it.',
-      'Settings → Color carries the same themes as the Mac app. The color runs through everything: buttons, the glow behind the logo, and the ring while a model downloads. The welcome screen stays dark whichever you pick, because it is built against black.',
+      'Settings → Color carries the same themes as the Mac app, including Templeton — the sage green and warm tan one. The color runs through everything: buttons, the glow behind the logo, and the ring while a model downloads. The welcome screen stays dark whichever you pick, because it is built against black, but its glow now follows the theme: pick a quiet color like Templeton or Graphite and the welcome screen is quiet too, instead of arriving fully saturated.',
       'Settings → Text size sets the size of everything on top of whatever you have chosen in iOS Settings, so you can make Radiant larger without changing every other app.'
     ]
   }

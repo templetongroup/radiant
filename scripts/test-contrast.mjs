@@ -49,6 +49,14 @@ for (const t of MOBILE.filter(t => t.vars)) {
   cases.push([`ios ${t.id}: label on bg`, v['--rx-label'], v['--rx-bg'], 4.5])
   cases.push([`ios ${t.id}: label on cell`, v['--rx-label'], v['--rx-cell'], 4.5])
   cases.push([`ios ${t.id}: on-tint on tint`, v['--rx-on-tint'], v['--rx-tint'], 4.5])
+  // ⚠️ THE TINT IS ALSO TEXT — section headers, the back chevron, every .rx-tinted
+  // control. Checking it only as a FILL (on-tint on tint, above) passed Templeton
+  // with its section headers at 1.97:1 against its own background: a theme on a
+  // light background can contrast against the label sitting ON the tint and still
+  // vanish against the surface BEHIND it. Measured on the lightest surface tinted
+  // text ever lands on, which is the one that governs.
+  cases.push([`ios ${t.id}: tinted text on bg`, v['--rx-tint-text'] || v['--rx-tint'], v['--rx-bg'], 4.5])
+  cases.push([`ios ${t.id}: tinted text on cell-2`, v['--rx-tint-text'] || v['--rx-tint'], v['--rx-cell-2'], 4.5])
   cases.push([`ios ${t.id}: separator-opaque on bg`, v['--rx-separator-opaque'], v['--rx-bg'], 1.4])
 }
 
