@@ -12,6 +12,7 @@ run "cloud repair"   node scripts/test-cloud-repair.mjs
 run "model catalog"  node scripts/test-catalog.mjs
 run "catalog vs HF"  node scripts/test-catalog-live.mjs
 run "read me"        node scripts/test-readme.mjs
+run "window drag"    node scripts/test-drag.mjs
 run "plugin bridge"  node scripts/test-bridge.mjs
 run "cloud model"    node scripts/test-cloud-model.mjs
 run "electron-safe"  node scripts/test-electron-safe.mjs
