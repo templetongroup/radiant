@@ -45,8 +45,11 @@
   every command (toggle in Settings)
 - **Activity panel** — live feed of every tool call and its output
 - **Terminal panel** — a real login shell (node-pty + xterm.js) in the sidebar
-- **Theming** — light/dark, six presets, or a fully custom accent: the whole
-  palette derives from one OKLCH hue + chroma pair
+- **Theming** — light, medium and dark, fourteen presets (Tokyo Night,
+  Catppuccin, Everforest, Gruvbox, Nord, Dracula, Rosé Pine, Solarized and
+  more), or colors you choose yourself: pick a background and a text color
+  independently and the rest of the palette is derived from them in OKLCH,
+  with a contrast check so nothing you pick becomes unreadable
 - **Private by design** — API keys are stored locally in
   `~/.radiant/config.json` (mode 0600) and never sent to the browser; the
   server binds to 127.0.0.1 only; local providers need no key at all
