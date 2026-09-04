@@ -1,12 +1,24 @@
 # Radiant — read this first, every turn
 
-## ⚠️ THE iPHONE APP IS WITH APPLE RIGHT NOW — v1.0, build 2
+## ⚠️ THE iPHONE APP IS IN REVIEW — v1.0, build 4 (resubmitted 2026-09-03)
 
-Submitted 2026-08-24 from `~/Library/Developer/Xcode/Archives/2026-08-24/`.
-Apple has this binary; the App Store is the one place Radiant ships where a
-push to `master` does NOT reach the user.
+⚠️ **CHECK THE ACTUAL STATUS BEFORE YOU TRUST THIS HEADING.** It was wrong for
+nine days. This file said "with Apple, build 2" while App Store Connect had it
+REJECTED since 2026-08-25 under 2.1 Information Needed — Tony had answered the
+same evening, but a rejected version does not re-enter the queue by replying, it
+has to be RESUBMITTED, and nobody knew because nobody looked. A whole day of iOS
+work was done on 2026-09-03 premised on a build that was not in review at all.
 
-**That build carries a known defect.** Its catalogue points Gemma 4 E4B and E2B
+    https://appstoreconnect.apple.com/apps/6804891721/distribution/reviewsubmissions
+
+Reading that page costs one navigation. Do it before repeating anything below.
+
+Build 4 was archived from `~/Library/Developer/Xcode/Archives/2026-09-03/` and
+carries the Gemma 4 fix plus the fetched catalogue. Apple has this binary; the
+App Store is the one place Radiant ships where a push to `master` does NOT reach
+the user.
+
+**Build 2 carried a known defect, which is why build 4 exists.** Its catalogue points Gemma 4 E4B and E2B
 at `mlx-community/gemma-4-E*B-it-qat-mobile`, whose weights are packed 4-bit
 while their config.json declares no quantization. MLX builds a dense model, the
 tensor shapes disagree, and the user gets `mismatched parameters` — but only
