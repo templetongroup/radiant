@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { verdict, FIT_LABEL, FITS_WELL, FITS_TIGHT, FITS_NO, COMFORTABLE } from '../fit.js'
 import { api, startDownload, getDownloads, cancelDownload, streamQuantize, getServer, setServer, testServer, saveToFile } from '../api.js'
 import { THEMES, MODES, FONTS, UI_SCALES, applyTheme, hexToOklch, accentHex, glyphColor } from '../theme.js'
-import { paletteWarnings } from '../palette.js'
+import { paletteWarnings, deriveAccent } from '../palette.js'
 import { MOTIONS } from './MotionBackground.jsx'
 import { Icon } from './Icons.jsx'
 import { AGENT_ICONS, AGENT_ICON_IDS, AgentGlyph } from './AgentIcons.jsx'
@@ -1352,15 +1352,28 @@ function AppearancePane ({ config, onSettings }) {
   }
   const pickColor = hex => {
     const { C, H } = hexToOklch(hex)
-    // clamp chroma into the range the palette expects
-    preview({ themeId: 'custom', customHue: Math.round(H), customChroma: Math.min(0.25, Math.max(0.02, +C.toFixed(3))) })
+      // ⚠️ KEEP THE WHOLE COLOUR, NOT JUST ITS HUE. customHue/customChroma stay for
+      // everything that derives from the accent's hue; customAccentHex is what the
+      // accent itself is built from, lightness included, so white gives white and
+      // not a mid-tone version of white's hue.
+      preview({
+        themeId: 'custom',
+        customAccentHex: hex,
+        customHue: Math.round(H),
+        customChroma: Math.min(0.25, Math.max(0.02, +C.toFixed(3)))
+      })
   }
   // Live contrast reading for the custom background/text pair, so the warning is
   // about the colours actually on screen rather than the ones last saved.
   const custom = s.customBg && s.customFg
     ? paletteWarnings({ bg: s.customBg, fg: s.customFg, contrast: s.uiContrast ?? 100 })
     : null
-  const currentAccentHex = accentHex(
+  // The swatch shows what will actually render, so a clamped pick looks like what
+  // it becomes rather than what was asked for.
+  const accentPreview = s.themeId === 'custom' && s.customAccentHex
+    ? deriveAccent({ hex: s.customAccentHex, mode: s.mode || 'dark' })
+    : null
+  const currentAccentHex = accentPreview ? accentPreview.vars['--accent'] : accentHex(
     isCustom ? (s.customHue ?? 258) : THEMES.find(t => t.id === s.themeId).hue,
     isCustom ? (s.customChroma ?? 0.11) : THEMES.find(t => t.id === s.themeId).chroma
   )
@@ -2592,6 +2605,10 @@ const GUIDE = [
   {
     title: 'Chat & agents',
     items: [
+      ['A Templeton theme', 'The sage green and warm tan combination, saved as a proper theme so you can pick it from the Theme row rather than rebuilding it. It has light, medium and dark versions.'],
+      ['The accent color uses the color you actually picked', 'Choosing white gave you a mid-tone tan, because the picker read only the hue and vividness of your color and drew the accent at a fixed lightness. It now uses the whole color. Very light or very dark picks are nudged into a range where they stay visible \u2014 an accent has to work both as a button and as text \u2014 and the swatch shows what you will actually get. The text drawn on accent-colored buttons now follows the accent rather than the mode, so a pale accent gets dark text instead of vanishing.'],
+      ['A better settings icon', 'The gear was redrawn several times and kept looking wrong at the size it is actually displayed. It is now a proven icon from the Heroicons set, the same one in both the Mac app and the iPhone app.'],
+      ['The window has no black bar across the top', 'macOS was drawing its own title bar above the app, which stayed black whatever theme you chose. The app now paints all the way to the top edge, so your background color reaches the window controls.'],
       ['The accent color picker works again', 'Choosing your own accent color did nothing \u2014 the app quietly went back to Radiant blue every time, so anything tinted by the accent stayed blue no matter what you picked. The swatch showed your color; the app ignored it. Fixed.'],
       ['Appearance is less cluttered', 'Background tint and the new Background & text pickers do the same job in different ways, and only one of them can be in effect \u2014 so only one is shown. Pick your own background and the tint slider goes away; clear it and the slider comes back. The vividness slider next to the accent swatch is labeled now instead of being an unexplained bar.'],
       ['Pick your own background and text color', 'Settings \u203a Appearance has a Background & text row: two color wells, one for the page and one for the text, chosen independently of the accent. Until now the background could only be a stronger or weaker version of the accent color \u2014 you could not have, say, a warm grey page under a blue accent. You can now. Everything else \u2014 panels, raised surfaces, hover states, secondary labels \u2014 is worked out from the two colors you pick, and a Contrast slider controls how far apart they sit. If a pairing would make text hard to read, it says so and gives the actual contrast ratio, but it still applies what you chose: it warns, it does not overrule you. Clear puts you back on the theme.'],

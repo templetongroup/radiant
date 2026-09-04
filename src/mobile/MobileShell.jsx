@@ -322,43 +322,28 @@ const Chevron = ({ size = 17 }) => (
   </svg>
 )
 
-  /**
-   * gearshape.
-   *
-   * ⚠️ THREE ATTEMPTS FAILED BEFORE THIS ONE, ALWAYS FOR THE SAME REASON: each was
-   * judged at the size it was drawn, not the size it is used at. First eight radial
-   * strokes (a sun with uneven rays). Then eight rects over a ring (chunky teeth
-   * around an oversized dot). Then a 32-point straight-line path traced from the SF
-   * Symbol, which looks correct at 44px and turns to mush at 22 — its teeth are 2.7
-   * units deep against a 1.6 stroke, so barely one stroke-width clears the body, and
-   * the valleys are flat because every segment is a line. Tony: "this settings icon
-   * is terrible."
-   *
-   * ⚠️ IT IS ONLY EVER DRAWN AT 22px. Rendered at 22 and magnified, six deep teeth
-   * read instantly and eight do not: at this size a feature has to be several times
-   * the stroke weight to survive. Hence six teeth where the SF Symbol has eight —
-   * legibility at the used size beats fidelity to a symbol nobody is comparing it
-   * against.
-   *
-   * ⚠️ AND IT IS ARCS, NOT LINES. Tooth tops follow the outer radius and valleys the
-   * inner one, so the silhouette is round rather than a stamped polygon.
-   *
-   * Generated: 6 teeth, Ro 10.5 / Ri 6.7 on a 22 box, 27° of outer arc per tooth
-   * with 8° flanks. Judge any retune at 22px magnified, never at 44.
-   */
-  const GEAR_PATH = 'M 8.55 0.79 A 10.50 10.50 0 0 1 13.45 0.79 L 13.46 4.77 A 6.70 6.70 0 0 1 15.17 '
-    + '5.76 L 18.62 3.77 A 10.50 10.50 0 0 1 21.07 8.02 L 17.63 10.01 A 6.70 6.70 0 0 1 '
-    + '17.63 11.99 L 21.07 13.98 A 10.50 10.50 0 0 1 18.62 18.23 L 15.17 16.24 A 6.70 '
-    + '6.70 0 0 1 13.46 17.23 L 13.45 21.21 A 10.50 10.50 0 0 1 8.55 21.21 L 8.54 17.23 A '
-    + '6.70 6.70 0 0 1 6.83 16.24 L 3.38 18.23 A 10.50 10.50 0 0 1 0.93 13.98 L 4.37 '
-    + '11.99 A 6.70 6.70 0 0 1 4.37 10.01 L 0.93 8.02 A 10.50 10.50 0 0 1 3.38 3.77 L '
-    + '6.83 5.76 A 6.70 6.70 0 0 1 8.54 4.77 L 8.55 0.79 Z'
+/**
+ * gearshape — Heroicons cog-6-tooth, fetched from source rather than drawn here.
+ *
+ * ⚠️ FOUR HOME-MADE VERSIONS FAILED BEFORE THIS. Eight radial strokes (a sun).
+ * Eight rects over a ring (teeth around an oversized dot). A 32-point straight-line
+ * trace of the SF Symbol (correct at 44px, mush at 22). A generated six-tooth arc
+ * path, which was better and still not good. Tony, on the fourth: "your settings
+ * icon is still awful. why cant you just get a good svg gear icon. this is
+ * ridiculous." He was right the whole time.
+ *
+ * The Mac app uses the same path (Icons.jsx), so the two apps finally agree.
+ * MIT licensed. Do not redraw it.
+ */
+const GEAR_PATH = 'M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z'
+const GEAR_HOLE = 'M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z'
 
 const Gearshape = ({ size = 22 }) => (
-  <svg width={size} height={size} viewBox="0 0 22 22" fill="none" aria-hidden="true">
-    <path d={GEAR_PATH} stroke="currentColor" strokeWidth="1.9"
-      strokeLinejoin="round" strokeLinecap="round" />
-    <circle cx="11" cy="11" r="3.2" stroke="currentColor" strokeWidth="1.9" />
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <path d={GEAR_PATH} stroke="currentColor" strokeWidth="1.6"
+      strokeLinecap="round" strokeLinejoin="round" />
+    <path d={GEAR_HOLE} stroke="currentColor" strokeWidth="1.6"
+      strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 )
 

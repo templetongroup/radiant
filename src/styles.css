@@ -420,9 +420,13 @@ code, pre, .mono { font-family: var(--font-mono); }
   cursor: col-resize; z-index: 20;
 }
 .sidebar-resize:hover { background: var(--accent-dim); }
+/* ⚠️ THE TRAFFIC LIGHTS LIVE HERE NOW. With titleBarStyle hiddenInset the page
+   extends under them, so the sidebar's first row has to start below them or the
+   wordmark sits behind three buttons. The row above stays a drag region, so the
+   window can still be moved by its top edge. */
 .brand {
   display: flex; align-items: center; gap: 9px;
-  padding: 16px 16px 12px;
+  padding: 38px 16px 12px;
   font-weight: 600; font-size: 15px;
 }
 .brand-mark { width: 24px; height: 24px; }

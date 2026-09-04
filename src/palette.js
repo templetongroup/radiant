@@ -96,7 +96,12 @@ export function derivePalette ({ bg, fg, contrast = 100 }) {
     // light mode, navy, Everforest — 0.28 fails at 4.48:1 and 0.24 still fails at
     // 4.45:1 on the default pairing, which is the one a new user meets first.
     // 0.20 clears all six at 4.73:1 worst.
-    '--text-muted': toward(0.20),
+    // ⚠️ MEASURED AGAINST THE PANEL, NOT JUST THE PAGE — and retuned three times.
+    // Muted text sits on --bg-panel as often as on --bg, and the panel is a step
+    // LIGHTER on a dark ground, so it is the harder surface. 0.28, 0.24 and 0.20 all
+    // cleared the page and failed the panel (4.12:1 at 0.20). 0.14 is the furthest
+    // the ramp travels with the panel still at 4.53:1 across seven real backgrounds.
+    '--text-muted': toward(0.14),
     // Faint is decoration — timestamps, placeholder hints — and is exempt from the
     // body-text floor, but it still has to be VISIBLE, so it is checked at 3:1.
     '--text-faint': toward(0.45)
@@ -121,4 +126,49 @@ export function paletteWarnings ({ bg, fg, contrast = 100 }) {
     out.push('Panels are indistinguishable from the background at this contrast.')
   }
   return { ratio, warnings: out }
+}
+
+/**
+ * The accent, honouring the lightness you actually picked.
+ *
+ * ⚠️ THE PICKER USED TO THROW LIGHTNESS AWAY. It read only hue and chroma and drew
+ * the accent at a fixed lightness per mode, so picking white — which is lightness
+ * and nothing else — returned a mid-tone tan. Tony: "why does the accent color not
+ * reflect the white i selected in the color picker." Two thirds of the choice was
+ * being discarded silently.
+ *
+ * ⚠️ AND on-accent HAS TO FOLLOW THE ACCENT, NOT THE MODE. It is the text drawn ON
+ * accent-coloured buttons. It was chosen per mode — near-white in light mode — so a
+ * white accent there gave white text on a white button. It is now picked by the
+ * accent's own lightness, whichever mode is running.
+ *
+ * Lightness is clamped, because an accent has two jobs: it is a surface with text
+ * on it AND it is text on the page. Outside this band one of those always fails.
+ */
+export function deriveAccent ({ hex, mode = 'dark' }) {
+  const { L, C, H } = hexToOklch(hex)
+  const lo = mode === 'light' ? 0.30 : 0.42
+  const hi = mode === 'light' ? 0.78 : 0.95
+  const l = clamp(L, lo, hi)
+  const c = clamp(C, 0, 0.28)
+  const at = (dl, mc) => oklchToHex(clamp(l + dl, 0.03, 0.99), c * mc, H)
+  return {
+    clamped: Math.abs(l - L) > 0.005,
+    vars: {
+      '--accent': oklchToHex(l, c, H),
+      '--accent-hot': at(l > 0.6 ? -0.07 : 0.07, 1.1),
+      '--accent-dim': at(mode === 'light' ? 0.22 : -0.28, 0.6),
+      '--accent-wash': at(mode === 'light' ? 0.36 : -0.44, 0.3),
+      // ⚠️ MEASURED, NOT A LIGHTNESS THRESHOLD. A fixed boundary at L 0.62 put light
+      // text on #5b87c8 (L 0.617) at 3.45:1 — the app's own default blue, failing AA
+      // on its own buttons. Compute both candidates and keep whichever actually
+      // contrasts better; that is the question being asked.
+      '--on-accent': (() => {
+        const face = oklchToHex(l, c, H)
+        const dark = oklchToHex(0.15, Math.min(c, 0.03), H)
+        const light = oklchToHex(0.98, Math.min(c, 0.01), H)
+        return contrastRatio(face, dark) >= contrastRatio(face, light) ? dark : light
+      })()
+    }
+  }
 }

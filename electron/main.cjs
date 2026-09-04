@@ -156,6 +156,13 @@ async function createWindow () {
     minWidth: 900,
     minHeight: 600,
     title: 'Radiant',
+    // ⚠️ NO NATIVE TITLE BAR, SO THE THEME REACHES THE TOP OF THE WINDOW. macOS
+    // draws its own opaque strip by default, which stayed black above a green app
+    // and could not be coloured. Tony: "the top bar is black. cant we make it
+    // transparent so any color comes through?" hiddenInset keeps the traffic lights
+    // where people expect them and lets the page paint behind them; the sidebar
+    // reserves room for them (.brand in styles.css) so the wordmark is not covered.
+    titleBarStyle: 'hiddenInset',
     backgroundColor: lastBg || (nativeTheme.themeSource === 'light' ? '#f5f5f6' : '#141517'),
     webPreferences: {
       contextIsolation: true,

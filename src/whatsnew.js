@@ -18,6 +18,14 @@
  */
 export const WHATS_NEW = [
   {
+    version: '0.6.234',
+    items: [
+      ['A Templeton theme', 'Sage green and warm tan, saved as a theme with light, medium and dark versions.'],
+      ['The accent picker uses the color you picked', 'Picking white gave you tan — it was reading only hue and vividness, and drawing the accent at a fixed lightness.'],
+      ['No more black bar at the top of the window', 'Your background color now reaches the window controls.']
+    ]
+  },
+  {
     version: '0.6.233',
     items: [
       ['The accent color picker works again', 'Picking your own accent quietly reverted to Radiant blue every time. The swatch showed your color; the app ignored it.'],
