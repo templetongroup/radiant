@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { verdict, FIT_LABEL, FITS_WELL, FITS_TIGHT, FITS_NO, COMFORTABLE } from '../fit.js'
 import { api, startDownload, getDownloads, cancelDownload, streamQuantize, getServer, setServer, testServer, saveToFile } from '../api.js'
 import { THEMES, MODES, FONTS, UI_SCALES, applyTheme, hexToOklch, accentHex, glyphColor } from '../theme.js'
+import { paletteWarnings } from '../palette.js'
 import { MOTIONS } from './MotionBackground.jsx'
 import { Icon } from './Icons.jsx'
 import { AGENT_ICONS, AGENT_ICON_IDS, AgentGlyph } from './AgentIcons.jsx'
@@ -1354,6 +1355,11 @@ function AppearancePane ({ config, onSettings }) {
     // clamp chroma into the range the palette expects
     preview({ themeId: 'custom', customHue: Math.round(H), customChroma: Math.min(0.25, Math.max(0.02, +C.toFixed(3))) })
   }
+  // Live contrast reading for the custom background/text pair, so the warning is
+  // about the colours actually on screen rather than the ones last saved.
+  const custom = s.customBg && s.customFg
+    ? paletteWarnings({ bg: s.customBg, fg: s.customFg, contrast: s.uiContrast ?? 100 })
+    : null
   const currentAccentHex = accentHex(
     isCustom ? (s.customHue ?? 258) : THEMES.find(t => t.id === s.themeId).hue,
     isCustom ? (s.customChroma ?? 0.11) : THEMES.find(t => t.id === s.themeId).chroma
@@ -1416,6 +1422,60 @@ function AppearancePane ({ config, onSettings }) {
           />
         )}
       </div>
+
+      {/* ⚠️ BACKGROUND TINT IS NOT A BACKGROUND COLOUR, which is why both exist.
+          The slider below moves the background along the ACCENT's hue — a bluer or
+          greyer version of one colour. Tony, sending a screenshot of Codex: "the
+          slider is just a variation of main color. gpt lets you pick specific
+          colors for background and foreground." Two independent colours is a
+          different control, so it is a different control. */}
+      <div className='sub-label'>Background &amp; text</div>
+      <div className='accent-picker'>
+        <label className='color-well pair' style={{ background: s.customBg || 'var(--bg)' }}>
+          <input type='color' value={s.customBg || '#141517'}
+            onChange={e => preview({ customBg: e.target.value, customFg: s.customFg || '#F2F4F8' })} />
+        </label>
+        <label className='color-well pair' style={{ background: s.customFg || 'var(--text)' }}>
+          <input type='color' value={s.customFg || '#F2F4F8'}
+            onChange={e => preview({ customFg: e.target.value, customBg: s.customBg || '#141517' })} />
+        </label>
+        <div className='accent-picker-text'>
+          <div className='mono' style={{ fontSize: 12 }}>
+            {s.customBg ? `${s.customBg} · ${s.customFg}` : 'using the theme'}
+          </div>
+          <div style={{ fontSize: 11.5, color: 'var(--text-faint)' }}>
+            {custom
+              ? `Chosen independently of the accent · ${custom.ratio.toFixed(1)}:1`
+              : 'Pick a background and a text color to override the theme'}
+          </div>
+        </div>
+        {s.customBg && (
+          <button className='small-btn' onClick={() => preview({ customBg: null, customFg: null })}>Clear</button>
+        )}
+      </div>
+      {/* ⚠️ WARN, NEVER OVERRULE. A picker that silently changes the colour you
+          chose is worse than one that tells you the truth about it — you would
+          never work out why the hex came back different. */}
+      {custom && custom.warnings.map(w => (
+        <div key={w} className='error-note' style={{ marginTop: 6 }}>⚠ {w}</div>
+      ))}
+
+      {s.customBg && (
+        <>
+          <div className='sub-label'>Contrast</div>
+          <div className='hue-row'>
+            <label htmlFor='uicontrast'>Separation</label>
+            <input
+              id='uicontrast' type='range' min='40' max='160' step='5' className='tint-slider'
+              value={s.uiContrast != null ? s.uiContrast : 100}
+              onChange={e => preview({ uiContrast: Number(e.target.value) })}
+            />
+            <span style={{ fontSize: 11.5, color: 'var(--text-faint)', width: 88 }}>
+              {s.uiContrast != null ? s.uiContrast : 100}
+            </span>
+          </div>
+        </>
+      )}
 
       <div className='sub-label'>Background tint</div>
       <div className='hue-row'>
@@ -2520,6 +2580,7 @@ const GUIDE = [
   {
     title: 'Chat & agents',
     items: [
+      ['Pick your own background and text color', 'Settings \u203a Appearance has a Background & text row: two color wells, one for the page and one for the text, chosen independently of the accent. Until now the background could only be a stronger or weaker version of the accent color \u2014 you could not have, say, a warm grey page under a blue accent. You can now. Everything else \u2014 panels, raised surfaces, hover states, secondary labels \u2014 is worked out from the two colors you pick, and a Contrast slider controls how far apart they sit. If a pairing would make text hard to read, it says so and gives the actual contrast ratio, but it still applies what you chose: it warns, it does not overrule you. Clear puts you back on the theme.'],
       ['Updating shows real progress again', 'Pressing Download & install left the bar at 0% and looked frozen. The download was working the whole time \u2014 it finished normally and waited on disk \u2014 but the progress messages were being sent to the main window while the bar you were watching is in the Settings window, so nothing ever reached it. It updates properly now, and if you close Settings and come back it picks up where things actually are instead of offering to download the same 160 MB again. An update that has finished downloading installs when you quit Radiant.'],
       ['Radiant tells you what is new after it updates', 'Radiant updates itself quietly in the background, so features used to just appear with nothing to announce them. Now, the first time you open a version you have not run before, a short list of what changed is shown once. A brand-new install never sees it, and if several updates went by while your Mac was shut you get all of them, newest first. Settings \u203a Read me still has the full detail.'],
       ['A browser extension, so the agent works in your own Chrome', 'Settings \u203a Automation now has a small Chrome extension you install once. With it, the agent works inside the browser you are already signed into: it can list your open tabs, read the page you are looking at, take a picture of it, click things by name, and fill in fields \u2014 as you, with your logins. Chrome no longer lets any app connect to your everyday browser from outside, and it will not let Radiant install this for you either, so the panel gives you the folder and the four steps. The extension talks only to Radiant on this Mac and to nothing else; quitting Chrome or removing it unplugs it completely.'],

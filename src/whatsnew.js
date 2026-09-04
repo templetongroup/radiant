@@ -18,6 +18,12 @@
  */
 export const WHATS_NEW = [
   {
+    version: '0.6.232',
+    items: [
+      ['Pick your own background and text color', 'Settings › Appearance. Two color wells, independent of the accent — a warm grey page under a blue accent is now possible. It warns you if a pairing would be hard to read, and still applies it.']
+    ]
+  },
+  {
     version: '0.6.231',
     items: [
       ['Radiant says what is new', 'After it updates itself, the first launch shows a short list of what changed — once, and never on a fresh install.'],

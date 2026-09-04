@@ -1395,6 +1395,15 @@ input[type='range']::-webkit-slider-thumb {
 
 /* accent color picker */
 .accent-picker { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+/* ⚠️ A SWATCH SHOWING THE PAGE'S OWN COLOUR IS INVISIBLE. The background well
+   paints exactly what is behind it, so the standard 0.17-alpha border vanished and
+   the control read as an empty hole. Two rings — one in the page colour, one in a
+   text tone — separate it from any fill, including its own. */
+.color-well.pair {
+  box-shadow: 0 0 0 1px var(--bg), 0 0 0 2px var(--text-faint), var(--shadow-sm);
+  border-color: transparent;
+}
+
 .color-well {
   width: 40px; height: 40px; border-radius: 10px; flex-shrink: 0;
   border: 1px solid var(--border-strong); box-shadow: var(--shadow-sm);

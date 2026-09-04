@@ -1,8 +1,8 @@
 {
   "name": "radiant",
-  "version": "0.6.231",
+  "version": "0.6.232",
   "private": true,
-  "description": "Radiant \u2014 a local coding harness: chat with coding agents across cloud and local models.",
+  "description": "Radiant — a local coding harness: chat with coding agents across cloud and local models.",
   "author": "Tony Ricciardi",
   "license": "MIT",
   "type": "module",
@@ -22,7 +22,7 @@
     "test:supply": "node scripts/test-supply-chain.mjs",
     "catalog:export": "python3 scripts/catalog-export.py",
     "catalog:check": "python3 scripts/catalog-check.py",
-    "catalog:publish": "npm run catalog:export && npm run catalog:check && cp apps/ios/catalog.json ~/Projects/templeton-group-dev-website/showcase/radiant/catalog.json && echo \"  copied \u2014 commit and push the website to publish\""
+    "catalog:publish": "npm run catalog:export && npm run catalog:check && cp apps/ios/catalog.json ~/Projects/templeton-group-dev-website/showcase/radiant/catalog.json && echo \"  copied — commit and push the website to publish\""
   },
   "build": {
     "appId": "com.tonyricciardi.radiant",
