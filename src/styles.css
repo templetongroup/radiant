@@ -2627,6 +2627,37 @@ button.hf-head:hover { background: var(--bg-hover); }
 }
 .tb-steer-input:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
 
+/* ---- dragging the window ----------------------------------------------
+   WITHOUT THIS THE WINDOW CANNOT BE MOVED AT ALL. titleBarStyle 'hiddenInset'
+   deletes the title bar and hands its space to the page, so the strip you
+   would normally grab is our own HTML now - and HTML is not draggable unless
+   it says so. Tony: "how the fuck could you ship a redesign of the top bar
+   with no dragging." That was the unpriced cost of letting the theme colour
+   reach the top edge. The fix is to name the drag handles, not to put the
+   black bar back.
+
+   Every bar that touches y=0 opts IN, and every control inside it opts OUT.
+   A drag region SWALLOWS CLICKS, so a button left un-exempted here does not
+   just fail to drag - it stops working entirely. [data-tip] is in the list
+   because several chips are hoverable without being buttons. */
+.topbar,
+.brand,
+.right-tabs,
+.main-drag { -webkit-app-region: drag; }
+
+.topbar button, .topbar a, .topbar input, .topbar select, .topbar textarea,
+.topbar [role='button'], .topbar [data-tip],
+.brand button, .brand a, .brand [role='button'],
+.right-tabs button, .right-tabs a, .right-tabs [role='button'],
+.right-resize { -webkit-app-region: no-drag; }
+
+/* The welcome screen has no bar of its own - nothing but space above the logo
+   - so it gets a strip. It sits under .float-toggle (z-index 5) so the panel
+   button keeps working, and covers only the title-bar band. */
+.main-drag {
+  position: absolute; top: 0; left: 0; right: 0; height: 38px; z-index: 4;
+}
+
 /* ── the HUD ───────────────────────────────────────────────────────────────
    A frameless window that floats over other apps. It has no title bar, so the
    header doubles as the drag handle — without -webkit-app-region there is no

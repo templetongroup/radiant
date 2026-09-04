@@ -1117,6 +1117,8 @@ export default function Chat ({ session, live, todos = [], stats, approval, ques
   if (!session) {
     return (
       <main className='main'>
+        {/* the only draggable surface on this screen - see .main-drag */}
+        <div className='main-drag' />
         <button className='menu-btn' onClick={onMenu} title='Menu' aria-label='Open menu'><MenuIcon /></button>
         <div className='float-toggle'>
           <button className={'icon-btn' + (rightOpen ? ' on' : '')} onClick={onToggleRight} title='Show activity & terminal panel' data-tip={'Activity & terminal panel'} data-tip-below data-tip-end><Icon.panel /></button>
