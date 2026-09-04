@@ -24,6 +24,17 @@ and submit again — that keeps the same version 1.0 listing. Once it is
 Only Tony can drive App Store Connect; prepare the archive, never assume the
 upload happened.
 
+**The catalogue is now published, not only compiled in.** `apps/ios/catalog.json`
+is fetched at launch and applied over the built-in Swift array, so a broken row —
+including the Gemma 4 one above — can be corrected in minutes instead of a review
+cycle. It is GENERATED from that array (`npm run catalog:export`), so the two
+cannot drift, and every failure falls back to what shipped.
+
+⚠️ **That also means a bad publish reaches every phone at once.** `npm run
+catalog:publish` runs the export, then `scripts/catalog-check.py`, which probes
+every repo and refuses on undeclared quantization, a size more than 10% off the
+real blob total, or a 404. Do not copy catalog.json to the website by hand.
+
 **Before any future submission, run `scripts/catalog-verify.py`.** It now fails
 any repo under ~1.2 bytes per parameter that declares no quantization — the
 exact defect above, which shipped because the old check only asked whether MLX
