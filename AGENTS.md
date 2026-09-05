@@ -47,7 +47,7 @@ catalog:publish` runs the export, then `scripts/catalog-check.py`, which probes
 every repo and refuses on undeclared quantization, a size more than 10% off the
 real blob total, or a 404. Do not copy catalog.json to the website by hand.
 
-**Before any future submission, run `scripts/catalog-verify.py`.** It now fails
+**Before any future submission, run `npm run catalog:check`.** It now fails
 any repo under ~1.2 bytes per parameter that declares no quantization — the
 exact defect above, which shipped because the old check only asked whether MLX
 implemented the architecture.
