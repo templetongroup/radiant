@@ -28,7 +28,9 @@ const app = express()
 // custom x-radiant-token header triggers a preflight OPTIONS that carries no token.
 app.use((req, res, next) => {
   const origin = req.headers.origin
-  if (origin) {
+  // Reflecting a third-party origin is what would let its scripts READ the
+  // reply. Same-site only; everything else gets no CORS headers at all.
+  if (origin && sameSiteRequest(req)) {
     res.setHeader('Access-Control-Allow-Origin', origin)
     res.setHeader('Vary', 'Origin')
     res.setHeader('Access-Control-Allow-Headers', 'content-type, x-radiant-token, authorization')
@@ -78,7 +80,23 @@ const BIND_HOST = SHARE_ENABLED ? '0.0.0.0' : '127.0.0.1'
 // Any forwarding header means the request was relayed and the peer address
 // belongs to the proxy, not the client. Those requests must present a token.
 const PROXY_HEADERS = ['x-forwarded-for', 'x-real-ip', 'forwarded', 'tailscale-user-login']
+// ⚠️ A PAGE YOU DID NOT OPEN IS ALSO ON LOOPBACK. The socket address cannot tell
+// the app's own window apart from someone else's tab hitting 127.0.0.1, and the
+// CORS layer below used to reflect whatever Origin asked. Together that let any
+// site the user happened to be browsing read /api/config and drive /api/chat
+// with no token and no click. Origin is the only thing that separates them, so
+// it is checked here and nowhere else has to think about it.
+//
+// Absent Origin is the app itself, a native client, curl. chrome-extension:// is
+// the browser extension, which is Origin-checked again at its own socket.
+function sameSiteRequest (req) {
+  const o = req.headers?.origin
+  if (!o) return true
+  if (o.startsWith('chrome-extension://')) return true
+  try { return new URL(o).host === req.headers.host } catch { return false }
+}
 function isLocalRequest (req) {
+  if (!sameSiteRequest(req)) return false
   for (const h of PROXY_HEADERS) if (req.headers?.[h]) return false
   const ra = req.socket?.remoteAddress
   return !ra || ra === '127.0.0.1' || ra === '::1' || ra === '::ffff:127.0.0.1'
@@ -427,7 +445,16 @@ app.post('/api/mcp', (req, res) => {
 app.patch('/api/mcp/:id', async (req, res) => {
   const s = (config.mcpServers || []).find(x => x.id === req.params.id)
   if (!s) return res.status(404).json({ error: 'not found' })
-  for (const k of ['name', 'command', 'args', 'env', 'url', 'enabled']) if (k in req.body) s[k] = req.body[k]
+  for (const k of ['name', 'command', 'args', 'url', 'enabled']) if (k in req.body) s[k] = req.body[k]
+  // env values are redacted on the way out, so they come back empty. An empty
+  // value means "unchanged", not "erase it" — otherwise editing a server's name
+  // would silently wipe the credentials it runs with.
+  if ('env' in req.body) {
+    const incoming = req.body.env || {}
+    const next = {}
+    for (const [k, v] of Object.entries(incoming)) next[k] = v === '' ? (s.env || {})[k] ?? '' : v
+    s.env = next
+  }
   try { const { disconnect } = await import('./mcp.js'); await disconnect(s.id) } catch {}
   saveConfig(config)
   res.json(publicConfig(config))

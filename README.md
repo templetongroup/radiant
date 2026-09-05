@@ -52,7 +52,10 @@
   with a contrast check so nothing you pick becomes unreadable
 - **Private by design** — API keys are stored locally in
   `~/.radiant/config.json` (mode 0600) and never sent to the browser; the
-  server binds to 127.0.0.1 only; local providers need no key at all
+  server binds to 127.0.0.1 by default. Turning on Settings → Devices → share
+  with my other Macs deliberately binds all interfaces so your other machines
+  and your phone can reach it, gated by an access token — the loopback-only
+  promise holds until you make that choice. Local providers need no key at all
 - **Custom providers** — add any OpenAI-compatible base URL (Groq, Mistral,
   Together, a remote Ollama box…)
 
@@ -113,8 +116,10 @@ npm run dev         # server on :5834, UI with hot reload on http://localhost:58
 - `electron/` — thin Electron shell that boots the server in-process and
   opens a window on it
 
-OAuth sign-in to providers is not implemented yet; the provider registry has an
-`auth` field so a device-code/OAuth flow can slot in later.
+Subscription sign-in is implemented in `server/oauth.js` — device-code and PKCE
+flows for Claude, ChatGPT, Nous Portal, xAI (Grok), Qwen and GitHub Copilot, so
+you can use a plan you already pay for instead of an API key. The provider
+registry's `auth` field is what each provider's flow is selected by.
 
 ## License
 

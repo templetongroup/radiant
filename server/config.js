@@ -881,7 +881,15 @@ export function publicConfig (cfg) {
     // drift from what restore actually writes back.
     removedAgentDefs: (cfg.removedAgents || []).map(builtinAgent).filter(Boolean),
     recipes: recipesStore.list(),
-    mcpServers: cfg.mcpServers || [],
+    // ⚠️ NOT cfg.mcpServers. Provider keys are reduced to hasKey right below, and
+    // MCP records were the one credential store that walked straight past that
+    // boundary: a bearer token and a bag of env vars, in plaintext, to anything
+    // that could call GET /api/config. Same treatment now.
+    mcpServers: (cfg.mcpServers || []).map(({ token, env, ...rest }) => ({
+      ...rest,
+      hasToken: Boolean(token),
+      env: Object.fromEntries(Object.keys(env || {}).map(k => [k, '']))
+    })),
     // ⚠️ THIS MAC'S OWN CHOICES WIN. Model, provider and starting folder depend
     // on what is installed here, so they come from the machine-local file
     // rather than the synced one. Everything else follows the user between
