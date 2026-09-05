@@ -191,12 +191,54 @@ export function parseSkillMarkdown (text, filename = '') {
 
 const MAC_KEY = 'radiant.phone.mac'
 
-export const readMac = () => {
-  try { return JSON.parse(localStorage.getItem(MAC_KEY) || 'null') || { base: '', token: '' } }
-  catch { return { base: '', token: '' } }
+// ⚠️ THE KEYCHAIN, NOT localStorage. This token is not phone-scoped: it is the
+// SAME token that gates every /api/* route on the Mac, so whoever holds it can
+// drive the coding agent — read files, run commands — on Tony's machine. It was
+// sitting in localStorage while provider API keys, which unlock nothing but a
+// billing account, were correctly in the Keychain via SecureStore. That plugin's
+// own header says why: "A WKWebView's local storage is a plain file inside the
+// app container: readable from a backup, from a jailbroken device, and by
+// anything that can reach the container."
+//
+// Async now, because the Keychain is. There are two callers, both in
+// SkillsScreen. The browser preview has no plugins, so it still uses
+// localStorage — that path never holds a real Mac token.
+const SS = () => (typeof window !== 'undefined' ? window.Capacitor?.Plugins?.SecureStore : null)
+
+export const readMac = async () => {
+  const ss = SS()
+  if (!ss) {
+    try { return JSON.parse(localStorage.getItem(MAC_KEY) || 'null') || { base: '', token: '' } }
+    catch { return { base: '', token: '' } }
+  }
+  try {
+    const { value } = await ss.get({ key: MAC_KEY })
+    if (value) return JSON.parse(value)
+  } catch { /* nothing stored yet */ }
+  // A token paired before this moved is still in localStorage. Carry it over
+  // once and clear it, so upgrading does not silently unpair the phone.
+  try {
+    const legacy = localStorage.getItem(MAC_KEY)
+    if (legacy) {
+      await ss.set({ key: MAC_KEY, value: legacy })
+      localStorage.removeItem(MAC_KEY)
+      return JSON.parse(legacy)
+    }
+  } catch { /* nothing to migrate */ }
+  return { base: '', token: '' }
 }
-export const saveMac = (mac) => {
-  try { localStorage.setItem(MAC_KEY, JSON.stringify(mac)) } catch { /* private mode */ }
+
+export const saveMac = async (mac) => {
+  const raw = JSON.stringify(mac)
+  const ss = SS()
+  if (ss) {
+    try {
+      await ss.set({ key: MAC_KEY, value: raw })
+      try { localStorage.removeItem(MAC_KEY) } catch {}
+      return
+    } catch { /* fall through to the web path */ }
+  }
+  try { localStorage.setItem(MAC_KEY, raw) } catch { /* private mode */ }
 }
 
 /** `100.1.2.3:5834`, `host.local:5834` or a full URL all become one origin. */

@@ -91,5 +91,30 @@ is('the app carries a privacy policy URL', !!purl, true)
 is('and it keeps the .html that makes it real', /\.html$/.test(purl || ''), true)
 is('and the app links to it', settingsSrc.includes('Privacy policy'), true)
 
+// ⚠️ THE PHONE'S READ ME COUNTS MODELS IN PROSE. "forty-nine to choose from",
+// "Five of them can look at pictures", "one of those can watch a short clip" —
+// three numbers written by hand, describing a catalogue that is generated and
+// republished without a review cycle. Nothing tied them together, so the day a
+// model is added the Read me quietly starts lying to every user.
+//
+// This is not hypothetical drift: the Mac shipped "six presets" when there were
+// fourteen, and "a dozen palettes" when there were fourteen, both found by
+// audit rather than by a test. Same defect, same week.
+const phoneGuide = readFileSync('src/mobile/ReadMeScreen.jsx', 'utf8')
+const catalog = JSON.parse(readFileSync('apps/ios/catalog.json', 'utf8')).models
+const WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten']
+const TENS = { 40: 'forty', 50: 'fifty', 60: 'sixty', 70: 'seventy' }
+const spell = n => n <= 10 ? WORDS[n]
+  : (TENS[Math.floor(n / 10) * 10] ? TENS[Math.floor(n / 10) * 10] + (n % 10 ? '-' + WORDS[n % 10] : '') : String(n))
+
+const nModels = catalog.length
+const nVision = catalog.filter(m => m.vision).length
+const nVideo = catalog.filter(m => m.video).length
+const said = w => new RegExp(w, 'i').test(phoneGuide)
+
+is(`the phone Read me says there are ${nModels} models (${spell(nModels)})`, said(spell(nModels)), true)
+is(`the phone Read me says ${nVision} can see (${spell(nVision)})`, said(spell(nVision) + ' of them'), true)
+is(`the phone Read me says ${nVideo} can watch video (${spell(nVideo)})`, said(spell(nVideo) + ' of those can watch'), true)
+
 console.log(`${pass}/${pass + fail} passed  ·  Read me checked against the code`)
 process.exit(fail ? 1 : 0)

@@ -127,7 +127,9 @@ function PasteImport ({ onDone, onCancel }) {
  * reason rather than imported as an instruction aimed at nothing.
  */
 function MacImport ({ onDone, onCancel }) {
-  const [mac, setMac] = useState(readMac)
+  // readMac is async now (Keychain), so the field starts empty and fills in.
+  const [mac, setMac] = useState({ base: '', token: '' })
+  useEffect(() => { let live = true; readMac().then(m => { if (live) setMac(m) }); return () => { live = false } }, [])
   const [rows, setRows] = useState(null)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
@@ -137,7 +139,7 @@ function MacImport ({ onDone, onCancel }) {
     setBusy(true); setErr(''); setRows(null)
     try {
       const list = await fetchMacSkills(mac.base, mac.token)
-      saveMac(mac)
+      await saveMac(mac)
       setRows(list)
       if (!list.length) setErr('That Mac has no skills yet.')
     } catch (e) {
