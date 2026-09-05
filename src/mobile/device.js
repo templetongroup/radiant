@@ -18,6 +18,22 @@ const listeners = new Set()
 export const deviceWord = () => word
 export const isPad = () => word === 'iPad'
 
+/**
+ * The same correction, for text that arrives from the network.
+ *
+ * ⚠️ deviceWord() FIXED THE SOURCE, NOT THE CATALOGUE. Blurbs are one payload
+ * served to every device, so they cannot be written per-device — and five of the
+ * forty-nine say "iPhone": "The best all-rounder on any recent iPhone", "Only
+ * for the largest iPhones". Under a picture of an iPad that is exactly the
+ * untruth this file exists to end, just arriving over HTTP instead of from
+ * source. Rewritten where it is rendered, so it also covers catalogues published
+ * after this and needs no republish.
+ *
+ * A no-op on iPhone, which is the common case and the default.
+ */
+export const deviceText = (s) => (word === 'iPhone' || typeof s !== 'string') ? s
+  : s.replace(/\biPhones\b/g, word + 's').replace(/\biPhone\b/g, word)
+
 // The native build number (CFBundleVersion). The npm version is the same in
 // every build cut from one commit, so it cannot tell two installs apart — which
 // is how a fixed app got reported as still broken. Null off-device.

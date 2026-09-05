@@ -60,7 +60,7 @@
  *    the free space instead.
  */
 import React, { useState } from 'react'
-import { deviceWord } from './device.js'
+import { deviceWord, deviceText } from './device.js'
 import Gauge from './Gauge.jsx'
 import BrandSpinner, { BrandMark } from './BrandSpinner.jsx'
 import StorageLine from './StorageLine.jsx'
@@ -360,7 +360,7 @@ function ModelRow ({ model, state, progress, unavailable, shortBy, fit, failure,
                 // character, so the two model screens finally agree.
                 : <>
                     <span className="rx-rowsize">{fmtGB(model.sizeGB)}</span>
-                    {' · '}{model.blurb}
+                    {' · '}{deviceText(model.blurb)}
                   </>}
         </div>
       </div>

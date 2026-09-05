@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { deviceWord } from './device.js'
+import { deviceWord, deviceText } from './device.js'
 import * as GaugeModule from './Gauge.jsx'
 import BrandSpinner, { BrandMark } from './BrandSpinner.jsx'
 import { fitOf, FIT_LABEL, FITS_NO, ramNeededGB } from './fit.js'
@@ -830,7 +830,7 @@ function Hero ({ model, Gauge, job, done, busyElsewhere, shortfall, onCommit, on
         </span>
       )}
       <div className="rx-mp-hero-name">{model.name}</div>
-      <p className="rx-mp-hero-blurb">{model.blurb}</p>
+      <p className="rx-mp-hero-blurb">{deviceText(model.blurb)}</p>
 
       <button
         type="button"
@@ -887,7 +887,7 @@ function Row ({ model, Gauge, job, done, busyElsewhere, shortfall, fit, onCommit
     : failed ? 'failed'
       : model.downloaded ? 'resident' : 'absent'
 
-  let sub = model.blurb
+  let sub = deviceText(model.blurb)
   let subClass = ''
   if (failed) { sub = job.message; subClass = ' is-red' }
   else if (downloading) { sub = 'Downloading…'; subClass = ' is-amber' }

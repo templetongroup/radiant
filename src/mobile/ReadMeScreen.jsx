@@ -68,6 +68,12 @@ const SECTIONS = [
     ]
   },
   {
+    title: 'On an iPad',
+    body: [
+      'Radiant is one app for both. On an iPad it says iPad, sizes itself for the bigger screen instead of stretching the phone layout across it, and everything else — your models, your conversations, your colors — works exactly the same way.'
+    ]
+  },
+  {
     title: 'How it looks',
     body: [
       'Settings → Appearance chooses Dark, Medium, Light, or System — Medium is dark without the true black, and System follows your phone. Radiant opens dark unless you change it.',

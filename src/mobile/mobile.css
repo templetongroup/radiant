@@ -1917,8 +1917,22 @@
    .rx-intro-actions changed how it sizes itself — the buttons stopped filling
    it and collapsed to the width of their own labels, which looked far worse
    than the problem being fixed. Padding leaves every child's sizing alone. */
+/* ⚠️ THE iPAD WAS THE PHONE LAYOUT STRETCHED TO 834pt. This rule existed but
+   covered only the first-run screen, and at 700px — which on an 834pt iPad is
+   almost the full width, so it barely did anything. Everything else (Settings,
+   Models, Skills, Home) had no cap at all: full-width buttons, a grouped list
+   running edge to edge, and a column of text nobody wants to read that wide.
+   Tony: "i want ios and ipad apps to be symmetrical."
+
+   620px is close to a large phone's content column, so an iPad shows the same
+   proportions rather than a different app. Padding, not max-width, for the
+   reason the original note gives: max-width made flex children collapse to the
+   width of their own labels, which looked worse than the stretch. */
 @media (min-width: 768px) {
-  .is-native .rx-intro { padding-inline: calc((100% - 700px) / 2); }
+  .is-native .rx-intro,
+  .is-native .rx-screen,
+  .is-native .rx-home-head,
+  .is-native .rx-home-actions { padding-inline: calc((100% - 620px) / 2); }
 }
 .is-native .rx-intro-actions {
   position: relative;
