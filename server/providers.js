@@ -285,9 +285,13 @@ async function anthropicRound ({ baseUrl, apiKey, accessToken, model, messages, 
   // Subscription (OAuth) requests must present as Claude Code: the first system
   // block is the CLI's identity, auth is Bearer, and the oauth beta is set.
   const CLAUDE_CODE_ID = "You are Claude Code, Anthropic's official CLI for Claude."
+  // Prompt caching: mark the last system block cacheable. Anthropic renders
+  // tools -> system -> messages, so a breakpoint on the last system block caches
+  // the tool definitions too — no separate marker needed on `tools`. System must
+  // be block form (not a bare string) for cache_control to attach.
   const sys = accessToken
-    ? [{ type: 'text', text: CLAUDE_CODE_ID }, { type: 'text', text: system }]
-    : system
+    ? [{ type: 'text', text: CLAUDE_CODE_ID }, { type: 'text', text: system, cache_control: { type: 'ephemeral' } }]
+    : [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }]
   const body = { model, max_tokens: 8192, system: sys, messages, stream: true }
   // ⚠️ RAISE max_tokens WITH THE BUDGET, do not carve the budget out of it — the
   // thinking budget and the visible reply share this number, so a 12k budget under
@@ -298,6 +302,21 @@ async function anthropicRound ({ baseUrl, apiKey, accessToken, model, messages, 
     body.max_tokens = 8192 + THINK_BUDGET[effort]
   }
   if (tools) body.tools = (toolDefs || TOOL_DEFS).map(t => ({ name: t.name, description: t.description, input_schema: t.input_schema }))
+  // Second cache breakpoint on the tail of the growing conversation: each new
+  // turn reuses everything before this message from cache, and the marker walks
+  // forward as history grows (Anthropic's documented multi-turn placement
+  // pattern). Non-mutating — toAnthropic() builds fresh objects per call.
+  if (messages.length) {
+    const lastMsg = messages[messages.length - 1]
+    if (Array.isArray(lastMsg.content) && lastMsg.content.length) {
+      const i = lastMsg.content.length - 1
+      messages = [
+        ...messages.slice(0, -1),
+        { ...lastMsg, content: [...lastMsg.content.slice(0, i), { ...lastMsg.content[i], cache_control: { type: 'ephemeral' } }] }
+      ]
+      body.messages = messages
+    }
+  }
   const headers = { 'content-type': 'application/json', 'anthropic-version': '2023-06-01' }
   if (accessToken) {
     headers.authorization = `Bearer ${accessToken}`
@@ -317,7 +336,14 @@ async function anthropicRound ({ baseUrl, apiKey, accessToken, model, messages, 
   let current = null // {type:'text',text} or {type:'tool',id,name,json}
   let stopReason = null
   for await (const ev of sseEvents(res)) {
-    if (ev.type === 'message_start' && ev.message?.usage) emit({ type: 'usage', input: ev.message.usage.input_tokens, output: 0 })
+    if (ev.type === 'message_start' && ev.message?.usage) {
+      // With caching on, `input_tokens` is only the uncached remainder — cached
+      // reads/writes land in separate fields. Sum all three so the context-window
+      // gauge still reflects the true prompt size, not just what was billed fresh.
+      const u = ev.message.usage
+      const totalIn = (u.input_tokens || 0) + (u.cache_creation_input_tokens || 0) + (u.cache_read_input_tokens || 0)
+      emit({ type: 'usage', input: totalIn, output: 0 })
+    }
     else if (ev.type === 'content_block_start') {
       const b = ev.content_block
       if (b.type === 'text') current = { type: 'text', text: '' }
