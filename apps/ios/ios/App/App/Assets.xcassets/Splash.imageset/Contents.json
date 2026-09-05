@@ -4,17 +4,6 @@
       "filename" : "splash-light.png",
       "idiom" : "universal",
       "scale" : "1x"
-    },
-    {
-      "appearances" : [
-        {
-          "appearance" : "luminosity",
-          "value" : "dark"
-        }
-      ],
-      "filename" : "splash-dark.png",
-      "idiom" : "universal",
-      "scale" : "1x"
     }
   ],
   "info" : {

@@ -25,7 +25,7 @@ const config: CapacitorConfig = {
     // near-black is exactly what makes a dark UI read as a web page
     // the site's ground, so the launch screen, the native window and the web
     // layer are all the same colour and nothing flashes between them
-    backgroundColor: '#070B13',
+    backgroundColor: '#000000',
     // only tailnet hosts — the app never needs the open web
     limitsNavigationsToAppBoundDomains: false
   },
@@ -44,7 +44,7 @@ const config: CapacitorConfig = {
       launchShowDuration: 1800,
       launchFadeOutDuration: 320,
       launchAutoHide: true,
-      backgroundColor: '#070B13',
+      backgroundColor: '#000000',
       showSpinner: false
     },
     // the composer rides visualViewport itself; the web view must not resize
