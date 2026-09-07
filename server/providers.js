@@ -39,23 +39,52 @@ const MAX_TURN_TOKENS = Number(process.env.RADIANT_MAX_TURN_TOKENS || 12_000_000
 // the same call after that, it is not going to stop on its own.
 const STUCK_AT = 12
 
-function systemPrompt (cwd, useTools, model, computerControl, skills, persona, planMode, memory) {
+// Split into a STABLE half (identical across turns unless the user explicitly
+// reconfigures the session — persona, skills, cwd, tool/plan/computer-control
+// toggles) and a VOLATILE half (recomputed fresh from the CURRENT turn's input,
+// so it is essentially guaranteed to differ every request): retrieved memory
+// facts (relevantFacts() is scored against this turn's user text — see
+// server/memory.js) and the lead-model plan addendum (regenerated per turn when
+// an agent has a plannerModel). Putting volatile content in the system array
+// AFTER a cache_control-marked stable block keeps the marked prefix byte-
+// identical across turns without touching the volatile content's visibility —
+// see the claude-api skill's shared/prompt-caching.md, "Architectural guidance"
+// + "Multi-turn conversations". A stable-half change (e.g. the user flips
+// planMode or edits skills) is a one-time cache miss, not a per-turn one — that
+// tradeoff is deliberate, not the bug this split fixes.
+function systemPrompt (cwd, useTools, model, computerControl, skills, persona, planMode, planAddendum, memory) {
   const personaText = persona ? `\n\n${persona}` : ''
-  const memoryText = (memory && memory.length)
-    ? `\n\nWhat you remember about this user and their projects (from past sessions — use it when relevant, don't recite it):\n${memory.map(f => `• ${f}`).join('\n')}`
-    : ''
   const planText = planMode
     ? '\n\nPLAN MODE IS ON. Do NOT edit files, create files, or run mutating commands yet. Research the codebase (read/list/grep only), think through the approach, then present a concrete step-by-step plan by calling the exit_plan_mode tool with your plan in markdown. Only after the user approves the plan will you be able to make changes.'
     : ''
   const skillText = (skills && skills.length)
     ? `\n\nActive skills (follow these):\n${skills.map(s => `• ${s.name}: ${s.content}${s.dir && resolveSkillDir(s.dir) ? `\n  Skill folder: ${resolveSkillDir(s.dir)}` : ''}`).join('\n')}`
     : ''
-  return `You are a coding agent running inside Radiant, a local coding harness on the user's ${os.type() === 'Darwin' ? 'Mac' : os.type()} (${os.platform()} ${os.release()}). Radiant is the app, not you: you are the model "${model}". If asked what model you are, answer with your actual model name and maker.${personaText}
+  const stable = `You are a coding agent running inside Radiant, a local coding harness on the user's ${os.type() === 'Darwin' ? 'Mac' : os.type()} (${os.platform()} ${os.release()}). Radiant is the app, not you: you are the model "${model}". If asked what model you are, answer with your actual model name and maker.${personaText}
 Workspace directory: ${cwd}
 ${useTools ? 'You have tools to read, write, and edit files and to run shell commands in the workspace. Use them to investigate before answering and to make changes when asked. Prefer edit_file for small changes and write_file for new files. After making changes, verify them when practical (run the code, run tests).' : 'Tools are disabled for this conversation; answer from knowledge and the conversation only.'}${computerControl ? `
 You can also control the computer. browser_* tools drive an automated browser; screen_* tools control the whole desktop. ALWAYS take a screenshot first (browser_screenshot / screen_screenshot) and look at it before clicking or typing — click coordinates are pixel positions read from the most recent screenshot. Work in small steps: screenshot, act, screenshot again to confirm. Prefer browser_* for web tasks.` : ''}
-Be direct and concise. Use markdown; fence code blocks with a language tag. When you finish a task, summarize what changed in a sentence or two.${planText}${skillText}${memoryText}`
+Be direct and concise. Use markdown; fence code blocks with a language tag. When you finish a task, summarize what changed in a sentence or two.${planText}${skillText}`
+
+  const planAddendumText = planAddendum ? `\n\n${planAddendum}` : ''
+  const memoryText = (memory && memory.length)
+    ? `\n\nWhat you remember about this user and their projects (from past sessions — use it when relevant, don't recite it):\n${memory.map(f => `• ${f}`).join('\n')}`
+    : ''
+  const volatile = `${planAddendumText}${memoryText}`
+
+  return { stable, volatile, full: stable + volatile }
 }
+
+// Very rough token estimate (chars/4) used only to decide whether the stable
+// system prefix clears a model's minimum cacheable length — see
+// shared/prompt-caching.md's per-model minimum table (512-4096 tokens,
+// non-monotonic across generations). Radiant supports arbitrary/rolling model
+// ids across many Anthropic-compatible endpoints, so there's no reliable way to
+// look up an exact per-model number here; 1024 is a conservative mid-table
+// default that a real coding-agent system prompt (identity + tool
+// instructions + persona/skills) almost always clears anyway.
+const MIN_CACHEABLE_TOKENS = 1024
+function roughTokens (text) { return Math.round((text || '').length / 4) }
 
 // ---------- internal message format -> provider wire formats ----------
 // session.messages: [{role:'user', text, attachments} | {role:'assistant', parts:[{type:'text',text}|{type:'tool',id,name,args,result}]}]
@@ -281,17 +310,34 @@ export const EFFORTS = ['auto', 'low', 'medium', 'high']
 // its own, so max_tokens is raised alongside rather than eaten into.
 const THINK_BUDGET = { low: 2048, medium: 6144, high: 12288 }
 
-async function anthropicRound ({ baseUrl, apiKey, accessToken, model, messages, system, tools, toolDefs, effort, emit, signal }) {
+async function anthropicRound ({ baseUrl, apiKey, accessToken, model, messages, systemStable, systemVolatile, tools, toolDefs, effort, cachingEnabled, cacheTtl, emit, signal }) {
   // Subscription (OAuth) requests must present as Claude Code: the first system
   // block is the CLI's identity, auth is Bearer, and the oauth beta is set.
   const CLAUDE_CODE_ID = "You are Claude Code, Anthropic's official CLI for Claude."
-  // Prompt caching: mark the last system block cacheable. Anthropic renders
-  // tools -> system -> messages, so a breakpoint on the last system block caches
-  // the tool definitions too — no separate marker needed on `tools`. System must
-  // be block form (not a bare string) for cache_control to attach.
-  const sys = accessToken
-    ? [{ type: 'text', text: CLAUDE_CODE_ID }, { type: 'text', text: system, cache_control: { type: 'ephemeral' } }]
-    : [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }]
+  // Prompt caching, on by default (Settings → caching toggle) but skippable —
+  // some Anthropic-compatible baseUrls reject cache_control, and single-shot
+  // (non-conversational) turns get zero benefit from a cache write.
+  // ⚠️ ONLY THE STABLE HALF GETS THE MARKER. Anthropic renders tools -> system
+  // -> messages, so a breakpoint on the last block of the stable system text
+  // caches tool definitions too. The volatile half (memory / plan addendum —
+  // see systemPrompt()'s comment) is appended as a SEPARATE, unmarked system
+  // block after it: still sent every turn, but its churn can't invalidate the
+  // marked prefix before it. System must be block form (not a bare string) for
+  // cache_control to attach.
+  // Anthropic renders tools BEFORE system, and a breakpoint on the last system
+  // block caches both together — so the minimum-cacheable-length check has to
+  // count tool definitions too, not just the (often short on its own) stable
+  // system text. Measuring systemStable alone under-counts the real prefix and
+  // wrongly skips caching on a normal tool-using turn.
+  const toolDefsForBody = tools ? (toolDefs || TOOL_DEFS).map(t => ({ name: t.name, description: t.description, input_schema: t.input_schema })) : null
+  const prefixTokens = roughTokens(systemStable) + (toolDefsForBody ? roughTokens(JSON.stringify(toolDefsForBody)) : 0)
+  const useCaching = cachingEnabled !== false && prefixTokens >= MIN_CACHEABLE_TOKENS
+  const cacheControl = useCaching ? { type: 'ephemeral', ...(cacheTtl === '1h' ? { ttl: '1h' } : {}) } : null
+  const sys = accessToken ? [{ type: 'text', text: CLAUDE_CODE_ID }] : []
+  sys.push(cacheControl
+    ? { type: 'text', text: systemStable, cache_control: cacheControl }
+    : { type: 'text', text: systemStable })
+  if (systemVolatile) sys.push({ type: 'text', text: systemVolatile })
   const body = { model, max_tokens: 8192, system: sys, messages, stream: true }
   // ⚠️ RAISE max_tokens WITH THE BUDGET, do not carve the budget out of it — the
   // thinking budget and the visible reply share this number, so a 12k budget under
@@ -301,28 +347,22 @@ async function anthropicRound ({ baseUrl, apiKey, accessToken, model, messages, 
     body.thinking = { type: 'enabled', budget_tokens: THINK_BUDGET[effort] }
     body.max_tokens = 8192 + THINK_BUDGET[effort]
   }
-  if (tools) body.tools = (toolDefs || TOOL_DEFS).map(t => ({ name: t.name, description: t.description, input_schema: t.input_schema }))
-  // Second cache breakpoint on the tail of the growing conversation: each new
-  // turn reuses everything before this message from cache, and the marker walks
-  // forward as history grows (Anthropic's documented multi-turn placement
-  // pattern). Non-mutating — toAnthropic() builds fresh objects per call.
-  if (messages.length) {
-    const lastMsg = messages[messages.length - 1]
-    if (Array.isArray(lastMsg.content) && lastMsg.content.length) {
-      const i = lastMsg.content.length - 1
-      messages = [
-        ...messages.slice(0, -1),
-        { ...lastMsg, content: [...lastMsg.content.slice(0, i), { ...lastMsg.content[i], cache_control: { type: 'ephemeral' } }] }
-      ]
-      body.messages = messages
-    }
-  }
+  if (toolDefsForBody) body.tools = toolDefsForBody
+  // Top-level automatic caching covers the growing conversation tail: Anthropic
+  // places (and walks forward) its own breakpoint on the last cacheable message
+  // block, which is the documented default for multi-turn conversations and
+  // avoids hand-tracking positions against the 20-block lookback window
+  // ourselves (shared/prompt-caching.md, "Automatic vs explicit breakpoints" +
+  // "The robust combination for agent loops"). Composes with the explicit
+  // system-block marker above (2 of the 4 available breakpoint slots used).
+  if (useCaching && messages.length) body.cache_control = cacheControl
   const headers = { 'content-type': 'application/json', 'anthropic-version': '2023-06-01' }
   if (accessToken) {
     headers.authorization = `Bearer ${accessToken}`
-    headers['anthropic-beta'] = 'oauth-2025-04-20,claude-code-20250219'
+    headers['anthropic-beta'] = ['oauth-2025-04-20', 'claude-code-20250219', ...(cacheTtl === '1h' ? ['extended-cache-ttl-2025-04-11'] : [])].join(',')
   } else {
     headers['x-api-key'] = apiKey
+    if (cacheTtl === '1h') headers['anthropic-beta'] = 'extended-cache-ttl-2025-04-11'
   }
   const res = await fetch(`${baseUrl}/v1/messages`, {
     method: 'POST',
@@ -632,11 +672,11 @@ function planBlocked (name) {
 }
 
 // ---------- the agent loop ----------
-export async function runTurn ({ provider, model, apiKey, getAccessToken, getAccountId, session, useTools, computerControl, skills, persona, memory, agentId, groupSpeakerId, groupNames, mcpTools, callMcp, askAgent, peerAgents, planMode, onPlanExit, effort, summarize, autoCompact, autoApproveComputer, emit, requestApproval, requestUserChoice, signal }) {
+export async function runTurn ({ provider, model, apiKey, getAccessToken, getAccountId, session, useTools, computerControl, skills, persona, planAddendum, memory, agentId, groupSpeakerId, groupNames, mcpTools, callMcp, askAgent, peerAgents, planMode, onPlanExit, effort, summarize, autoCompact, autoApproveComputer, cachingEnabled, cacheTtl, emit, requestApproval, requestUserChoice, signal }) {
   // ⚠️ NOT `session.cwd || os.homedir()`. A folder that is set and not here is
   // the case that broke every tool call in the chat — see usableCwd.
   const { dir: cwd, missing: strayCwd } = usableCwd(session.cwd)
-  const system = systemPrompt(cwd, useTools, model, computerControl, skills, persona, planMode, memory)
+  const system = systemPrompt(cwd, useTools, model, computerControl, skills, persona, planMode, planAddendum, memory)
   // proactive compaction before a very long turn
   if (autoCompact && summarize && estimateTokens(session.messages) > PROACTIVE_TOKENS) {
     await compactSession(session, 4, summarize, emit)
@@ -746,7 +786,10 @@ export async function runTurn ({ provider, model, apiKey, getAccessToken, getAcc
       apiKey,
       accessToken,
       model,
-      system,
+      systemStable: system.stable,
+      systemVolatile: system.volatile,
+      cachingEnabled,
+      cacheTtl,
       tools: toolsEnabled,
       toolDefs,
       extraHeaders: provider.id === 'copilot' ? COPILOT_HEADERS : undefined,
@@ -761,8 +804,8 @@ export async function runTurn ({ provider, model, apiKey, getAccessToken, getAcc
       result = provider.type === 'anthropic'
         ? await anthropicRound({ ...args, messages: toAnthropic(reqMsgs) })
         : useChatgpt
-          ? await chatgptRound({ ...args, accountId, messages: reqMsgs })
-          : await openaiRound({ ...args, messages: toOpenAI(reqMsgs, system) })
+          ? await chatgptRound({ ...args, system: system.full, accountId, messages: reqMsgs })
+          : await openaiRound({ ...args, messages: toOpenAI(reqMsgs, system.full) })
       stats.llmMs += Date.now() - roundStart
     } catch (e) {
       // Model doesn't support tools (common with local models) -> retry once without them.

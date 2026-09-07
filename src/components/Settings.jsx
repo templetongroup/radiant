@@ -1593,6 +1593,24 @@ function AgentPane ({ config, onSettings }) {
         />
         <span>Suggest skills from your activity <span className='desc'>— when the agent notices a repeatable, multi-step process or a workflow you set, it drafts a skill and asks you to approve it in Settings → Skills (cloud models only)</span></span>
       </label>
+      <label className='check-row'>
+        <input
+          type='checkbox'
+          checked={s.promptCaching !== false}
+          onChange={e => onSettings({ promptCaching: e.target.checked })}
+        />
+        <span>Prompt caching (Claude models) <span className='desc'>— reuse the unchanged part of the system prompt across turns instead of resending it in full. Turn off if a custom Anthropic-compatible endpoint rejects it.</span></span>
+      </label>
+      {s.promptCaching !== false && (
+        <div style={{ marginLeft: 24, marginTop: -4, marginBottom: 4 }}>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6 }}>Cache lifetime — match it to how quickly you usually reply</div>
+          <div className='seg-control'>
+            {[['5m', '5 minutes (default)'], ['1h', '1 hour (costs more per write, survives longer gaps)']].map(([id, label]) => (
+              <button key={id} className={'seg-btn' + ((s.cacheTtl === '1h' ? '1h' : '5m') === id ? ' on' : '')} onClick={() => onSettings({ cacheTtl: id })}>{label}</button>
+            ))}
+          </div>
+        </div>
+      )}
       <div style={{ marginTop: 10 }}>
         <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6 }}>Default workspace folder for new sessions</div>
         <input
