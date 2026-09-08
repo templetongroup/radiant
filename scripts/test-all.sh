@@ -15,6 +15,7 @@ run "read me"        node scripts/test-readme.mjs
 run "window drag"    node scripts/test-drag.mjs
 run "cross-origin"   node scripts/test-origin.mjs
 run "command risk"   node scripts/test-command-risk.mjs
+run "update asset"   node scripts/test-update-asset.mjs
 run "memory"         node scripts/test-memory.mjs
 run "plugin bridge"  node scripts/test-bridge.mjs
 run "cloud model"    node scripts/test-cloud-model.mjs

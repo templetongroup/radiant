@@ -1778,7 +1778,7 @@ function AboutPane ({ config, onSettings }) {
         else setStatus({ hasUpdate: r.hasUpdate, latest: r.version, current: r.current })
       } else {
         const r = await api.updateCheck()
-        setStatus({ hasUpdate: r.hasUpdate, latest: r.latest, current: r.current, dmgUrl: r.dmgUrl })
+        setStatus({ hasUpdate: r.hasUpdate, latest: r.latest, current: r.current, downloadUrl: r.downloadUrl })
       }
     } catch (e) { setStatus({ error: e.message }) }
     setChecking(false)
@@ -1787,7 +1787,7 @@ function AboutPane ({ config, onSettings }) {
   const startDownload = () => { setPhase('downloading'); setProgress(0); native.download() }
   const restart = () => native.install()
   const relaunch = () => native.relaunch()
-  const openReleasePage = () => window.open(status?.dmgUrl || 'https://github.com/templetongroup/radiant/releases/latest', '_blank', 'noopener')
+  const openReleasePage = () => window.open(status?.downloadUrl || 'https://github.com/templetongroup/radiant/releases/latest', '_blank', 'noopener')
 
   return (
     <div className='set-section'>

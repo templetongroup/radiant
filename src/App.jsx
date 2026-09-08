@@ -61,7 +61,7 @@ function DesktopApp () {
     try { localStorage.setItem('radiant.rightOpen', rightOpen ? '1' : '0') } catch {}
   }, [rightOpen])
   const [rightTab, setRightTab] = useState('activity')
-  const [updateInfo, setUpdateInfo] = useState(null) // {latest, dmgUrl} when an update exists
+  const [updateInfo, setUpdateInfo] = useState(null) // {latest, downloadUrl} when an update exists
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [compareOpen, setCompareOpen] = useState(false)
   const [navOpen, setNavOpen] = useState(false) // mobile sidebar drawer

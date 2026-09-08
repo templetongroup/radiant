@@ -16,6 +16,25 @@ export function isNewer (a, b) {
   return false
 }
 
+// ⚠️ THE ASSET THAT RUNS ON THIS MACHINE, NOT THE FIRST ONE IN THE LIST. This
+// matched /\.dmg$/ and nothing else, so anywhere but a Mac it found none and
+// silently handed back the releases page instead — a wall of files to choose
+// from, when the whole point of the check is that Radiant already knows which
+// one is wanted. The fallback stays for the case that is genuinely unknown: a
+// platform with no asset published yet, where a page you can read beats a link
+// that is wrong.
+const ASSET_FOR = {
+  darwin: /\.dmg$/i,
+  linux: /\.AppImage$/i,
+  win32: /\.exe$/i
+}
+
+export function assetFor (assets, platform = process.platform) {
+  const pattern = ASSET_FOR[platform]
+  if (!pattern) return null
+  return (assets || []).find(a => pattern.test(a?.name || '')) || null
+}
+
 export async function checkForUpdate (currentVersion) {
   const res = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, {
     headers: { 'user-agent': 'Radiant-Updater', accept: 'application/vnd.github+json' },
@@ -24,13 +43,13 @@ export async function checkForUpdate (currentVersion) {
   if (!res.ok) throw new Error(`GitHub ${res.status}`)
   const r = await res.json()
   const latest = String(r.tag_name || '').replace(/^v/, '')
-  const dmg = (r.assets || []).find(a => /\.dmg$/i.test(a.name))
+  const asset = assetFor(r.assets)
   return {
     current: currentVersion,
     latest,
     hasUpdate: Boolean(latest) && isNewer(currentVersion, latest),
     htmlUrl: r.html_url,
-    dmgUrl: dmg?.browser_download_url || r.html_url,
+    downloadUrl: asset?.browser_download_url || r.html_url,
     notes: r.body || '',
     publishedAt: r.published_at
   }
