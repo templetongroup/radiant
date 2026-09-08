@@ -1656,7 +1656,24 @@ function AgentPane ({ config, onSettings }) {
           <span className={comp?.browser ? 'key-ok' : 'fit-badge fit-no'}>{comp?.browser ? '✓' : '—'} Browser control</span>
           <span className='desc'>drives your system Chrome. Nothing to set up.</span>
         </div>
-        {/* ⚠️ NAME THE PERMISSION THAT IS MISSING. This said "Screen Recording and
+        {/* ⚠️ OFF A MAC THERE IS NOTHING TO GRANT, SO THERE IS NOTHING TO ASK FOR.
+              Screen Recording and Accessibility are macOS permissions reached
+              through a Swift helper that only builds and only runs there. Both
+              come back false on any other platform, which read here as two
+              permissions the user had neglected — under advice to open a System
+              Settings pane their machine does not have. Say the true thing once
+              and point at the half that does work. */}
+        {comp?.platform && comp.platform !== 'darwin' ? (
+          <div className='comp-stat'>
+            <span className='fit-badge fit-no'>— Desktop control</span>
+            <span className='desc'>
+              not available on {comp.platform === 'linux' ? 'Linux' : 'this platform'} — Radiant
+              moves the mouse, types and captures the screen through a macOS helper, and there is
+              no equivalent here yet. Browser control above needs none of it and works.
+            </span>
+          </div>
+        ) : (<>
+          {/* ⚠️ NAME THE PERMISSION THAT IS MISSING. This said "Screen Recording and
               Accessibility are granted — ready to use" whenever the helper binary
               existed on disk, which it always does — so it claimed both while
               screencapture returned a wallpaper-only image and clicks went nowhere,
@@ -1691,6 +1708,7 @@ function AgentPane ({ config, onSettings }) {
               Browser control needs neither.
             </div>
           )}
+        </>)}
       </div>
 
       <div className='set-block'>

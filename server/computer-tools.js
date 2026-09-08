@@ -198,6 +198,13 @@ export async function computerStatus () {
   return {
     desktop: p.helper && p.screenRecording !== false && p.accessibility !== false,
     browser: await browserAvailable(),
+    // ⚠️ "NOT GRANTED" AND "DOES NOT EXIST HERE" ARE DIFFERENT ANSWERS, AND THE UI
+    // COULD NOT TELL THEM APART. Both arrive as `false`, so off a Mac Settings
+    // reported Screen Recording and Accessibility as permissions the user had
+    // failed to grant, and told them to add Radiant under System Settings →
+    // Privacy & Security — a pane that does not exist on the machine reading the
+    // advice. Rule 12: never render a state the user cannot act on.
+    platform: process.platform,
     ...p
   }
 }

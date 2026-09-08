@@ -39,8 +39,16 @@ export function stopDictation () {
 
 export function startDictation (req, res, locale = 'en-US') {
   if (!helperAvailable()) {
+    // ⚠️ "NOT INSTALLED" IS THE WRONG REASON OFF A MAC, AND IT READS AS A REPAIRABLE
+    // ONE. Dictation is Apple's on-device speech recognition reached through the
+    // Swift helper; there is nothing to install elsewhere, so inviting the user to
+    // look for it sends them after a file that was never meant to be there.
     res.writeHead(503, { 'content-type': 'application/json' })
-    return res.end(JSON.stringify({ error: 'The Radiant helper is not installed, so dictation cannot start.' }))
+    return res.end(JSON.stringify({
+      error: process.platform === 'darwin'
+        ? 'The Radiant helper is not installed, so dictation cannot start.'
+        : 'Dictation uses macOS speech recognition, which this machine does not have. Type instead — nothing else is affected.'
+    }))
   }
   if (active) {
     res.writeHead(409, { 'content-type': 'application/json' })
