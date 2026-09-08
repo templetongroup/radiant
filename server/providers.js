@@ -427,12 +427,34 @@ async function anthropicRound ({ baseUrl, apiKey, accessToken, model, messages, 
   return { parts, stopOnTools: stopReason === 'tool_use' }
 }
 
-async function openaiRound ({ baseUrl, apiKey, accessToken, model, messages, tools, toolDefs, extraHeaders, effort, emit, signal }) {
+// OpenRouter passes Anthropic-style cache_control breakpoints through to Claude
+// models routed via Anthropic on its /chat/completions endpoint (confirmed against
+// OpenRouter's current docs, "Explicit per-block cache_control breakpoints work
+// across all Anthropic-compatible providers"). Mirrors PR #3's two-breakpoint
+// pattern: mark the system prefix and the tail message. OpenAI itself and every
+// other openaiRound-routed provider (plain OpenAI, Ollama, LM Studio, Copilot,
+// xAI, etc.) get NO markers here — OpenAI's own caching is automatic/implicit and
+// needs no client marker (see openaiRound's usage-observability comment below),
+// and other providers may reject an unrecognized `cache_control` field outright.
+function withOpenRouterClaudeCaching (body, provider, model) {
+  if (provider?.id !== 'openrouter' || !/claude/i.test(model || '')) return
+  const ephemeral = { type: 'ephemeral' }
+  const asBlock = content => typeof content === 'string'
+    ? [{ type: 'text', text: content, cache_control: ephemeral }]
+    : content
+  const sys = body.messages.find(m => m.role === 'system')
+  if (sys) sys.content = asBlock(sys.content)
+  const last = body.messages[body.messages.length - 1]
+  if (last && last !== sys && typeof last.content === 'string') last.content = asBlock(last.content)
+}
+
+async function openaiRound ({ baseUrl, apiKey, accessToken, model, messages, tools, toolDefs, extraHeaders, effort, provider, emit, signal }) {
   const body = { model, messages, stream: true }
   if (effort && effort !== 'auto') body.reasoning_effort = effort
   if (tools) {
     body.tools = (toolDefs || TOOL_DEFS).map(t => ({ type: 'function', function: { name: t.name, description: t.description, parameters: t.input_schema } }))
   }
+  withOpenRouterClaudeCaching(body, provider, model)
   const headers = { 'content-type': 'application/json', ...(extraHeaders || {}) }
   const bearer = accessToken || apiKey
   if (bearer) headers.authorization = `Bearer ${bearer}`
@@ -444,7 +466,17 @@ async function openaiRound ({ baseUrl, apiKey, accessToken, model, messages, too
   let finish = null
   for await (const chunk of sseEvents(res)) {
     const choice = chunk.choices?.[0]
-    if (chunk.usage) emit({ type: 'usage', input: chunk.usage.prompt_tokens, output: chunk.usage.completion_tokens })
+    if (chunk.usage) {
+      // Unlike Anthropic, OpenAI-family cached_tokens is a SUBSET of prompt_tokens,
+      // not additive — prompt_tokens already reflects the true prefix size, so
+      // there is no under-reporting bug here for the ContextGauge to fix (that was
+      // Anthropic-specific, see anthropicRound). cacheRead is surfaced separately,
+      // purely for a future cache-hit-rate indicator, and is a no-op if the
+      // provider doesn't send prompt_tokens_details (most non-OpenAI/OpenRouter
+      // openaiRound providers won't).
+      const cacheRead = chunk.usage.prompt_tokens_details?.cached_tokens
+      emit({ type: 'usage', input: chunk.usage.prompt_tokens, output: chunk.usage.completion_tokens, ...(cacheRead ? { cacheRead } : {}) })
+    }
     if (!choice) continue
     const d = choice.delta || {}
     const reasoning = d.reasoning_content ?? d.reasoning
@@ -800,6 +832,7 @@ export async function runTurn ({ provider, model, apiKey, getAccessToken, getAcc
       apiKey,
       accessToken,
       model,
+      provider,
       systemStable: system.stable,
       systemVolatile: system.volatile,
       cachingEnabled,
