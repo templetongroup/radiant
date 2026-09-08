@@ -42,7 +42,18 @@ export async function permissions () {
   }
 }
 
+/**
+ * ⚠️ A MACH-O BINARY ON A LINUX BOX STILL EXISTS, SO existsSync IS NOT ENOUGH.
+ * `extraResources` copies native/radiant-control into every packaged target,
+ * and the file being there was the whole test — so off a Mac this said the
+ * helper was present, execFile then failed with ENOEXEC, and the catch in
+ * permissions() answered `{ helper: true, screenRecording: null }`. That is the
+ * right answer for an OLD helper and the wrong one for a helper that can never
+ * run here: Settings offered desktop control on a machine that has none. Same
+ * shape as the bug the comment above records, one platform over.
+ */
 export function helperAvailable () {
+  if (process.platform !== 'darwin') return false
   try { return fs.existsSync(helperPath()) } catch { return false }
 }
 

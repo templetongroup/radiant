@@ -594,7 +594,11 @@ export function saveConfig (cfg, { forgetting = [] } = {}) {
 // macOS, and brctl is a diagnostic tool that does not belong in a shipped app.
 // Foundation's URL resource values are the supported answer, reached through
 // the native helper we already ship.
-const HELPER = [
+// ⚠️ AND ONLY ON macOS. The helper is Mach-O and everything it is asked here is
+// about iCloud, so off a Mac there is no question to put to it — but the file
+// ships in every packaged target, so existsSync alone would find one. Undefined
+// is what the callers below already treat as "cannot tell", which is the truth.
+const HELPER = process.platform !== 'darwin' ? undefined : [
   path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'native', 'radiant-control'),
   path.join(process.resourcesPath || '', 'native', 'radiant-control')
 ].find(p => { try { return fs.existsSync(p) } catch { return false } })
