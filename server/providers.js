@@ -1127,7 +1127,11 @@ export async function listModels (provider, apiKey, accessToken, accountId) {
 // shown if a key provider's /models call fails but a key is present
 const KEY_FALLBACK_MODELS = {
   nousresearch: ['Hermes-4-405B', 'Hermes-4-70B', 'Hermes-4.3-36B'],
-  gemini: ['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash']
+  gemini: ['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash'],
+  // MiniMax documents an OpenAI-shaped /v1/models, but it has been reported
+  // 404ing in the wild — and a provider that lists nothing looks broken rather
+  // than unlisted. These are the ids its own docs name.
+  minimax: ['MiniMax-M3', 'MiniMax-M2.7', 'MiniMax-M2.7-highspeed', 'MiniMax-M2.5', 'MiniMax-M2.5-highspeed', 'MiniMax-M2.1', 'MiniMax-M2.1-highspeed', 'MiniMax-M2']
 }
 
 function fallback (provider, accessToken, apiKey) {

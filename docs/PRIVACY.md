@@ -20,7 +20,7 @@ not a policy of restraint — the app has no code that could send us anything.
 One case, and only because you set it up:
 
 1. **A cloud provider you configured.** If you add an API key for Anthropic,
-   OpenAI, OpenRouter, xAI, Nous, DeepSeek, Kimi, GLM, Groq, or Mistral, the
+   OpenAI, OpenRouter, xAI, Nous, DeepSeek, Kimi, GLM, MiniMax, Groq, or Mistral, the
    messages you send to that model go to **that company**, under their privacy
    policy and their terms — not to us. We never see the request.
 

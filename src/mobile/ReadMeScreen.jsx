@@ -68,7 +68,7 @@ const sections = () => [
   {
     title: 'Models in the cloud',
     body: [
-      'Settings → Providers connects Radiant to Anthropic, OpenAI, OpenRouter, xAI, Nous, DeepSeek, Kimi, GLM, Groq or Mistral with your own API key. That is how to reach the models too large to run on a phone.',
+      'Settings → Providers connects Radiant to Anthropic, OpenAI, OpenRouter, xAI, Nous, DeepSeek, Kimi, GLM, MiniMax, Groq or Mistral with your own API key. That is how to reach the models too large to run on a phone.',
       'Add a key, search that provider\'s models, and tap one. It becomes the model answering your chats — the name at the top of every chat tells you which model is replying, and tapping that name switches between it and the models on your phone.',
       `Your key is held in the ${deviceWord()} Keychain and used by the app itself — it is never stored in the web layer, and never shown again after you enter it. These requests do go over the network, unlike a model running on the phone.`
     ]

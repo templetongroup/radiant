@@ -26,7 +26,7 @@ const is = (name, got, want) => {
 }
 
 // Every provider the Read me names by name must actually be configured.
-const named = ['Anthropic', 'OpenAI', 'OpenRouter', 'xAI', 'Nous', 'DeepSeek', 'Kimi', 'GLM', 'Groq', 'Mistral']
+const named = ['Anthropic', 'OpenAI', 'OpenRouter', 'xAI', 'Nous', 'DeepSeek', 'Kimi', 'GLM', 'MiniMax', 'Groq', 'Mistral']
 for (const p of named) {
   if (readme.includes(p)) is(`provider "${p}" exists`, providers.includes(p), true)
 }

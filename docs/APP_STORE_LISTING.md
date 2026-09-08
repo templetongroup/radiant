@@ -81,7 +81,7 @@ BUILT FOR THE PHONE
 BRING YOUR OWN KEY, OPTIONALLY
 
 If you want a model too large for any phone, add your own API key for Anthropic,
-OpenAI, OpenRouter, xAI, Nous, DeepSeek, Kimi, GLM, Groq or Mistral. Keys are
+OpenAI, OpenRouter, xAI, Nous, DeepSeek, Kimi, GLM, MiniMax, Groq or Mistral. Keys are
 held in the iOS Keychain. The line under every chat title tells you which model
 is answering and where it runs, so you always know whether you are on-device or
 online.

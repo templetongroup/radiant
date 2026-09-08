@@ -13,6 +13,13 @@
  *    are not built yet. They are listed as pending, not offered.
  *
  * Everything here is a plain API key over HTTPS, which a phone does fine.
+ *
+ * ⚠️ EVERY baseUrl HERE IS FIXED. The phone has no Add provider row and no way
+ * to edit one, so a provider with more than one endpoint can only ship the
+ * endpoint listed here. MiniMax is the case that matters: its mainland-China
+ * platform is a different domain with different accounts, and a key from it
+ * cannot be used on the phone at all. The hint therefore names the platform the
+ * key must come from, rather than describing a switch that does not exist here.
  */
 export const PROVIDERS = [
   { id: 'anthropic', name: 'Anthropic', baseUrl: 'https://api.anthropic.com',
@@ -31,6 +38,8 @@ export const PROVIDERS = [
     hint: 'Kimi models. platform.moonshot.ai.' },
   { id: 'zai', name: 'GLM (Z.ai)', baseUrl: 'https://api.z.ai/api/paas/v4',
     hint: 'GLM-4.6 and 4.5. Works with the GLM Coding Plan.' },
+  { id: 'minimax', name: 'MiniMax', baseUrl: 'https://api.minimax.io/v1',
+    hint: 'MiniMax-M3 and the M2 series. Key from platform.minimax.io — the international platform, not the mainland-China one.' },
   { id: 'groq', name: 'Groq', baseUrl: 'https://api.groq.com/openai/v1',
     hint: 'Very fast open models. console.groq.com.', prefix: 'gsk_' },
   { id: 'mistral', name: 'Mistral', baseUrl: 'https://api.mistral.ai/v1',

@@ -330,6 +330,15 @@ const DEFAULT_CONFIG = {
     { id: 'deepseek', name: 'DeepSeek', type: 'openai', baseUrl: 'https://api.deepseek.com', auth: 'key', removable: true, preset: true, hint: 'deepseek-chat & deepseek-reasoner. Key at platform.deepseek.com.' },
     { id: 'moonshot', name: 'Kimi (Moonshot)', type: 'openai', baseUrl: 'https://api.moonshot.ai/v1', auth: 'key', removable: true, preset: true, hint: 'Kimi models. Key at platform.moonshot.ai.' },
     { id: 'zai', name: 'GLM (Z.ai)', type: 'openai', baseUrl: 'https://api.z.ai/api/paas/v4', auth: 'key', removable: true, preset: true, hint: 'GLM-4.6 / 4.5. Key at z.ai — works with the GLM Coding Plan.' },
+    // ⚠️ MINIMAX HAS TWO DOMAINS AND THEY DO NOT SHARE ACCOUNTS. api.minimax.io
+    // is the international platform; api.minimaxi.com is the mainland-China one.
+    // A key bought on one returns 401 on the other, which reads like a bad key.
+    // ⚠️ AND A PRESET'S baseUrl IS NOT EDITABLE — ProviderRow renders it as a
+    // read-only div, so "change the address" is advice the UI cannot take. The
+    // action that exists is the Add provider row, which POSTs name + baseUrl and
+    // makes a custom-* provider. The hint names THAT, because a hint pointing at
+    // a field nobody can type in is worse than no hint at all.
+    { id: 'minimax', name: 'MiniMax', type: 'openai', baseUrl: 'https://api.minimax.io/v1', auth: 'key', removable: true, preset: true, hint: 'MiniMax-M3 (1M context) and the M2 series. This is MiniMax\'s international platform — get a key at platform.minimax.io. A key from the mainland-China platform will not work here: add a second provider below, any name, with the base URL https://api.minimaxi.com/v1.' },
     { id: 'mistral', name: 'Mistral', type: 'openai', baseUrl: 'https://api.mistral.ai/v1', auth: 'key', removable: true, preset: true, hint: 'Key at console.mistral.ai.' },
     { id: 'groq', name: 'Groq', type: 'openai', baseUrl: 'https://api.groq.com/openai/v1', auth: 'key', removable: true, preset: true, hint: 'Very fast inference. Key at console.groq.com.' },
     { id: 'together', name: 'Together', type: 'openai', baseUrl: 'https://api.together.xyz/v1', auth: 'key', removable: true, preset: true, hint: 'Open models. Key at api.together.ai.' },
