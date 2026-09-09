@@ -681,6 +681,17 @@ function DesktopApp () {
     <div className={'app' + (navOpen ? ' nav-open' : '')}>
       <MotionBackground kind={config.settings.motionBg} />
       {/* Unbidden, once, after an update — see components/WhatsNew.jsx */}
+      {/* ⚠️ A DATA HAZARD HAS TO BE ON SCREEN, NOT IN A COLLAPSED SETTINGS HINT.
+          Radiant has always warned that two copies sharing one folder overwrite
+          each other — in a hint nobody reads before it matters. Tony ran two
+          Macs against one iCloud folder for a whole evening and was never told;
+          what he saw instead was chats going blank and content appearing in the
+          wrong conversation. This does not block anything: it is a sentence, it
+          names the other machine, and it goes away on its own when that copy
+          quits. */}
+      {config?.sharingText && (
+        <div className='share-warn' role='status'>{config.sharingText}</div>
+      )}
       <WhatsNew />
       <div className='nav-backdrop' onClick={() => setNavOpen(false)} />
       <Sidebar

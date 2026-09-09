@@ -3286,3 +3286,12 @@ html[data-window-chrome='native'] .brand { padding-top: 12px; }
    the sidebar's New session and New group chat already are, and out of the
    strip entirely. */
 .view-actions { display: flex; gap: 8px; padding: 0 18px 12px; }
+
+/* Two copies of Radiant on one shared folder. A full-width strip under the top
+   bar rather than a toast: this is true for as long as it is true, and a thing
+   that can quietly cost you work should not fade away after four seconds. */
+.share-warn {
+  padding: 8px 18px; font-size: 12px; line-height: 1.45;
+  color: var(--text); background: var(--warn-bg, rgba(220, 160, 40, 0.14));
+  border-bottom: 1px solid var(--line, rgba(128, 128, 128, 0.25));
+}

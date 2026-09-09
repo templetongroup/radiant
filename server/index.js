@@ -17,6 +17,8 @@ import { OAUTH_PROVIDERS, buildAuthUrl, completePaste, startLoopback, validAcces
 import { checkForUpdate } from './updater.js'
 import { ollamaBin, hermesBin, SPAWN_ENV } from './ollama.js'
 import { commandRisk } from './util.js'
+import { claimLock, beatLock, releaseLock, describeHolder, BEAT_MS } from './lock.js'
+const LOCK_HOST = computerName()   // "Tony's Home MBP M4", not a DNS name
 import { IS_MAC, openCommand, chromeBinary, tailscaleBinary, defaultShell, cpuName, osVersion as osProductVersion, computerName } from './platform.js'
 import { listFacts, addFacts, addFactManual, deleteFact, clearFacts, relevantFacts } from './memory.js'
 import { shouldReflect, reflectionPrompt, parseProposal, addSuggestion } from './skillsmith.js'
@@ -361,7 +363,7 @@ app.use('/api', (req, res, next) => {
 })
 
 // ---------- config ----------
-app.get('/api/config', (req, res) => res.json(publicConfig(config)))
+app.get('/api/config', (req, res) => res.json({ ...publicConfig(config), sharing, sharingText: describeHolder(sharing, LOCK_HOST) }))
 
 app.put('/api/settings', (req, res) => {
   // ⚠️ SPLIT THE SAVE. Anything in MACHINE_KEYS describes this Mac — which model
@@ -775,7 +777,30 @@ app.post('/api/chats/import', (req, res) => {
 // Radiant has no account and no server of ours. "Sync across devices" is
 // therefore a folder question, not an identity question: put the data
 // directory somewhere your other Macs already see.
-app.get('/api/data-dir', (req, res) => res.json(dataDirStatus()))
+// ⚠️ SAY WHEN A SECOND MAC IS ON THIS FOLDER. Settings has always warned that
+// "two copies of Radiant writing to the same folder at once will overwrite each
+// other" — in a hint, inside a collapsed section, which nobody reads before it
+// matters. Nothing detected it, so the first sign was work quietly going
+// missing. This notices, and deliberately does NOT block: refusing to start
+// would lock someone out of their own chats over a lock that a crash or a slow
+// iCloud sync could get wrong, and "you cannot reach your work" is a worse
+// outcome than the race it prevents.
+let sharing = null
+function refreshLock (first) {
+  const r = first ? claimLock(RADIANT_DIR, { host: LOCK_HOST }) : beatLock(RADIANT_DIR, { host: LOCK_HOST })
+  const was = sharing?.host || null
+  sharing = r.contested ? r.holder : null
+  if (sharing && sharing.host !== was) console.log(`[radiant] ${describeHolder(sharing, LOCK_HOST)}`)
+  return sharing
+}
+refreshLock(true)
+const lockBeat = setInterval(() => refreshLock(false), BEAT_MS)
+lockBeat.unref?.()
+for (const sig of ['exit', 'SIGINT', 'SIGTERM']) {
+  process.on(sig, () => { try { releaseLock(RADIANT_DIR, LOCK_HOST) } catch {} ; if (sig !== 'exit') process.exit(0) })
+}
+
+app.get('/api/data-dir', (req, res) => res.json({ ...dataDirStatus(), sharing, sharingText: describeHolder(sharing, LOCK_HOST) }))
 
 // Repair an iCloud folder macOS never adopted. See repairCloudFolder — the old
 // folder is kept, and any doubt rolls the whole thing back.

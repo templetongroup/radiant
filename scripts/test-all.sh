@@ -30,6 +30,7 @@ run "round limits"   node scripts/test-rounds.mjs
 run "caching"        node scripts/test-caching.mjs
 run "chat isolation" node scripts/test-chat-isolation.mjs
 run "session writes" node scripts/test-session-write.mjs
+run "folder lock"    node scripts/test-lock.mjs
 run "tool bounds"    node scripts/test-tool-bounds.mjs
 run "graph rules"    node scripts/test-graph.mjs
 run "the graph runner" node scripts/test-graph-run.mjs
