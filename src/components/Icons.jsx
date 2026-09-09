@@ -38,6 +38,13 @@ export const Icon = {
   clipboard: p => <Svg {...p}><rect x='9' y='2' width='6' height='4' rx='1' /><path d='M15 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2M9 12h6M9 16h4' /></Svg>,
   unlock: p => <Svg {...p}><rect x='4' y='11' width='16' height='10' rx='2' /><path d='M8 11V7a4 4 0 0 1 7.5-2' /></Svg>,
   zap: p => <Svg {...p}><path d='M13 2 4 14h7l-1 8 9-12h-7z' /></Svg>,
+  // ⚠️ DRAWN FOR 13px, WHICH IS THE ONLY SIZE IT IS USED AT. A brain is the
+  // hardest thing in this file to reduce: the real organ is all folds, and every
+  // reference drawing renders them as four or five nested squiggles that turn
+  // into a grey smudge below about 20px. This is two mirrored lobes and the
+  // fissure between them — the one feature that still reads as a brain when it
+  // is 13 pixels tall, and nothing else.
+  brain: p => <Svg {...p}><path d='M12 6a3 3 0 0 0-5.7-1.3A3 3 0 0 0 4.2 9.4a3 3 0 0 0 .5 4.4A3 3 0 0 0 7.6 18.4 3 3 0 0 0 12 19.4' /><path d='M12 6a3 3 0 0 1 5.7-1.3A3 3 0 0 1 19.8 9.4a3 3 0 0 1-.5 4.4 3 3 0 0 1-2.9 4.6A3 3 0 0 1 12 19.4' /><path d='M12 6v13.4' /></Svg>,
   hand: p => <Svg {...p}><path d='M9 11V4.5a1.5 1.5 0 0 1 3 0V11m0-.5V3.5a1.5 1.5 0 0 1 3 0V11m0-.5V5.5a1.5 1.5 0 0 1 3 0V14a7 7 0 0 1-7 7h-1a7 7 0 0 1-7-7v-2a1.5 1.5 0 0 1 3 0' /></Svg>,
   wrench: p => <Svg {...p}><path d='M14.7 6.3a4 4 0 0 0 5 5l-9 9a2.8 2.8 0 0 1-4-4z' /><path d='M14.7 6.3 18 3l3 3-3.3 3.3' /></Svg>,
   // ⚠️ TWO WHOLE PEOPLE, NOT ONE AND A HALF. This was the Lucide "users" shape:

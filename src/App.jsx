@@ -42,8 +42,35 @@ function DesktopApp () {
   const [projects, setProjects] = useState([])
   const [projectsError, setProjectsError] = useState(null)
   const [session, setSession] = useState(null) // full active session {id,...,messages}
-  const [live, setLive] = useState(null) // in-flight assistant message view {parts, thinking, streaming}
-  const [approval, setApproval] = useState(null) // {id, name, args}
+  // ⚠️ ONE LIVE VIEW PER CHAT, NOT ONE FOR THE WHOLE APP. This was a single
+  // object every chat rendered, while `streamingSessionRef` was a single id —
+  // so Radiant could only ever track ONE running turn. Start a second chat and
+  // three things happened at once: the first chat's events were dropped at the
+  // guard below and it appeared to stop dead for no reason; the second chat's
+  // thinking and output were painted into whichever chat was on screen; and the
+  // first turn never got its completion handling. Tony, with two chats going:
+  // "the readaloud extention chat just stopped for no reason", then "content
+  // about the radiant last30days chat is leaking into the readaloud chat".
+  // The turns themselves were always fine — the server keeps streaming and
+  // saves the transcript. It was only ever the view that was single-tenant.
+  const [liveMap, setLiveMap] = useState({})   // sessionId -> {parts, thinking, streaming}
+  const setLiveFor = (id, next) => setLiveMap(m => {
+    const cur = m[id] || null
+    const val = typeof next === 'function' ? next(cur) : next
+    if (val === cur) return m
+    if (val == null) { if (!(id in m)) return m; const { [id]: _drop, ...rest } = m; return rest }
+    return { ...m, [id]: val }
+  })
+  // ⚠️ KEYED BY CHAT, for the same reason as liveMap. A single `approval` meant a
+  // background turn could put its command-approval prompt in front of you while
+  // you were reading a different chat — and pressing Approve there ran THAT
+  // chat's command. Of everything the single-tenant view leaked, this was the
+  // one that could act on your machine rather than merely confuse.
+  const [approvalMap, setApprovalMap] = useState({})
+  const setApprovalFor = (id, v) => setApprovalMap(m => {
+    if (v == null) { if (!(id in m)) return m; const { [id]: _d, ...rest } = m; return rest }
+    return { ...m, [id]: v }
+  })
   const [groupPickerOpen, setGroupPickerOpen] = useState(false)
   const [skillSuggestion, setSkillSuggestion] = useState(null) // {id, name, description, rationale} — a drafted skill awaiting review
   const [activity, setActivity] = useState([]) // tool feed for right panel
@@ -83,9 +110,18 @@ function DesktopApp () {
   // the live one, then send.
   const [pendingPrompt, setPendingPrompt] = useState(null) // { sessionId, text, taskId }
   const [todos, setTodos] = useState([]) // agent checklist for the active session
-  const [question, setQuestion] = useState(null) // { id, question, options } when the agent asks
+  const [questionMap, setQuestionMap] = useState({})
+  const setQuestionFor = (id, v) => setQuestionMap(m => {
+    if (v == null) { if (!(id in m)) return m; const { [id]: _d, ...rest } = m; return rest }
+    return { ...m, [id]: v }
+  })
+  // Only the chat you are looking at renders its own stream.
+  const live = session ? (liveMap[session.id] || null) : null
+  const approval = session ? (approvalMap[session.id] || null) : null
+  const question = session ? (questionMap[session.id] || null) : null
+
   const [stats, setStats] = useState(null) // cumulative session stats
-  const streamingSessionRef = useRef(null)
+  const streamingRef = useRef(new Set())   // every session with a turn in flight
 
   const refreshSessions = useCallback(() => api.listSessions().then(setSessions).catch(() => {}), [])
   // ⚠️ DO NOT SWALLOW THIS. It was `.catch(() => {})`, so when the Radiant you
@@ -195,9 +231,7 @@ function DesktopApp () {
     setSession(s)
     setTodos(s.todos || [])
     setStats(s.stats || null)
-    setQuestion(null)
     setError(null)
-    if (streamingSessionRef.current !== id) { setLive(null); setApproval(null) }
   }
 
   // ⚠️ TAKES EITHER SHAPE. Every existing caller passes a bare agentId string;
@@ -229,10 +263,7 @@ function DesktopApp () {
     const s = await api.createSession(body)
     setSession(s)
     setTodos([])
-    setQuestion(null)
     setStats(null)
-    setLive(null)
-    setApproval(null)
     setError(null)
     refreshSessions()
     // Returned so a caller can send straight into it — the Graph view opens a
@@ -260,7 +291,7 @@ function DesktopApp () {
       if (best) { body.provider = best.provider; body.model = best.id }
     }
     const s = await api.createSession(body)
-    setSession(s); setTodos([]); setQuestion(null); setStats(null); setLive(null); setApproval(null); setError(null); setNavOpen(false)
+    setSession(s); setTodos([]); setStats(null); setError(null); setNavOpen(false)
     refreshSessions()
   }
 
@@ -279,8 +310,8 @@ function DesktopApp () {
   const truncateSession = async index => {
     if (!session) return
     const s = await api.truncateSession(session.id, index)
-    setSession(s); setLive(null); setApproval(null); setStats(s.stats || null); setTodos(s.todos || []); setError(null)
-    streamingSessionRef.current = null
+    setSession(s); setLiveFor(s.id, null); setApprovalFor(s.id, null); setStats(s.stats || null); setTodos(s.todos || []); setError(null)
+    streamingRef.current.delete(session.id)
     refreshSessions()
     return s
   }
@@ -467,10 +498,10 @@ function DesktopApp () {
     setError(null)
     setUsage(null)
     const sessionId = target.id
-    streamingSessionRef.current = sessionId
+    streamingRef.current.add(sessionId)
     setSession(prev => ({ ...prev, messages: [...prev.messages, { role: 'user', text, attachments }] }))
     const liveMsg = { parts: [], thinking: '', thinkingActive: false, thinkingSecs: 0, streaming: true, startedAt: Date.now(), lastEventAt: Date.now() }
-    setLive({ ...liveMsg })
+    setLiveFor(sessionId, { ...liveMsg })
 
     // ⚠️ A STREAM CAN END WITHOUT ENDING THE TURN. The server aborts the turn when
     // the response closes and then deliberately emits NO error — correct, because
@@ -501,7 +532,7 @@ function DesktopApp () {
         // after the guard meant switching chats mid-turn made every turn look like
         // a dropped connection.
         if (ev.type === 'done' || ev.type === 'closed') sawEnd = true
-        if (streamingSessionRef.current !== sessionId) return
+        if (!streamingRef.current.has(sessionId)) return
         // ⚠️ EVERY EVENT IS STAMPED so the status strip can tell "thinking" from
         // "stuck". Without it the only honest thing it could say was "working",
         // with equal confidence whether or not anything was still happening.
@@ -529,22 +560,22 @@ function DesktopApp () {
             const t = liveMsg.parts.find(p => p.type === 'tool' && p.id === ev.id)
             if (t) { t.result = ev.result; t.pending = false; t.denied = ev.denied }
             setActivity(a => a.map(x => x.id === ev.id ? { ...x, result: ev.result, denied: ev.denied } : x))
-            setApproval(null)
+            setApprovalFor(sessionId, null)
             break
           }
           // ⚠️ THESE TWO STOP THE TURN DEAD UNTIL YOU ANSWER. A turn waiting on an
           // approval looks exactly like a turn still working, from anywhere but
           // this window, and it will wait forever.
           case 'approval_request':
-            setApproval({ id: ev.id, name: ev.name, args: ev.args })
+            setApprovalFor(sessionId, { id: ev.id, name: ev.name, args: ev.args })
             notifyAway({ sessionId, title: chatTitle, body: `Waiting for you: approve ${ev.name}?` })
             break
           case 'question_request':
-            setQuestion({ id: ev.id, question: ev.question, options: ev.options || [] })
+            setQuestionFor(sessionId, { id: ev.id, question: ev.question, options: ev.options || [] })
             notifyAway({ sessionId, title: chatTitle, body: ev.question || 'Waiting for your answer.' })
             break
           case 'plan_mode': setSession(s => (s && s.id === sessionId ? { ...s, planMode: ev.on } : s)); break
-          case 'stats': setStats(ev.stats); break
+          case 'stats': if (openSessionRef.current === sessionId) setStats(ev.stats); break
           case 'agent_turn': {
             // group chat: finalize the previous speaker's message, start the next
             endThinking()
@@ -556,7 +587,7 @@ function DesktopApp () {
             liveMsg.agentId = ev.agentId
             break
           }
-          case 'usage': setUsage(u => ({ input: ev.input ?? u?.input, output: ev.output ?? u?.output })); break
+          case 'usage': if (openSessionRef.current === sessionId) setUsage(u => ({ input: ev.input ?? u?.input, output: ev.output ?? u?.output })); break
           case 'notice': liveMsg.parts.push({ type: 'notice', text: ev.text }); break
           // The turn ended before the work did. Not a notice — notices are
           // asides, and this is the headline.
@@ -568,7 +599,7 @@ function DesktopApp () {
             sawEnd = true
             liveMsg.parts.push({ type: 'notice', text: 'Stopped.' })
             break
-          case 'todos': setTodos(ev.todos || []); break
+          case 'todos': if (openSessionRef.current === sessionId) setTodos(ev.todos || []); break
           // Also the name a notification about this chat goes out under — the
           // first turn names the chat, and "New session" tells you nothing.
           case 'title': chatTitle = ev.title || chatTitle; setSession(s => (s && s.id === sessionId ? { ...s, title: ev.title } : s)); refreshSessions(); break
@@ -577,20 +608,20 @@ function DesktopApp () {
             api.getConfig().then(setConfig).catch(() => {})
             break
           case 'error':
-            setError(ev.message)
+            if (openSessionRef.current === sessionId) setError(ev.message)
             notifyAway({ sessionId, title: chatTitle, body: `That turn failed: ${ev.message}` })
             break
           default: break
         }
-        setLive({ ...liveMsg, parts: [...liveMsg.parts] })
+        setLiveFor(sessionId, { ...liveMsg, parts: [...liveMsg.parts] })
       }, skillIds)
     } catch (e) {
       setError(e.message)
     }
 
-    if (streamingSessionRef.current === sessionId) {
-      streamingSessionRef.current = null
-      setApproval(null)
+    if (streamingRef.current.has(sessionId)) {
+      streamingRef.current.delete(sessionId)
+      setApprovalFor(sessionId, null)
       // Only in the chat it happened in — an error banner about a turn you have
       // already navigated away from belongs to a conversation you are not reading.
       if (!sawEnd && openSessionRef.current === sessionId) setError(prev => prev || 'The connection to that turn dropped before it finished. Anything the agent had already done is saved; ask again to carry on.')
@@ -599,7 +630,7 @@ function DesktopApp () {
       // now that was silent either way. The tag is the session, so this replaces
       // any approval prompt still sitting in Notification Center for this chat.
       notifyAway({ sessionId, title: chatTitle, body: turnBody({ sawEnd, parts: liveMsg.parts }) })
-      setLive(null)
+      setLiveFor(sessionId, null)
       try {
         const fresh = await api.getSession(sessionId)
         setSession(prev => (prev && prev.id === sessionId ? fresh : prev))
@@ -618,7 +649,7 @@ function DesktopApp () {
   // read as broken. Tony: "the stop button does not seem to be doing anything."
   const stop = () => {
     if (!session) return
-    setLive(l => (l ? { ...l, stopping: true } : l))
+    setLiveFor(session.id, l => (l ? { ...l, stopping: true } : l))
     api.abort(session.id).catch(e => setError(e.message))
   }
 
@@ -635,7 +666,9 @@ function DesktopApp () {
     return () => window.removeEventListener('keydown', onKey)
   })
   const answerApproval = async (id, approved) => {
-    setApproval(null)
+    // The prompt you answered is the one in the chat you are looking at — which
+    // is now the only chat that could have shown it to you.
+    if (session) setApprovalFor(session.id, null)
     await api.approve(id, approved)
   }
 
@@ -771,10 +804,12 @@ function DesktopApp () {
         onToggleComputer={() => patchSession({ computerControl: !session.computerControl })}
         onTogglePlan={() => patchSession({ planMode: !session.planMode })}
         onSetEffort={v => patchSession({ effort: v })}
+        showThinking={config.settings.showThinking !== false}
+        onToggleThinking={() => saveSettings({ showThinking: config.settings.showThinking === false })}
         approvalMode={config.settings.approvalMode || 'ask'}
         onCycleApproval={() => { const order = ['ask', 'auto', 'off']; const cur = config.settings.approvalMode || 'ask'; saveSettings({ approvalMode: order[(order.indexOf(cur) + 1) % 3] }) }}
         question={question}
-        onAnswer={answer => { if (question) { api.answerQuestion(question.id, answer).catch(() => {}); setQuestion(null) } }}
+        onAnswer={answer => { if (question) { api.answerQuestion(question.id, answer).catch(() => {}); setQuestionFor(session.id, null) } }}
         onSetCwd={cwd => patchSession({ cwd })}
         onNew={newSession}
         projects={projects}

@@ -401,7 +401,7 @@ function WorkingBadge ({ parts, thinkingActive, startedAt, lastEventAt }) {
   )
 }
 
-function AssistantMessage ({ parts, thinking, thinkingActive, thinkingSecs, streaming, model, agent, local, onChoose, onContinue, startedAt, lastEventAt }) {
+function AssistantMessage ({ parts, thinking, thinkingActive, thinkingSecs, streaming, model, agent, local, onChoose, onContinue, startedAt, lastEventAt, showThinking = true }) {
   const waiting = streaming && !parts.length && !thinking
   // A local model that isn't resident cold-loads its weights before the first token.
   // Reveal the note only after a beat, so a warm model (fast first token) never shows it.
@@ -420,7 +420,7 @@ function AssistantMessage ({ parts, thinking, thinkingActive, thinkingSecs, stre
         {model && <span className='who-model'>{model}</span>}
         {streaming && <WorkingBadge parts={parts} thinkingActive={thinkingActive} startedAt={startedAt} lastEventAt={lastEventAt} />}
       </div>
-      {thinking ? <ThinkingTrace thinking={thinking} active={Boolean(thinkingActive)} seconds={thinkingSecs} /> : null}
+      {thinking && showThinking ? <ThinkingTrace thinking={thinking} active={Boolean(thinkingActive)} seconds={thinkingSecs} /> : null}
       {(() => {
         // Walk the parts, gathering consecutive tool chips so a run of them can
         // be shown as one line. Anything that is not a chip — a sentence, a
@@ -898,7 +898,7 @@ export function GroupPicker ({ agents, onStart, onCancel }) {
   )
 }
 
-export default function Chat ({ session, live, todos = [], stats, approval, question, onAnswer, usage, error, models, agents = [], recipes = [], onSend, onStop, onApproval, onPickModel, onToggleTools, onToggleComputer, onTogglePlan, onSetCwd, onNew, onNewGroup, onTruncate, onRefreshModels, skillSuggestion, onReviewSkill, onDismissSuggestion, onOpenLibrary, rightOpen, onToggleRight, onMenu, approvalMode = 'ask', onCycleApproval, onFork, skills = [], onAddSkill, onRemoveSkill, serverHost, platform, onSetEffort }) {
+export default function Chat ({ session, live, todos = [], stats, approval, question, onAnswer, usage, error, models, agents = [], recipes = [], onSend, onStop, onApproval, onPickModel, onToggleTools, onToggleComputer, onTogglePlan, onSetCwd, onNew, onNewGroup, onTruncate, onRefreshModels, skillSuggestion, onReviewSkill, onDismissSuggestion, onOpenLibrary, rightOpen, onToggleRight, onMenu, approvalMode = 'ask', onCycleApproval, onFork, skills = [], onAddSkill, onRemoveSkill, serverHost, platform, onSetEffort, showThinking = true, onToggleThinking }) {
   // ⚠️ TOOLS RUN ON THE SERVER'S MAC. Computer control is the one where that is
   // dangerous rather than merely surprising: the mouse that moves, the keys that
   // get typed and the screen that is captured all belong to the machine running
@@ -1309,7 +1309,7 @@ export default function Chat ({ session, live, todos = [], stats, approval, ques
                     This turn ended without a reply. The model returned nothing — ask again, or try another model.
                   </div>
                 )
-                : <AssistantMessage key={i} parts={m.parts || []} model={m.model} agent={m.agentId ? agents.find(a => a.id === m.agentId) || sessionAgent : sessionAgent} onChoose={onWidgetChoice} onContinue={continueTurn} />
+                : <AssistantMessage key={i} parts={m.parts || []} model={m.model} agent={m.agentId ? agents.find(a => a.id === m.agentId) || sessionAgent : sessionAgent} onChoose={onWidgetChoice} onContinue={continueTurn} showThinking={showThinking} />
           )}
           {live && (
             <AssistantMessage
@@ -1319,6 +1319,7 @@ export default function Chat ({ session, live, todos = [], stats, approval, ques
               local={['ollama', 'lmstudio'].includes(session.provider)}
               parts={live.parts}
               thinking={live.thinking}
+              showThinking={showThinking}
               thinkingActive={live.thinkingActive}
               thinkingSecs={live.thinkingSecs}
               streaming={live.streaming}
@@ -1517,6 +1518,18 @@ export default function Chat ({ session, live, todos = [], stats, approval, ques
                 data-tip={'Plan mode: the agent researches and proposes a\nplan for your approval before changing anything.\nClick to turn ' + (session.planMode ? 'off' : 'on') + '.'}
               >
                 <Icon.clipboard size={13} /> plan {session.planMode ? 'on' : 'off'}
+              </button>
+              {/* ⚠️ THIS HIDES THE REASONING, IT DOES NOT STOP IT. The model still
+                  thinks and you are still billed for it — the thinking LEVEL is the
+                  slider in the model picker, and they are different controls that
+                  would be easy to confuse. The tip says so rather than leaving
+                  someone to infer a saving that is not there. */}
+              <button
+                className={'pill-toggle' + (showThinking ? ' on' : '')}
+                onClick={onToggleThinking}
+                data-tip={'Thinking: show the model\u2019s reasoning as it works.\nThis only hides it \u2014 the model still thinks, and you\nare still billed for it. Set how hard it thinks in\nthe model picker.\nClick to turn ' + (showThinking ? 'off' : 'on') + '.'}
+              >
+                <Icon.brain size={13} /> thinking {showThinking ? 'on' : 'off'}
               </button>
                 
               <button

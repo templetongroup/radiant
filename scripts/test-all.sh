@@ -28,6 +28,7 @@ run "the loop runner" node scripts/test-loop-run.mjs
 run "stop"           node scripts/test-stop.mjs
 run "round limits"   node scripts/test-rounds.mjs
 run "caching"        node scripts/test-caching.mjs
+run "chat isolation" node scripts/test-chat-isolation.mjs
 run "tool bounds"    node scripts/test-tool-bounds.mjs
 run "graph rules"    node scripts/test-graph.mjs
 run "the graph runner" node scripts/test-graph-run.mjs
