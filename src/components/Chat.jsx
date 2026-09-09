@@ -1529,7 +1529,7 @@ export default function Chat ({ session, live, todos = [], stats, approval, ques
                 onClick={onToggleThinking}
                 data-tip={'Thinking: show the model\u2019s reasoning as it works.\nThis only hides it \u2014 the model still thinks, and you\nare still billed for it. Set how hard it thinks in\nthe model picker.\nClick to turn ' + (showThinking ? 'off' : 'on') + '.'}
               >
-                <Icon.brain size={13} /> thinking {showThinking ? 'on' : 'off'}
+                <Icon.bulb size={13} /> thinking {showThinking ? 'on' : 'off'}
               </button>
                 
               <button
