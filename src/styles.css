@@ -3295,3 +3295,11 @@ html[data-window-chrome='native'] .brand { padding-top: 12px; }
   color: var(--text); background: var(--warn-bg, rgba(220, 160, 40, 0.14));
   border-bottom: 1px solid var(--line, rgba(128, 128, 128, 0.25));
 }
+
+/* Pairing a phone: the link, and the code you point a camera at. */
+.phone-pair { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line, rgba(128,128,128,.22)); }
+.phone-pair-code { display: flex; gap: 16px; align-items: flex-start; margin-top: 12px; }
+/* ⚠️ ALWAYS ON WHITE, NEVER THEMED. A camera reads a QR by contrast, and a dark
+   accent on a dark ground is a code that simply will not scan — so this one
+   element ignores the theme on purpose. */
+.qr { border-radius: 6px; background: #fff; padding: 6px; flex: none; }

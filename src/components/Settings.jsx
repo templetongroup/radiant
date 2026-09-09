@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
+import qrcode from 'qrcode-generator'
 import { verdict, FIT_LABEL, FITS_WELL, FITS_TIGHT, FITS_NO, COMFORTABLE } from '../fit.js'
-import { api, startDownload, getDownloads, cancelDownload, streamQuantize, getServer, setServer, testServer, saveToFile, deviceNoun } from '../api.js'
+import { api, startDownload, getDownloads, cancelDownload, streamQuantize, getServer, setServer, testServer, saveToFile, deviceNoun, phoneLink } from '../api.js'
 import { THEMES, MODES, FONTS, UI_SCALES, applyTheme, hexToOklch, accentHex, glyphColor } from '../theme.js'
 import { paletteWarnings, deriveAccent } from '../palette.js'
 import { MOTIONS } from './MotionBackground.jsx'
@@ -2386,10 +2387,50 @@ function BrowserBridgeBlock () {
   )
 }
 
+/**
+ * The pairing link, as a picture.
+ *
+ * ⚠️ THIS IMAGE IS THE CREDENTIAL. The link it encodes carries the access token,
+ * and the server sets a cookie good for a year — so a photograph of this square
+ * is a lasting key to every chat, model and agent on this Mac. It is hidden by
+ * default for exactly the reason the token beside it is: someone walking past a
+ * screen should not be able to take it, and a screen-share should not give it
+ * away.
+ *
+ * Drawn as SVG rather than a canvas so it stays sharp for a camera held at an
+ * angle, and so scaling it needs no second code path.
+ */
+
+function QrCode ({ text, size = 168 }) {
+  const box = React.useMemo(() => {
+    // Type 0 picks the smallest version that fits. 'M' tolerates about 15%
+    // damage, the usual choice for a screen: forgiving of a badly held camera,
+    // while keeping the modules large enough to read.
+    const qr = qrcode(0, 'M')
+    qr.addData(text)
+    qr.make()
+    const n = qr.getModuleCount()
+    const cells = []
+    for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (qr.isDark(r, c)) cells.push(`M${c} ${r}h1v1h-1z`)
+    // A quiet zone of 2 modules. The spec asks 4; the card's own border supplies
+    // the rest, and 4 would spend a third of the width on emptiness at this size.
+    return { d: cells.join(''), span: n + 4 }
+  }, [text])
+  return (
+    <svg className='qr' width={size} height={size} viewBox={`-2 -2 ${box.span} ${box.span}`}
+      role='img' aria-label='Pairing code for your phone'>
+      <rect x='-2' y='-2' width={box.span} height={box.span} fill='#fff' />
+      <path d={box.d} fill='#000' shapeRendering='crispEdges' />
+    </svg>
+  )
+}
+
 function DevicesPane () {
   const [share, setShare] = useState(null)
   // The token is a credential; it starts hidden. See the note beside it.
   const [showToken, setShowToken] = useState(false)
+  // The QR is the same secret as the token, so it defaults to hidden too.
+  const [showQr, setShowQr] = useState(false)
   const server = getServer()
   const [base, setBase] = useState(server.base || '')
   const [token, setToken] = useState(server.token || '')
@@ -2592,6 +2633,53 @@ function DevicesPane () {
                           </div>
                         </div>
                         <div className='hint' style={{ marginTop: 8 }}>{best.where}</div>
+
+                        {/* ⚠️ THE PHONE NEEDS ONE LINK, NOT AN ADDRESS AND A TOKEN.
+                            The server has always accepted `?token=…`: it signs the
+                            device in, sets a cookie, and redirects with the token
+                            stripped so it never lands in history or a bookmark. The
+                            comment at that route describes "Copy phone link → open →
+                            Add to Home Screen" as the whole setup — and the link it
+                            describes was never rendered anywhere, so nobody could
+                            follow it. This is that link, and a code to point a camera
+                            at instead of typing it.
+
+                            ⚠️ AND IT IS HIDDEN UNTIL ASKED FOR, because the picture IS
+                            the credential — the cookie lasts a year, so a photograph
+                            of it is a lasting key. Same reason the token above starts
+                            as dots. */}
+                        <div className='phone-pair'>
+                          <div className='row' style={{ justifyContent: 'space-between' }}>
+                            <b>Your phone</b>
+                            <button className='small-btn' onClick={() => setShowQr(v => !v)}>
+                              {showQr ? 'Hide code' : 'Show code'}
+                            </button>
+                          </div>
+                          <p className='hint' style={{ marginTop: 6 }}>
+                            One link signs your phone in — no address or token to type. Open it,
+                            then use Share &rarr; <b>Add to Home Screen</b> and Radiant behaves like an app.
+                            Your chats are this Mac&rsquo;s chats, so anything you start here you can
+                            carry on there.
+                          </p>
+                          {showQr && (
+                            <div className='phone-pair-code'>
+                              <QrCode text={phoneLink(best.url, share.token)} />
+                              <div>
+                                <ConfirmButton className='small-btn' doneLabel='Copied'
+                                  onClick={() => copy(phoneLink(best.url, share.token))}>Copy phone link</ConfirmButton>
+                                <div className='hint' style={{ marginTop: 8, lineHeight: 1.5 }}>
+                                  Point your phone&rsquo;s camera at this. It is a key, not just an
+                                  address — anyone who photographs it gets in, so do not put it on a
+                                  slide or a screen-share.
+                                  {anywhere
+                                    ? ' It works anywhere your phone can reach Tailscale.'
+                                    : ' It only works while your phone is on this same network.'}
+                                  {' '}This Mac has to be awake with Radiant running.
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
                         {!anywhere && (
                           <div className='hint' style={{ marginTop: 10, lineHeight: 1.5 }}>
                             <b>To reach this Mac from somewhere else, both Macs need Tailscale</b> — a free
@@ -2660,6 +2748,7 @@ const GUIDE = [
   {
     title: 'Chat & agents',
     items: [
+      ['Put Radiant on your phone by pointing the camera at a code', 'Radiant\u2019s server has always accepted a link that signs a device in \u2014 open it once on your phone and you are connected, with the secret part stripped out of the address afterwards so it never lands in your history or a bookmark. The only thing missing was somewhere to get that link, so nobody could use it.\n\nSettings \u2192 Devices, with sharing turned on, now shows the link and a code to point your phone\u2019s camera at. Open it, then Share \u2192 Add to Home Screen, and Radiant behaves like an app.\n\nThe chats are this Mac\u2019s chats. Anything you start at your desk you can carry on from the sofa, because it is the same conversation on the same machine rather than a copy that has to be kept in step.\n\nTwo honest limits, both said on screen. The code is a key, not just an address \u2014 anyone who photographs it gets in, so it stays hidden until you ask for it, and it does not belong on a slide or a screen-share. And this Mac has to be awake with Radiant running, because your phone is looking at it, not replacing it. If you have Tailscale the link works from anywhere; without it, only while your phone is on the same network.'],
       ['Show the model\u2019s thinking, or don\u2019t', 'Models that reason out loud were showing you that reasoning whether you wanted it or not \u2014 the trace opened itself while the model was working and only collapsed once it had finished, which is backwards if you just want the answer. There is a brain button in the row under the message box now: thinking on, thinking off.\n\nOne thing it is honest about, in the tooltip as well as here: this only hides the reasoning. The model still thinks, and you are still billed for it. How hard it thinks is a different control \u2014 the effort setting in the model picker \u2014 and it would be easy to assume this one saved you money. It does not.\n\nThe setting is remembered, so it is not something to set again in every new chat.'],
       ['Radiant tells you when it is open twice on the same folder', 'If you keep Radiant\u2019s folder in iCloud so your chats follow you between Macs, only one Mac should be running Radiant at a time. Two copies writing to the same folder overwrite each other \u2014 that has always been true, and it was said only in a hint inside a collapsed section of Settings, which is not where you look before it matters. Nothing detected it, so the first sign was work quietly going missing.\n\nRadiant now notices, and says so in a line across the top of the window, naming the machine: \u201cRadiant is also open on Tony\u2019s MacBook Air, using this same folder.\u201d It disappears on its own when that copy quits.\n\nIt does not stop you. Being refused entry to your own chats \u2014 because of a crash, or a slow sync, or a clock being off \u2014 is a worse outcome than the risk it would be protecting you from. It tells you the truth and leaves the decision with you. If you do want both Macs at once, the supported way is to run Radiant on one and reach it from the other over your network, in Settings \u2192 Devices.'],
       ['A chat could go blank for a moment while it was being saved', 'Saving a chat emptied its file and then refilled it. That takes a moment on a big conversation \u2014 the largest here is over five megabytes \u2014 and anything reading during that moment got half a file, which Radiant could only read as \u201cno messages\u201d. So the conversation went blank and then came back a second later. Nothing was ever damaged; you were seeing the file mid-write.\n\nIt is measurable rather than theoretical: with a reader running alongside, 828 of 834 reads of a 4.6 MB chat came back empty. Now zero do. The chat is written to a new file which then replaces the old one in a single step, so a reader gets the old version or the new one and never half of either \u2014 which is how every other kind of data in Radiant was already saved. Chats, the biggest and most often written, were the one exception.\n\nIf you keep Radiant\u2019s folder in iCloud this was much more likely, because iCloud is reading the file to upload it at the same time.'],

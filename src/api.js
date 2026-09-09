@@ -548,3 +548,17 @@ export function deviceNoun (platform) {
   if (platform && platform !== 'darwin') return 'computer'
   return 'Mac'
 }
+
+/**
+ * The one link that signs a phone in.
+ *
+ * ⚠️ THE ADDRESS ARRIVES IN TWO SHAPES. The Tailscale one is already a full
+ * https:// URL; the Wi-Fi one is a bare host:port, because the Mac-to-Mac field
+ * above wants it that way. Assuming either shape produces a link that looks
+ * right and does not resolve — https://192.168.1.4:5834 fails on a certificate
+ * that was never issued, and a scheme-less tailscale name is not a URL at all.
+ */
+export function phoneLink (address, token) {
+  const base = /^https?:\/\//i.test(address) ? address : `http://${address}`
+  return `${base.replace(/\/$/, '')}/?token=${encodeURIComponent(token)}`
+}
