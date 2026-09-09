@@ -998,10 +998,26 @@ export function loadSession (id) {
   } catch { return null }
 }
 
+// ⚠️ WRITE THEN RENAME, LIKE EVERY OTHER STORE IN THIS FILE. This was the ONE
+// saver still calling fs.writeFileSync directly — config, projects, tasks,
+// loops, graphs, agents, skills and recipes all go through writeJsonAtomic, and
+// sessions, the largest and most frequently written files of the lot, did not.
+//
+// writeFileSync truncates the file to zero and refills it, so for the whole of
+// that window a reader gets a partial document. Sessions here run to 5 MB, the
+// window is real, and loadSession answers a parse failure with a silent `null` —
+// so the chat renders as empty and then, on the next read, comes back. Tony:
+// "a lot of context in the chat disappeared and then came back."
+//
+// A shared folder makes it far likelier rather than causing it: iCloud reads the
+// file to upload it, and a second Mac reads it to draw the same chat, so there
+// are more readers hitting that window. memory.js records this exact lesson for
+// a file two orders of magnitude smaller. rename is atomic; a reader sees the
+// old file or the new one and never half of either.
 export function saveSession (session) {
   ensureDirs()
   session.updatedAt = new Date().toISOString()
-  fs.writeFileSync(path.join(SESSIONS_DIR, session.id + '.json'), JSON.stringify(session, null, 2))
+  writeJsonAtomic(path.join(SESSIONS_DIR, session.id + '.json'), session)
 }
 
 // ---- tasks ----
