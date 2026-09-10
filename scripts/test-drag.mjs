@@ -206,14 +206,26 @@ for (const tab of TABS) {
     const centres = kids.map(mid)
     const rows = centres.filter((y, i) => centres.findIndex(z => Math.abs(z - y) < 6) === i)
     const name = tools.querySelector('.model-name')
-    return { rows: rows.length, ellipsized: name ? name.scrollWidth > name.clientWidth + 1 : false }
+    // ⚠️ SQUEEZE IT UNTIL SOMETHING HAS TO GIVE, or this proves nothing. Once the
+    // toggles became icon-only there was room for the whole model id at this
+    // width, so an assertion that the name ellipsizes passed or failed on the
+    // window size rather than on the rule being tested. Narrow the row until one
+    // of them MUST yield, then check it is the right one.
+    const chipW = [...tools.querySelectorAll('.pill-toggle')].map(c => Math.round(c.getBoundingClientRect().width))
+    tools.style.maxWidth = '360px'
+    const after = [...tools.querySelectorAll('.pill-toggle')].map(c => Math.round(c.getBoundingClientRect().width))
+    const squeezed = name ? name.scrollWidth > name.clientWidth + 1 : false
+    tools.style.maxWidth = ''
+    return { rows: rows.length, squeezed, chipsHeld: JSON.stringify(chipW) === JSON.stringify(after) }
   })
   if (row.skip) ok('the composer is there to check', false)
   else {
     ok(`the composer controls stay on one line with a long model name (got ${row.rows} rows)`, row.rows === 1)
     // The picker is the only item whose width is not known in advance, so it is
-    // the one that must give.
-    ok('and it is the model name that gives, by ellipsizing', row.ellipsized)
+    // the one that must give — and the fixed chips must not move, because a
+    // control that shifts when you use it is one you have to hunt for.
+    ok('and when the row is squeezed it is the model name that gives', row.squeezed)
+    ok('...while the toggles keep their width', row.chipsHeld)
   }
 }
 

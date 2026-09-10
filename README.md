@@ -34,6 +34,36 @@
   that hits a decision stops there instead of guessing.</em>
 </p>
 
+<p align="center">
+  <img src="docs/screenshots/loop.png" alt="Radiant's loop editor: a goal, and three steps each carrying the check it has to pass before the loop moves on" width="900">
+</p>
+
+<p align="center">
+  <em>A loop is a run of steps that checks its own work. Each step carries a
+  condition — a shell command that has to exit 0, or a sentence another agent
+  judges — and a step that fails goes round again carrying the reason.</em>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/graph.png" alt="Radiant's graph editor: six steps, with checkboxes marking which steps read which, and a header reading four stages with three steps running together" width="900">
+</p>
+
+<p align="center">
+  <em>A graph is several jobs and only the waits that are real. You tick what a
+  step actually reads; everything left unticked runs at the same time. Here that
+  is four stages, three of them running together.</em>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/models.png" alt="Radiant's Settings, showing the machine's memory and cores and a searchable list of downloadable models, each labelled Runs well, Runs tight or Won't run" width="900">
+</p>
+
+<p align="center">
+  <em>Local models are measured against the machine you are on, not a spec sheet
+  — every one is labelled Runs well, Runs tight or Won't run before you spend the
+  download.</em>
+</p>
+
 ## Features
 
 - **Agent chat** with streaming responses and visible model thinking

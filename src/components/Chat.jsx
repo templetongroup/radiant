@@ -1479,7 +1479,7 @@ export default function Chat ({ session, live, todos = [], stats, approval, ques
                   title={dictating ? 'Stop dictating' : 'Dictate'}
                   aria-pressed={dictating}
                   data-tip={dictating ? 'Stop dictating' : `Dictate — transcribed on this ${deviceNoun(platform)}`}
-                ><Icon.mic size={15} />{dictating ? 'Listening' : 'Dictate'}</button>)}
+                ><Icon.mic size={15} /><span className='pill-label'>{dictating ? 'Listening' : 'Dictate'}</span></button>)}
               <button className='attach-btn' onClick={() => fileInputRef.current?.click()} title='Attach files or images' data-tip='Attach files or images'><Icon.plus size={17} /></button>
               <button className={'attach-btn' + (designBusy ? ' is-capturing' : '')} onClick={startDesign} disabled={designBusy} title='Design Mode' data-tip={'Design Mode — open a web page and click\nan element to capture its HTML, CSS &\na screenshot as context'}><Icon.target size={16} /></button>
               {activeSkillIds.length > 0 && activeSkillIds.map(id => {
@@ -1502,22 +1502,24 @@ export default function Chat ({ session, live, todos = [], stats, approval, ques
                 data-tip={'Agent tools: read/write files and run\ncommands in the workspace folder.\nClick to turn ' + (toolsOn ? 'off' : 'on') + '.'}
               >
                 <Icon.wrench size={13} />
-                tools {toolsOn ? 'on' : 'off'}
+                <span className='pill-label'>tools {toolsOn ? 'on' : 'off'}</span>
               </button>
               <button
                 className={'pill-toggle' + (session.computerControl ? ' on' : '')}
                 onClick={onToggleComputer}
                 data-tip={'Computer control: the model drives the browser\nand desktop of ' + (onAnotherMac ? serverHost : `this ${deviceNoun(platform)}`) + '.\nNeeds a vision model + the desktop permissions\nin Settings \u2192 Automation.\nClick to turn ' + (session.computerControl ? 'off' : 'on')}
               >
-                <Icon.monitor size={13} /> computer {session.computerControl ? 'on' : 'off'}
-                  {onAnotherMac && session.computerControl && <span className='pill-where'> · {serverHost}</span>}
+                <Icon.monitor size={13} />
+                <span className='pill-label'>computer {session.computerControl ? 'on' : 'off'}
+                  {onAnotherMac && session.computerControl && ` · ${serverHost}`}</span>
               </button>
               <button
                 className={'pill-toggle' + (session.planMode ? ' on' : '')}
                 onClick={onTogglePlan}
                 data-tip={'Plan mode: the agent researches and proposes a\nplan for your approval before changing anything.\nClick to turn ' + (session.planMode ? 'off' : 'on') + '.'}
               >
-                <Icon.clipboard size={13} /> plan {session.planMode ? 'on' : 'off'}
+                <Icon.clipboard size={13} />
+                <span className='pill-label'>plan {session.planMode ? 'on' : 'off'}</span>
               </button>
               {/* ⚠️ THIS HIDES THE REASONING, IT DOES NOT STOP IT. The model still
                   thinks and you are still billed for it — the thinking LEVEL is the
@@ -1529,7 +1531,8 @@ export default function Chat ({ session, live, todos = [], stats, approval, ques
                 onClick={onToggleThinking}
                 data-tip={'Thinking: show the model\u2019s reasoning as it works.\nThis only hides it \u2014 the model still thinks, and you\nare still billed for it. Set how hard it thinks in\nthe model picker.\nClick to turn ' + (showThinking ? 'off' : 'on') + '.'}
               >
-                <Icon.bulb size={13} /> thinking {showThinking ? 'on' : 'off'}
+                <Icon.bulb size={13} />
+                <span className='pill-label'>thinking {showThinking ? 'on' : 'off'}</span>
               </button>
                 
               <button
@@ -1537,7 +1540,8 @@ export default function Chat ({ session, live, todos = [], stats, approval, ques
                 onClick={onCycleApproval}
                 data-tip={'Permissions — what the agent may do without asking:\n• Ask each: confirm every command (safest)\n• Auto: run low-risk commands, ask for risky ones\n• Allow all: never ask (fastest, least safe)\nClick to cycle.'}
               >
-                {approvalMode === 'off' ? <><Icon.unlock size={13} /> allow all</> : approvalMode === 'auto' ? <><Icon.zap size={13} /> auto approve</> : <><Icon.hand size={13} /> ask each</>}
+                {approvalMode === 'off' ? <Icon.unlock size={13} /> : approvalMode === 'auto' ? <Icon.zap size={13} /> : <Icon.hand size={13} />}
+                <span className='pill-label'>{approvalMode === 'off' ? 'allow all' : approvalMode === 'auto' ? 'auto approve' : 'ask each'}</span>
               </button>
             </div>
             <div className='composer-actions'>

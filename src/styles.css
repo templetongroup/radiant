@@ -1185,7 +1185,43 @@ code, pre, .mono { font-family: var(--font-mono); }
    flex-basis 0 makes the picker take only the space the fixed chips leave, so it
    ellipsizes instead of shoving them around. It is the only item here whose
    width is not known in advance. */
-.composer-tools .model-btn { flex: 1 1 0; min-width: 96px; }
+/* ⚠️ THE MODEL NAME IS THE ONE THING HERE YOU CANNOT GUESS. Every other control
+   in this row is a fixed idea you learn once; the model changes per chat and per
+   turn, and at 96px "OPENROUTER moonshotai/kimi-k3" ellipsised to "gr…". Tony:
+   "the model name is now getting squashed in the chat. cant discern what it is."
+   The toggles giving up their words is what buys this the room. */
+.composer-tools .model-btn { flex: 1 1 0; min-width: 190px; }
+
+/* ⚠️ THE LABEL LEAVES THE SCREEN, NOT THE ACCESSIBLE NAME. These read "tools on",
+   "plan off", "allow all" — that text IS the state, and deleting it would leave a
+   screen reader announcing an unnamed button. It is clipped rather than removed,
+   so the button is still called what it was, and the tooltip every one of these
+   already carries says the same thing to everyone else on hover.
+   ⚠️ AND THE TIP IS A TOOLTIP, NOT AN INLINE EXPANSION. A label that grows on
+   hover pushes its neighbours along the row, and this file already records why
+   that is unacceptable: "A control that moves when you use it is a control you
+   have to hunt for." */
+.pill-toggle .pill-label,
+.attach-btn .pill-label {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+  overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0;
+}
+.pill-toggle { padding: 6px; gap: 0; }
+.attach-btn:has(.pill-label) { padding: 6px; gap: 0; }
+
+/* ⚠️ ON CANNOT BE COLOUR ALONE ANY MORE. It used to be safe: the accent said on
+   AND the word beside it said "on", so the state survived for anyone who cannot
+   see colour. With the word clipped, colour would be the only carrier — so on
+   also fills, which is a difference in shape rather than in hue. Small enough at
+   icon size not to bring back the shouting row that the filled chips caused. */
+.pill-toggle.on {
+  color: var(--accent); background: var(--accent-wash); border-color: var(--accent-dim);
+}
+.pill-toggle.warn {
+  color: var(--danger);
+  background: color-mix(in oklab, var(--danger) 12%, transparent);
+  border-color: color-mix(in oklab, var(--danger) 40%, transparent);
+}
 .composer-actions { flex: none; display: flex; align-items: center; gap: 8px; }
 .composer-row .grow { flex: 1 1 0; min-width: 0; }
 .pill-toggle {
@@ -1202,7 +1238,6 @@ code, pre, .mono { font-family: var(--font-mono); }
 /* ⚠️ ON IS SAID IN COLOUR, NOT IN CHROME. A filled chip on every enabled toggle is
    what made the row shout; the accent on the label carries it, and the word beside
    it already says "on" — so the state survives for anyone who cannot see colour. */
-.pill-toggle.on { color: var(--accent); border-color: transparent; background: none; }
 .pill-toggle.on:hover { background: var(--accent-wash); border-color: var(--accent-dim); }
 /* ⚠️ THIS ONE KEPT ITS BUBBLE WHEN THE REST BECAME TEXT. I changed .pill-toggle
    and .pill-toggle.on and missed .warn, so "allow all" sat in a red chip among
@@ -1211,7 +1246,6 @@ code, pre, .mono { font-family: var(--font-mono); }
    It says what it is in red, like the others say theirs in the accent — and being
    the one coloured thing in a quiet row makes it MORE conspicuous than a fill did,
    not less. The words "allow all" carry it for anyone who cannot see the colour. */
-.pill-toggle.warn { color: var(--danger); border-color: transparent; background: none; }
 .pill-toggle.warn:hover {
   background: color-mix(in oklab, var(--danger) 12%, transparent);
   border-color: color-mix(in oklab, var(--danger) 45%, transparent);

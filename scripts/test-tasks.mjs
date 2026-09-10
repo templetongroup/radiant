@@ -329,7 +329,14 @@ ok('it can be deleted', !gone.body.some(t => t.id === id))
   const rf = await import('node:fs')
   const chat = rf.readFileSync('src/components/Chat.jsx', 'utf8')
   ok('the composer knows it may be driving another Mac', /const onAnotherMac = Boolean\(getServer\(\)\.base\)/.test(chat))
-  ok('and the computer pill names it', /pill-where/.test(chat))
+  // ⚠️ THE PROPERTY IS "THE PILL SAYS WHICH MACHINE", NOT "A .pill-where SPAN
+  // EXISTS". The toggles became icon-only when the model name stopped fitting
+  // beside them, so the host moved into the pill's clipped label — still the
+  // button's accessible name, still read aloud, just no longer painted. Asserting
+  // the class would have failed for a change that kept the property intact, which
+  // is the failure mode of testing the mechanism instead of the promise.
+  ok('and the computer pill still names it, in its accessible label',
+     /pill-label'>computer \{session\.computerControl \? 'on' : 'off'\}[\s\S]{0,120}serverHost/.test(chat))
   ok('the tooltip names it too', /desktop of ' \+ \(onAnotherMac \? serverHost/.test(chat))
 
   const cfg = rf.readFileSync('server/config.js', 'utf8')

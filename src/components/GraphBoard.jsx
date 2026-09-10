@@ -45,7 +45,15 @@ const DIAMOND = () => ([
   { ...blankNode(), id: 'd6', title: 'Write the answer', prompt: 'Write the final answer from the findings that survived.', dependsOn: ['d5'] }
 ])
 
-function NodeEditor ({ node, index, all, agents, pickable, onChange, onRemove, canRemove, onRefreshModels }) {
+function NodeEditor ({ node: raw, index, all, agents, pickable, onChange, onRemove, canRemove, onRefreshModels }) {
+  // ⚠️ A GRAPH FROM DISK MAY NOT HAVE EVERY FIELD, AND ONE MISSING ARRAY TOOK
+  // THE WHOLE APP DOWN. `node.dependsOn.includes(...)` on a node written by an
+  // older build — or by hand, or by a graph the draft flow half-produced — threw
+  // "Cannot read properties of undefined", and with no error boundary above it
+  // React unmounted everything: a white window, not a broken panel. Filling the
+  // shape in on the way past costs nothing and cannot be forgotten at one of the
+  // seven places that read it.
+  const node = { ...blankNode(), ...raw }
   const set = p => onChange({ ...node, ...p })
   const who = { model: node.agentId ? (agents.find(a => a.id === node.agentId)?.name || null) : node.model, provider: node.agentId ? 'agent' : node.provider }
   const others = all.filter(n => n.id !== node.id && n.title.trim())
@@ -264,7 +272,7 @@ export default function GraphBoard ({
   const addNode = () => setDraft(d => ({ ...d, nodes: [...d.nodes, { ...blankNode(), id: 'new-' + Date.now() }] }))
   const removeNode = i => setDraft(d => {
     const gone = d.nodes[i].id
-    return { ...d, nodes: d.nodes.filter((_, j) => j !== i).map(n => ({ ...n, dependsOn: n.dependsOn.filter(x => x !== gone) })) }
+    return { ...d, nodes: d.nodes.filter((_, j) => j !== i).map(n => ({ ...n, dependsOn: (n.dependsOn || []).filter(x => x !== gone) })) }
   })
 
   return (
@@ -458,7 +466,7 @@ export default function GraphBoard ({
                             <b>{n.title}</b>
                             <span className='gb-run-kind'>
                               {KINDS.find(k => k.id === n.kind)?.label}
-                              {n.dependsOn.length ? ` · reads ${n.dependsOn.length}` : ' · reads nothing, so it starts immediately'}
+                              {(n.dependsOn || []).length ? ` · reads ${n.dependsOn.length}` : ' · reads nothing, so it starts immediately'}
                               {st?.ms ? ` · ${(st.ms / 1000).toFixed(1)}s` : ''}
                             </span>
                             {st?.error && <span className='gb-run-error'>{st.error}</span>}
