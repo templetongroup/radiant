@@ -2382,27 +2382,43 @@ function BrowserBridgeBlock () {
     try { navigator.clipboard?.writeText(st?.dir || '') ; setCopied(true); setTimeout(() => setCopied(false), 1600) } catch {}
   }
   const on = Boolean(st?.connected)
+  // ⚠️ RADIANT CANNOT SEE INSIDE CHROME. All it knows is whether the extension is
+  // talking to it right now — so this said "Not installed yet" to Tony minutes after
+  // he installed it from the store, and he read it as the app asking him to install
+  // it again. Three states now, each only claiming what is actually known: connected;
+  // was connected earlier (so it is installed — Chrome is closed, or a different
+  // profile is in front); nothing has connected since Radiant started.
+  const seen = !on && st?.lastSeenAt ? new Date(st.lastSeenAt) : null
+  const seenAt = seen ? seen.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : ''
   return (
     <div className='set-block'>
       <div className='set-block-title'>The Chrome you are already signed into</div>
       <div className='comp-stat'>
         <span className={on ? 'key-ok' : 'fit-badge fit-tight'}>
-          {on ? '✓ Connected' : '— Not installed yet'}
+          {on ? '✓ Connected' : '— Not connected'}
         </span>
         <span className='desc'>
           {on
-            ? 'the agent can see your tabs, read the page you are on, click, type and screenshot it'
-            : 'a small Chrome extension, installed once'}
+            ? `the agent can see your tabs, read the page you are on, click, type and screenshot it${st?.version ? ` · extension ${st.version}` : ''}`
+            : seen
+              ? `it was connected at ${seenAt}${st?.version ? ` (extension ${st.version})` : ''}`
+              : 'nothing has connected since Radiant started'}
         </span>
       </div>
       <p className='hint'>
         {on
           ? <>The agent works in your own browser now — the tabs you have open, signed in as you.
               Nothing is sent anywhere: the extension talks only to Radiant on this Mac.</>
-          : <>Chrome no longer lets any app connect to your everyday browser, so an extension is the
-              way in. It runs inside Chrome with your session and talks only to Radiant on this Mac.</>}
+          : seen
+            ? <>So it is installed. Chrome is probably closed, or the extension is switched off in the
+                profile you are using — it reconnects on its own within half a minute of Chrome opening.
+                Nothing to install again.</>
+            : <>If you have already installed it, open Chrome: it finds Radiant on its own within half a
+                minute. Otherwise, Chrome no longer lets any app connect to your everyday browser, so
+                the extension is the way in. It runs inside Chrome with your session and talks only to
+                Radiant on this Mac.</>}
       </p>
-      {!on && (
+      {!on && !seen && (
         <div className='row' style={{ marginTop: 8 }}>
           {/* window.open goes through shell.openExternal in the Electron shell, so
               this lands in the person's real Chrome, signed in, on the listing. */}
@@ -2792,6 +2808,8 @@ const GUIDE = [
   {
     title: 'Chat & agents',
     items: [
+      ['The composer buttons are icons that grow on hover', 'The row under the message box \u2014 tools, computer, plan, thinking, permissions, dictate \u2014 rests as small icons, which gives the model name the room it needs. Point at one and it grows into the button it used to be, with its words (\u201cplan off\u201d, \u201cask each\u201d), and its neighbors slide over to make room. Move away and it shrinks back. The words are still there for a screen reader whether or not you are pointing at anything. An earlier version kept the icons small and put the words in a tooltip only; the buttons themselves now expand.'],
+      ['The Chrome page no longer says \u201cnot installed\u201d when it cannot know', 'Radiant cannot see inside Chrome. All it knows is whether the extension is talking to it right now, and it used to render silence as \u201cNot installed yet\u201d \u2014 to people who had just installed it. Settings \u2192 Chrome now says one of three true things: connected (with the extension\u2019s version); it was connected earlier today at such-and-such time, so it is installed and Chrome is probably closed or a different profile is in front; or nothing has connected since Radiant started. The install button is only offered in that last case. Radiant also pings the extension every twenty seconds now, which keeps Chrome from putting it to sleep between turns \u2014 before, a browser action landing in one of those gaps failed with \u201cthe extension is not connected\u201d.'],
       ['Chrome has its own page in Settings', 'Everything about the agent working in a browser now lives under Settings \u2192 Chrome: the one-click install of the Radiant Browser Bridge from the Chrome Web Store, and beneath it the fallback \u2014 a second Chrome window with its own profile, for anyone who would rather not install an extension. Before this, both sat at the bottom of the Automation page, under a heading about desktop control, three guesses away from where anyone looked for them. Automation now covers what it says: shell-command approval, the default folder, and the macOS Screen Recording and Accessibility permissions for driving the desktop.'],
       ['The browser extension is one click now', 'The Radiant Browser Bridge \u2014 the small extension that lets the agent work inside the Chrome you are already signed into \u2014 is on the Chrome Web Store. Settings \u2192 Chrome (it was Automation at the time) has a button that opens the listing; press Add to Chrome there and come back. Before this, the same pane walked you through opening chrome://extensions, turning on Developer mode, clicking Load unpacked and pasting a folder path \u2014 the developer sideload, which was the only way in before the listing existed. Those steps are still there, folded away, for anyone running Radiant from source.\n\nThe extension also no longer stamps a blue \u201con\u201d badge across its toolbar icon whenever Radiant is running. That was a permanent sticker on a sixteen-pixel icon. Whether it is connected is already said in the extension\u2019s own popup and in Settings, which is enough.'],
       ['Put Radiant on your phone by pointing the camera at a code', 'Radiant\u2019s server has always accepted a link that signs a device in \u2014 open it once on your phone and you are connected, with the secret part stripped out of the address afterwards so it never lands in your history or a bookmark. The only thing missing was somewhere to get that link, so nobody could use it.\n\nSettings \u2192 Devices, with sharing turned on, now shows the link and a code to point your phone\u2019s camera at. Open it, then Share \u2192 Add to Home Screen, and Radiant behaves like an app.\n\nThe chats are this Mac\u2019s chats. Anything you start at your desk you can carry on from the sofa, because it is the same conversation on the same machine rather than a copy that has to be kept in step.\n\nTwo honest limits, both said on screen. The code is a key, not just an address \u2014 anyone who photographs it gets in, so it stays hidden until you ask for it, and it does not belong on a slide or a screen-share. And this Mac has to be awake with Radiant running, because your phone is looking at it, not replacing it. If you have Tailscale the link works from anywhere; without it, only while your phone is on the same network.'],

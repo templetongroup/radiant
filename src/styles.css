@@ -1192,22 +1192,6 @@ code, pre, .mono { font-family: var(--font-mono); }
    The toggles giving up their words is what buys this the room. */
 .composer-tools .model-btn { flex: 1 1 0; min-width: 190px; }
 
-/* ⚠️ THE LABEL LEAVES THE SCREEN, NOT THE ACCESSIBLE NAME. These read "tools on",
-   "plan off", "allow all" — that text IS the state, and deleting it would leave a
-   screen reader announcing an unnamed button. It is clipped rather than removed,
-   so the button is still called what it was, and the tooltip every one of these
-   already carries says the same thing to everyone else on hover.
-   ⚠️ AND THE TIP IS A TOOLTIP, NOT AN INLINE EXPANSION. A label that grows on
-   hover pushes its neighbours along the row, and this file already records why
-   that is unacceptable: "A control that moves when you use it is a control you
-   have to hunt for." */
-.pill-toggle .pill-label,
-.attach-btn .pill-label {
-  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
-  overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0;
-}
-.pill-toggle { padding: 6px; gap: 0; }
-.attach-btn:has(.pill-label) { padding: 6px; gap: 0; }
 
 /* ⚠️ ON CANNOT BE COLOUR ALONE ANY MORE. It used to be safe: the accent said on
    AND the word beside it said "on", so the state survived for anyone who cannot
@@ -1249,6 +1233,42 @@ code, pre, .mono { font-family: var(--font-mono); }
 .pill-toggle.warn:hover {
   background: color-mix(in oklab, var(--danger) 12%, transparent);
   border-color: color-mix(in oklab, var(--danger) 45%, transparent);
+}
+
+/* ⚠️ THE ICON GROWS INTO THE BUTTON IT USED TO BE. First pass hid the words
+   off-screen and put them in a tooltip; Tony: "this is not what i wanted. on
+   hover i want the icon to expand into the actual button we had before and the
+   other icons to slide over to make room for it on both sides." So the label is
+   still in the flow — max-width 0 at rest, its full width on hover or keyboard
+   focus — and the neighbours slide because the button's width is what animates.
+   That is the row moving under the pointer, which this file used to forbid; it
+   is his call, and he made it with the alternative in front of him.
+   The words stay in the DOM at rest (overflow, not display), so the button is
+   still named "tools on" to a screen reader whether or not anyone is hovering. */
+.pill-toggle .pill-label,
+.attach-btn .pill-label {
+  display: inline-block; max-width: 0; opacity: 0; overflow: hidden; white-space: nowrap;
+  margin-left: 0;
+  transition: max-width .22s ease, opacity .15s ease, margin-left .22s ease;
+}
+.pill-toggle,
+.attach-btn:has(.pill-label) {
+  padding: 6px; gap: 0;
+  /* the dictate button is an .attach-btn, which is a fixed 28px grid cell — it
+     has to become a flex row that can grow like the toggles do */
+  width: auto; min-width: 28px; display: inline-flex; align-items: center;
+  transition: padding .22s ease, background-color .15s ease, border-color .15s ease, color .15s ease;
+}
+.pill-toggle:hover, .pill-toggle:focus-visible,
+.attach-btn:has(.pill-label):hover, .attach-btn:has(.pill-label):focus-visible {
+  padding: 4px 10px 4px 8px;
+}
+.pill-toggle:hover .pill-label, .pill-toggle:focus-visible .pill-label,
+.attach-btn:hover .pill-label, .attach-btn:focus-visible .pill-label {
+  max-width: 220px; opacity: 1; margin-left: 6px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pill-toggle, .attach-btn:has(.pill-label), .pill-toggle .pill-label, .attach-btn .pill-label { transition: none; }
 }
 .send-btn {
   width: 32px; height: 32px; border-radius: 999px; border: none;
@@ -2021,10 +2041,13 @@ button.hf-head:hover { background: var(--bg-hover); }
    this one types into the message box. It names its state for the same reason —
    an icon that only changes colour cannot tell you it is listening. */
 .attach-btn.is-dictate {
-  width: auto; padding: 0 9px; gap: 6px;
-  grid-auto-flow: column; align-items: center;
+  /* width, padding and gap come from the .attach-btn:has(.pill-label) rules
+     above, so it rests as an icon and grows into "Dictate" on hover like the
+     toggles; while listening the word stays out, because that is the signal */
   font-size: 12px; font-weight: 500;
 }
+.attach-btn.is-listening { padding: 4px 10px 4px 8px; }
+.attach-btn.is-listening .pill-label { max-width: 220px; opacity: 1; margin-left: 6px; }
 .attach-btn.is-listening {
   color: var(--accent); border-color: var(--accent);
   animation: listen-pulse 1.4s ease-in-out infinite;

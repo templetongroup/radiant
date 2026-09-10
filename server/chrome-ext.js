@@ -17,8 +17,21 @@ let socket = null
 let seq = 0
 const pending = new Map()   // id -> { resolve, reject, timer }
 
+// ⚠️ "CONNECTED" IS ALL THIS SIDE CAN KNOW. Whether the extension is INSTALLED is
+// a fact inside Chrome that never reaches us; the socket is the only evidence.
+// Settings used to render its absence as "Not installed yet", and Tony — who had
+// just installed it from the store — read that as the app telling him to install
+// it again. So remember the last time it was here and what version answered, and
+// let the UI say the true thing: "was connected at 12:40, is not now".
+let lastSeen = null          // { at: ISO, version }
+let heartbeat = null
+
 export function extensionConnected () {
   return Boolean(socket && socket.readyState === 1)
+}
+
+export function extensionStatus () {
+  return { connected: extensionConnected(), lastSeenAt: lastSeen?.at || null, version: lastSeen?.version || null }
 }
 
 export function attachExtension (ws) {
@@ -26,6 +39,20 @@ export function attachExtension (ws) {
   // racing it — two half-connected browsers is a worse state than one.
   if (socket && socket !== ws) { try { socket.close() } catch {} }
   socket = ws
+  lastSeen = { at: new Date().toISOString(), version: lastSeen?.version || null }
+  // ⚠️ THE SERVICE WORKER FALLS ASLEEP AND TAKES THE SOCKET WITH IT. Chrome ends an
+  // idle extension worker after ~30s; its alarm reconnects, but at 30s granularity,
+  // so an untouched connection spent a good share of the day down — and every tool
+  // call landing in a gap told the model the extension was "not connected". Since
+  // Chrome 116 a message on the socket extends the worker's life, so ping it well
+  // inside the window. The reply carries the version, which is the other thing
+  // Settings can then say.
+  const ping = () => callExtension('ping', {}, 8000)
+    .then(r => { lastSeen = { at: new Date().toISOString(), version: r?.version || lastSeen?.version || null } })
+    .catch(() => {})
+  clearInterval(heartbeat)
+  heartbeat = setInterval(() => { if (socket === ws && extensionConnected()) ping() }, 20000)
+  ping()
   ws.on('message', raw => {
     let msg
     try { msg = JSON.parse(raw.toString()) } catch { return }
@@ -37,7 +64,7 @@ export function attachExtension (ws) {
     else p.reject(new Error(msg.error || 'The browser extension could not do that.'))
   })
   const drop = () => {
-    if (socket === ws) socket = null
+    if (socket === ws) { socket = null; clearInterval(heartbeat); heartbeat = null }
     for (const [id, p] of pending) {
       clearTimeout(p.timer)
       p.reject(new Error('The Radiant browser extension disconnected mid-request.'))
@@ -50,7 +77,7 @@ export function attachExtension (ws) {
 
 export function callExtension (op, args = {}, timeout = 20000) {
   if (!extensionConnected()) {
-    return Promise.reject(new Error('The Radiant browser extension is not connected. Open Chrome, or install it from Settings › Computer control.'))
+    return Promise.reject(new Error('The Radiant browser extension is not connected. Open Chrome, or install it from Settings › Chrome.'))
   }
   const id = ++seq
   return new Promise((resolve, reject) => {

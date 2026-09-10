@@ -1634,13 +1634,13 @@ app.post('/api/dictate/stop', async (req, res) => {
 // Where the extension lives on disk, so Settings can tell you the folder to load
 // and say whether Chrome has it.
 app.get('/api/browser/extension', async (req, res) => {
-  const { extensionConnected } = await import('./chrome-ext.js')
+  const { extensionStatus } = await import('./chrome-ext.js')
   const candidates = [
     path.join(__dirname, '..', 'extension'),
     path.join(process.resourcesPath || '', 'extension')
   ]
   const dir = candidates.find(p => { try { return fs.existsSync(path.join(p, 'manifest.json')) } catch { return false } }) || null
-  res.json({ connected: extensionConnected(), dir })
+  res.json({ ...extensionStatus(), dir })
 })
 
 app.get('/api/browser/status', async (req, res) => {
