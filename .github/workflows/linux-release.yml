@@ -47,6 +47,16 @@ jobs:
 
       - run: npm ci
 
+      # ⚠️ --publish never IS LOAD-BEARING, AND ITS ABSENCE FAILED EVERY RELEASE.
+      # electron-builder notices it is inside GitHub Actions and tries to upload
+      # the build itself, which needs GH_TOKEN — and this step deliberately has
+      # none, because the upload happens two steps down, AFTER the smoke test,
+      # so a build that does not boot never reaches the release. Without the
+      # flag it died with "GitHub Personal Access Token is not set" on every
+      # tag from v0.8.1 to v0.8.8, and the failure email arrived after the Mac
+      # release was already out, exactly as designed — which is how it went
+      # unread five times. The flag lives in the npm script so `npm run
+      # dist:linux` is right on a laptop too.
       - run: npm run dist:linux
 
       # ⚠️ A BUILD THAT EXITS 0 IS NOT A BUILD THAT RUNS. This is the Linux
