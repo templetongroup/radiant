@@ -26,8 +26,32 @@
  * Until then this exits 2 and says what it needs, rather than guessing.
  */
 
-const ITEM = process.env.CWS_ITEM_ID || 'jhljglakgocklinpblgcopplfinacfk'
+// ⚠️ THIS WAS 31 CHARACTERS FOR WEEKS AND NOBODY COULD TELL. A Chrome extension
+// id is exactly 32 letters a–p; the one here had lost a character somewhere
+// between the dashboard and this file, so every check against it answered
+// "unknown application" — which is the same thing an unpublished item says.
+// Checked against the live store on 2026-09-10: this id downloads a CRX whose
+// manifest is Radiant Browser Bridge 0.6.231, byte-for-byte what extension/
+// holds.
+const ITEM = process.env.CWS_ITEM_ID || 'jhljglakgocklinpblgcoppljflnacfk'
+if (!/^[a-p]{32}$/.test(ITEM)) {
+  console.log(`  "${ITEM}" is not a Chrome extension id (need 32 letters a-p, got ${ITEM.length}).`)
+  process.exit(2)
+}
 const { CWS_CLIENT_ID, CWS_CLIENT_SECRET, CWS_REFRESH_TOKEN } = process.env
+
+// ⚠️ THERE IS AN UNAUTHENTICATED ANSWER AFTER ALL, and the header above was
+// wrong to say otherwise. The store PAGE cannot be scraped — but Chrome's own
+// update service answers for any published item, and only for a published one:
+//   status="ok"                  published
+//   status="error-unknownApplication"  unpublished, or an id that does not exist
+// It is what every installed copy of Chrome asks every few hours, so it cannot
+// lag the way search indexing does.
+const upd = await fetch(`https://clients2.google.com/service/update2/crx?response=updatecheck&prodversion=131&x=id%3D${ITEM}%26uc`).then(r => r.text()).catch(() => '')
+const st = (upd.match(/status="([^"]+)"/) || [])[1]
+if (st === 'ok') console.log(`  PUBLISHED — Chrome's update service serves ${ITEM}\n  https://chromewebstore.google.com/detail/${ITEM}`)
+else if (st) console.log(`  not published — update service says ${st}`)
+else console.log('  update service did not answer')
 
 if (!CWS_CLIENT_ID || !CWS_CLIENT_SECRET || !CWS_REFRESH_TOKEN) {
   console.log('  Cannot check the Chrome Web Store: no API credentials.')

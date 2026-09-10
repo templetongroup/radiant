@@ -88,6 +88,11 @@
   promise holds until you make that choice. Local providers need no key at all
 - **Custom providers** — add any OpenAI-compatible base URL (Groq, Mistral,
   Together, a remote Ollama box…)
+- **Browser control from your own Chrome** — the
+  [Radiant Browser Bridge](https://chromewebstore.google.com/detail/jhljglakgocklinpblgcoppljflnacfk)
+  extension lets the agent read pages, click, and see the network calls a site
+  makes, in the browser you are already signed into. No separate profile, no
+  debugging port
 
 ## Install the Mac app
 
