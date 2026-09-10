@@ -40,12 +40,18 @@ function connect () {
     try { ws = new WebSocket(`ws://127.0.0.1:${port}/ws/extension`) } catch { return tryNext() }
     ws.onopen = () => {
       sock = ws; connectedPort = port
-      chrome.action.setBadgeText({ text: 'on' })
-      chrome.action.setBadgeBackgroundColor({ color: '#3b82f6' })
+      // ⚠️ NO BADGE. This used to stamp a blue "on" across the toolbar icon the
+      // whole time Radiant was running, which is most of the day — a permanent
+      // sticker on a 16px icon, and the one thing about the extension a person
+      // sees constantly. Tony: "Looks horrible. we dont need that." The state is
+      // already said in two better places: the popup ("Connected to Radiant on
+      // port N") and Radiant's own Settings ("✓ Connected"). Clear it on the way
+      // through in case an older build left one behind.
+      chrome.action.setBadgeText({ text: '' })
       log('connected on', port)
     }
     ws.onclose = () => {
-      if (sock === ws) { sock = null; connectedPort = null; chrome.action.setBadgeText({ text: '' }) }
+      if (sock === ws) { sock = null; connectedPort = null }
       tryNext()
     }
     ws.onerror = () => { try { ws.close() } catch {} }

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import qrcode from 'qrcode-generator'
 import { verdict, FIT_LABEL, FITS_WELL, FITS_TIGHT, FITS_NO, COMFORTABLE } from '../fit.js'
-import { api, startDownload, getDownloads, cancelDownload, streamQuantize, getServer, setServer, testServer, saveToFile, deviceNoun, phoneLink } from '../api.js'
+import { api, startDownload, getDownloads, cancelDownload, streamQuantize, getServer, setServer, testServer, saveToFile, deviceNoun, phoneLink, EXTENSION_STORE_URL } from '../api.js'
 import { THEMES, MODES, FONTS, UI_SCALES, applyTheme, hexToOklch, accentHex, glyphColor } from '../theme.js'
 import { paletteWarnings, deriveAccent } from '../palette.js'
 import { MOTIONS } from './MotionBackground.jsx'
@@ -2332,11 +2332,19 @@ function ChromeAttachBlock () {
 /**
  * Installing the browser bridge.
  *
- * ⚠️ THE INSTALL IS FIVE CLICKS AND CHROME WILL NOT LET ANYONE SHORTEN IT. Chrome
- * 137 removed --load-extension, so nothing — not Radiant, not a script, not a test
- * — can load this for you; "Load unpacked" is a person clicking a button, which is
- * exactly the distinction Google drew after the flag was used to sideload malware.
- * So the honest thing is to give the folder, copyable, and say the steps in order.
+ * ⚠️ IT IS ONE CLICK NOW, AND THIS PANE WAS STILL TEACHING FIVE. The extension is
+ * on the Chrome Web Store (published 2026-09-10), so the install is the store's
+ * own Add-to-Chrome button. But for weeks after that this block went on walking
+ * people through chrome://extensions, Developer mode, Load unpacked and a folder
+ * path — the sideload, which was the only way in before the listing existed and
+ * is the worst possible first impression after it. The store button is the
+ * whole pane now; the folder route survives, folded away, for anyone running
+ * Radiant from source with a build newer than the store's.
+ *
+ * ⚠️ CHROME WILL NOT LET RADIANT DO THE CLICK. Chrome 137 removed
+ * --load-extension, and the store's Add button is a person clicking, by design —
+ * the distinction Google drew after the flag was used to sideload malware. So
+ * "one click" means opening the listing, and the click is theirs.
  */
 function BrowserBridgeBlock () {
   const [st, setSt] = useState(null)
@@ -2372,17 +2380,30 @@ function BrowserBridgeBlock () {
               way in. It runs inside Chrome with your session and talks only to Radiant on this Mac.</>}
       </p>
       {!on && (
-        <ol className='hint' style={{ margin: '6px 0 0 18px', padding: 0 }}>
-          <li>Open <span className='mono'>chrome://extensions</span></li>
-          <li>Turn on <b>Developer mode</b>, top right</li>
-          <li>Click <b>Load unpacked</b></li>
-          <li>Press <span className='mono'>⇧⌘G</span>, paste the folder below, and choose it</li>
-        </ol>
+        <div className='row' style={{ marginTop: 8 }}>
+          {/* window.open goes through shell.openExternal in the Electron shell, so
+              this lands in the person's real Chrome, signed in, on the listing. */}
+          <button className='small-btn primary' onClick={() => window.open(EXTENSION_STORE_URL, '_blank', 'noopener')}>
+            Install from the Chrome Web Store
+          </button>
+          <span className='hint' style={{ margin: 0 }}>Opens the listing — press <b>Add to Chrome</b> there and come back.</span>
+        </div>
       )}
-      <div className='row' style={{ marginTop: 8 }}>
-        <code className='mono' style={{ fontSize: 11, opacity: .85, wordBreak: 'break-all' }}>{st?.dir || '…'}</code>
-        <button className='small-btn' onClick={copy} disabled={!st?.dir}>{copied ? 'Copied' : 'Copy folder'}</button>
-      </div>
+      {!on && (
+        <details className='hint' style={{ marginTop: 10 }}>
+          <summary>Running Radiant from source? Load the folder instead</summary>
+          <ol style={{ margin: '6px 0 0 18px', padding: 0 }}>
+            <li>Open <span className='mono'>chrome://extensions</span></li>
+            <li>Turn on <b>Developer mode</b>, top right</li>
+            <li>Click <b>Load unpacked</b></li>
+            <li>Press <span className='mono'>⇧⌘G</span>, paste the folder below, and choose it</li>
+          </ol>
+          <div className='row' style={{ marginTop: 8 }}>
+            <code className='mono' style={{ fontSize: 11, opacity: .85, wordBreak: 'break-all' }}>{st?.dir || '…'}</code>
+            <button className='small-btn' onClick={copy} disabled={!st?.dir}>{copied ? 'Copied' : 'Copy folder'}</button>
+          </div>
+        </details>
+      )}
     </div>
   )
 }
@@ -2748,6 +2769,7 @@ const GUIDE = [
   {
     title: 'Chat & agents',
     items: [
+      ['The browser extension is one click now', 'The Radiant Browser Bridge \u2014 the small extension that lets the agent work inside the Chrome you are already signed into \u2014 is on the Chrome Web Store. Settings \u2192 Automation now has a button that opens the listing; press Add to Chrome there and come back. Before this, the same pane walked you through opening chrome://extensions, turning on Developer mode, clicking Load unpacked and pasting a folder path \u2014 the developer sideload, which was the only way in before the listing existed. Those steps are still there, folded away, for anyone running Radiant from source.\n\nThe extension also no longer stamps a blue \u201con\u201d badge across its toolbar icon whenever Radiant is running. That was a permanent sticker on a sixteen-pixel icon. Whether it is connected is already said in the extension\u2019s own popup and in Settings, which is enough.'],
       ['Put Radiant on your phone by pointing the camera at a code', 'Radiant\u2019s server has always accepted a link that signs a device in \u2014 open it once on your phone and you are connected, with the secret part stripped out of the address afterwards so it never lands in your history or a bookmark. The only thing missing was somewhere to get that link, so nobody could use it.\n\nSettings \u2192 Devices, with sharing turned on, now shows the link and a code to point your phone\u2019s camera at. Open it, then Share \u2192 Add to Home Screen, and Radiant behaves like an app.\n\nThe chats are this Mac\u2019s chats. Anything you start at your desk you can carry on from the sofa, because it is the same conversation on the same machine rather than a copy that has to be kept in step.\n\nTwo honest limits, both said on screen. The code is a key, not just an address \u2014 anyone who photographs it gets in, so it stays hidden until you ask for it, and it does not belong on a slide or a screen-share. And this Mac has to be awake with Radiant running, because your phone is looking at it, not replacing it. If you have Tailscale the link works from anywhere; without it, only while your phone is on the same network.'],
       ['Show the model\u2019s thinking, or don\u2019t', 'Models that reason out loud were showing you that reasoning whether you wanted it or not \u2014 the trace opened itself while the model was working and only collapsed once it had finished, which is backwards if you just want the answer. There is a brain button in the row under the message box now: thinking on, thinking off.\n\nOne thing it is honest about, in the tooltip as well as here: this only hides the reasoning. The model still thinks, and you are still billed for it. How hard it thinks is a different control \u2014 the effort setting in the model picker \u2014 and it would be easy to assume this one saved you money. It does not.\n\nThe setting is remembered, so it is not something to set again in every new chat.'],
       ['Radiant tells you when it is open twice on the same folder', 'If you keep Radiant\u2019s folder in iCloud so your chats follow you between Macs, only one Mac should be running Radiant at a time. Two copies writing to the same folder overwrite each other \u2014 that has always been true, and it was said only in a hint inside a collapsed section of Settings, which is not where you look before it matters. Nothing detected it, so the first sign was work quietly going missing.\n\nRadiant now notices, and says so in a line across the top of the window, naming the machine: \u201cRadiant is also open on Tony\u2019s MacBook Air, using this same folder.\u201d It disappears on its own when that copy quits.\n\nIt does not stop you. Being refused entry to your own chats \u2014 because of a crash, or a slow sync, or a clock being off \u2014 is a worse outcome than the risk it would be protecting you from. It tells you the truth and leaves the decision with you. If you do want both Macs at once, the supported way is to run Radiant on one and reach it from the other over your network, in Settings \u2192 Devices.'],

@@ -562,3 +562,15 @@ export function phoneLink (address, token) {
   const base = /^https?:\/\//i.test(address) ? address : `http://${address}`
   return `${base.replace(/\/$/, '')}/?token=${encodeURIComponent(token)}`
 }
+
+/**
+ * The published Radiant Browser Bridge.
+ *
+ * ⚠️ ONE PLACE. This id was 31 characters in scripts/check-cws.mjs for weeks,
+ * one letter short of a real one, and nothing could tell — every check against
+ * it answered "unknown application", which is also what an unpublished item
+ * says. It is 32 letters a–p, verified against Chrome's update service on
+ * 2026-09-10, and everything in the app that needs it reads it from here.
+ */
+export const EXTENSION_ID = 'jhljglakgocklinpblgcoppljflnacfk'
+export const EXTENSION_STORE_URL = `https://chromewebstore.google.com/detail/${EXTENSION_ID}`
