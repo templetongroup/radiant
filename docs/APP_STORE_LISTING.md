@@ -167,7 +167,7 @@ worth exactly nothing.
 
 | Field | Contained | Action |
 |---|---|---|
-| subtitle | `iPhone`, `Open AI` | replaced — now **"Open models, fully offline"** (26 chars) |
+| subtitle | `iPhone`, `Open AI` | replaced — now **"Open models, fully offline"** (26 chars). ⚠️ **Change to "Open models, on your phone" on the next submission** — see below |
 | description | `open AI models`, `OpenAI` | `open AI` → `open-weight`; the OpenAI in the provider list stays, see below |
 | keywords | `gpt` | removed |
 | review notes | `OpenAI` | kept; a response paragraph added at the top |
@@ -296,10 +296,28 @@ Done and verified by reload:
 
 | Item | State |
 |---|---|
-| Name / subtitle | Radiant - Local AI Chat / "Open models, fully offline" (26) — was "Open AI models, on your iPhone", which drew BOTH halves of the 2026-09-10 rejection |
+| Name / subtitle | Radiant - Local AI Chat / "Open models, fully offline" (26) — was "Open AI models, on your iPhone", which drew BOTH halves of the 2026-09-10 rejection. **Pending: "Open models, on your phone"** (26), see next section |
 | Category | Productivity, secondary Developer Tools |
 | Description, keywords, URLs, copyright, review notes | filled |
 | Screenshots | 4 on the 6.9" slot, RGB, no alpha |
+
+### ⚠️ The subtitle is not true, and it changes on the NEXT submission
+
+"Open models, fully offline" was written on 2026-09-10 to get past the rejection,
+and it is a categorical claim that stops being true the moment a person adds an
+OpenRouter or Anthropic key — which the app invites them to do. Tony, the same
+day: *"if we offer open router api and i can chat with a model like kimi k3 via
+open router than data is not only on the phone. isn't that contrary to what we
+claim?"* Yes. The description, privacy page, review notes and Apple's
+questionnaire all say the true thing (on-device by default, the cloud is
+opt-in and goes to that provider, not us); only the subtitle overstates it.
+
+**Decision (Tony, 2026-09-10): change the subtitle to "Open models, on your
+phone" (26 chars) on the next submission.** Not now — the current one is
+Waiting for Review and he chose not to touch the queue. Whoever prepares the
+next build: set it in App Store Connect → the version page → Subtitle before
+pressing submit, and update the two rows above. It contains neither "iPhone"
+nor "Apple", so it does not re-trigger 5.2.5.
 | Sign-in required | unchecked — the app has no login |
 | App Privacy | Data Not Collected |
 | Privacy policy | https://www.templetongroup.dev/showcase/radiant/privacy.html |
