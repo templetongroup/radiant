@@ -3287,14 +3287,35 @@ html[data-window-chrome='native'] .brand { padding-top: 12px; }
    strip entirely. */
 .view-actions { display: flex; gap: 8px; padding: 0 18px 12px; }
 
-/* Two copies of Radiant on one shared folder. A full-width strip under the top
-   bar rather than a toast: this is true for as long as it is true, and a thing
-   that can quietly cost you work should not fade away after four seconds. */
-.share-warn {
-  padding: 8px 18px; font-size: 12px; line-height: 1.45;
-  color: var(--text); background: var(--warn-bg, rgba(220, 160, 40, 0.14));
-  border-bottom: 1px solid var(--line, rgba(128, 128, 128, 0.25));
+/* Two copies of Radiant on one shared folder. A strip that stays for as long as
+   it is true, rather than a toast — a thing that can quietly cost you work
+   should not fade away after four seconds.
+
+   ⚠️ OUT OF THE FLEX FLOW, AND AT THE BOTTOM. `.app` is `display: flex`, i.e. a
+   ROW of sidebar + main, so this shipped in 0.8.4 as a plain child and became a
+   THIRD COLUMN: it took the left of the window, shoved the sidebar across, and
+   its first line landed under the traffic lights. Anything full-width added to
+   `.app` has to be taken out of flow or it rearranges the app.
+
+   ⚠️ AND THE BOTTOM, NOT THE TOP, DELIBERATELY. The top 38px is the drag region
+   and the traffic lights, and every element ever floated there has broken
+   something — the overlay strip shipped three times in a row, swallowing the
+   New task/loop/graph buttons, then failing to drag, then hidden under the app.
+   The bottom edge is free of both. */
+/* ⚠️ `.app > .share-warn`, NOT `.share-warn`. Line 329 sets
+   `.app > *:not(.motion-bg) { position: relative }` — specificity 0,2,0, which
+   beats a bare class at 0,1,0 and drags this straight back into the flex row.
+   The comment on the old `.app-drag` records this exact trap, and I walked into
+   it anyway: the fix was already written down. */
+.app > .share-warn {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 6;
+  padding: 7px 18px; font-size: 12px; line-height: 1.4;
+  color: var(--text); background: var(--warn-bg, rgba(220, 160, 40, 0.16));
+  border-top: 1px solid var(--line, rgba(128, 128, 128, 0.25));
+  -webkit-app-region: no-drag;
 }
+/* Shorten the app rather than letting the strip sit on top of the composer. */
+.app:has(> .share-warn) { height: calc(100% - 30px); }
 
 /* Pairing a phone: the link, and the code you point a camera at. */
 .phone-pair { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line, rgba(128,128,128,.22)); }
