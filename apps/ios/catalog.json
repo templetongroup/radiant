@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "generated": "2026-09-04T01:33:37Z",
+  "generated": "2026-09-10T21:49:22Z",
   "models": [
     {
       "id": "gemma3-270m",
@@ -139,9 +139,27 @@
       "id": "qwen2.5-vl-3b",
       "name": "Qwen 2.5 VL 3B",
       "maker": "Alibaba",
-      "blurb": "The most capable of the picture models here. Good at charts and dense text.",
+      "blurb": "Good at charts and dense text. The 3 VL below is its successor.",
       "gb": 3.09,
       "repo": "mlx-community/Qwen2.5-VL-3B-Instruct-4bit",
+      "vision": true
+    },
+    {
+      "id": "qwen3-vl-2b",
+      "name": "Qwen 3 VL 2B",
+      "maker": "Alibaba",
+      "blurb": "The newer generation of Qwen's picture models, in the size that fits any iPhone.",
+      "gb": 1.78,
+      "repo": "mlx-community/Qwen3-VL-2B-Instruct-4bit",
+      "vision": true
+    },
+    {
+      "id": "qwen3-vl-4b",
+      "name": "Qwen 3 VL 4B",
+      "maker": "Alibaba",
+      "blurb": "The most capable of the picture models here. Reads screenshots, documents and charts.",
+      "gb": 3.09,
+      "repo": "mlx-community/Qwen3-VL-4B-Instruct-4bit",
       "vision": true
     },
     {
@@ -170,6 +188,14 @@
       "gb": 1.75,
       "repo": "mlx-community/Qwen3.5-2B-4bit",
       "stop": "<|im_end|>"
+    },
+    {
+      "id": "qwen2.5-coder-3b",
+      "name": "Qwen 2.5 Coder 3B",
+      "maker": "Alibaba",
+      "blurb": "Tuned for writing and explaining code. Small enough to keep around.",
+      "gb": 1.74,
+      "repo": "mlx-community/Qwen2.5-Coder-3B-Instruct-4bit"
     },
     {
       "id": "qwen3-4b",
@@ -222,6 +248,14 @@
       "gb": 4.53,
       "repo": "mlx-community/Meta-Llama-3.1-8B-Instruct-4bit",
       "stop": "<|eot_id|>"
+    },
+    {
+      "id": "ministral3-8b",
+      "name": "Ministral 3 8B",
+      "maker": "Mistral",
+      "blurb": "Mistral's larger phone model. Needs a 12 GB iPhone or an iPad.",
+      "gb": 5.6,
+      "repo": "mlx-community/Ministral-3-8B-Instruct-2512-4bit"
     },
     {
       "id": "ministral3-3b",
