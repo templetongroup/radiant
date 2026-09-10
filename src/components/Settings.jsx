@@ -1639,27 +1639,15 @@ function AgentPane ({ config, onSettings }) {
 
           Now: what it is, what works on this Mac, then the single decision —
           each stated once, and the status text follows the actual state. */}
-      <h3 style={{ marginTop: 22 }}>Computer control</h3>
+      <h3 style={{ marginTop: 22 }}>Desktop control</h3>
       <p className='hint' style={{ marginTop: 2 }}>
-        The agent can drive a browser and your desktop — clicking, typing and opening apps.
-        Switch it on for a chat with the <strong>computer</strong> button in the composer, and use a
-        model that can see: Claude, GPT-4o, or a local vision model.
+        The agent can drive your desktop — clicking, typing and opening apps. Switch it on for a
+        chat with the <strong>computer</strong> button in the composer, and use a model that can
+        see: Claude, GPT-4o, or a local vision model. Chrome has its own pane — <b>Settings → Chrome</b>.
       </p>
-
-      {/* ⚠️ WHOSE CHROME IS BEING DRIVEN. Radiant always launched a fresh one — no
-          extensions, no tabs, signed in to nothing — so an agent asked to look at an
-          open page saw an empty stranger's browser and, having no better
-          explanation, blamed macOS permissions. Tony: "the agent is saying it cant
-          control my active chrome because of settings but Radiant has access in
-          privacy and disk access." It never was permissions. */}
-      <ChromeAttachBlock />
 
       <div className='set-block'>
         <div className='set-block-title'>What works on {config?.serverHost || `this ${deviceNoun(config?.platform)}`}</div>
-        <div className='comp-stat'>
-          <span className={comp?.browser ? 'key-ok' : 'fit-badge fit-no'}>{comp?.browser ? '✓' : '—'} Browser control</span>
-          <span className='desc'>drives your system Chrome. Nothing to set up.</span>
-        </div>
         {/* ⚠️ OFF A MAC THERE IS NOTHING TO GRANT, SO THERE IS NOTHING TO ASK FOR.
               Screen Recording and Accessibility are macOS permissions reached
               through a Swift helper that only builds and only runs there. Both
@@ -1747,6 +1735,41 @@ function AgentPane ({ config, onSettings }) {
           </span>
         </label>
       </div>
+    </div>
+  )
+}
+
+// ---------- Chrome ----------
+
+/**
+ * ⚠️ THE CHROME INSTALL WAS THE SECOND-TO-LAST TAB, UNDER A HEADING ABOUT
+ * SOMETHING ELSE. The store button lived in Automation, below the shell-approval
+ * setting, under "Computer control" — three guesses deep for someone who just
+ * wants the agent in their browser. Tony: "should it be a separate section in
+ * settings?" It is now: one tab, the extension first, the fallback second, and
+ * nothing else.
+ */
+function ChromePane () {
+  return (
+    <div className='set-section'>
+      <h3>Chrome</h3>
+      <p className='hint' style={{ marginTop: 2 }}>
+        The agent can work inside a browser — read the page you are on, click, type and take
+        screenshots. Switch it on for a chat with the <strong>computer</strong> button in the
+        composer, and use a model that can see: Claude, GPT-4o, or a local vision model.
+      </p>
+
+      {/* ⚠️ WHOSE CHROME IS BEING DRIVEN. Radiant always launched a fresh one — no
+          extensions, no tabs, signed in to nothing — so an agent asked to look at an
+          open page saw an empty stranger's browser and, having no better
+          explanation, blamed macOS permissions. Tony: "the agent is saying it cant
+          control my active chrome because of settings but Radiant has access in
+          privacy and disk access." It never was permissions. */}
+      {/* No separate status block: each block above already says whether its
+          Chrome is connected, and "Browser control ✓" used to mean only that
+          playwright-core loaded — true on every install, so it never told anyone
+          anything. */}
+      <ChromeAttachBlock />
     </div>
   )
 }
@@ -2769,7 +2792,8 @@ const GUIDE = [
   {
     title: 'Chat & agents',
     items: [
-      ['The browser extension is one click now', 'The Radiant Browser Bridge \u2014 the small extension that lets the agent work inside the Chrome you are already signed into \u2014 is on the Chrome Web Store. Settings \u2192 Automation now has a button that opens the listing; press Add to Chrome there and come back. Before this, the same pane walked you through opening chrome://extensions, turning on Developer mode, clicking Load unpacked and pasting a folder path \u2014 the developer sideload, which was the only way in before the listing existed. Those steps are still there, folded away, for anyone running Radiant from source.\n\nThe extension also no longer stamps a blue \u201con\u201d badge across its toolbar icon whenever Radiant is running. That was a permanent sticker on a sixteen-pixel icon. Whether it is connected is already said in the extension\u2019s own popup and in Settings, which is enough.'],
+      ['Chrome has its own page in Settings', 'Everything about the agent working in a browser now lives under Settings \u2192 Chrome: the one-click install of the Radiant Browser Bridge from the Chrome Web Store, and beneath it the fallback \u2014 a second Chrome window with its own profile, for anyone who would rather not install an extension. Before this, both sat at the bottom of the Automation page, under a heading about desktop control, three guesses away from where anyone looked for them. Automation now covers what it says: shell-command approval, the default folder, and the macOS Screen Recording and Accessibility permissions for driving the desktop.'],
+      ['The browser extension is one click now', 'The Radiant Browser Bridge \u2014 the small extension that lets the agent work inside the Chrome you are already signed into \u2014 is on the Chrome Web Store. Settings \u2192 Chrome (it was Automation at the time) has a button that opens the listing; press Add to Chrome there and come back. Before this, the same pane walked you through opening chrome://extensions, turning on Developer mode, clicking Load unpacked and pasting a folder path \u2014 the developer sideload, which was the only way in before the listing existed. Those steps are still there, folded away, for anyone running Radiant from source.\n\nThe extension also no longer stamps a blue \u201con\u201d badge across its toolbar icon whenever Radiant is running. That was a permanent sticker on a sixteen-pixel icon. Whether it is connected is already said in the extension\u2019s own popup and in Settings, which is enough.'],
       ['Put Radiant on your phone by pointing the camera at a code', 'Radiant\u2019s server has always accepted a link that signs a device in \u2014 open it once on your phone and you are connected, with the secret part stripped out of the address afterwards so it never lands in your history or a bookmark. The only thing missing was somewhere to get that link, so nobody could use it.\n\nSettings \u2192 Devices, with sharing turned on, now shows the link and a code to point your phone\u2019s camera at. Open it, then Share \u2192 Add to Home Screen, and Radiant behaves like an app.\n\nThe chats are this Mac\u2019s chats. Anything you start at your desk you can carry on from the sofa, because it is the same conversation on the same machine rather than a copy that has to be kept in step.\n\nTwo honest limits, both said on screen. The code is a key, not just an address \u2014 anyone who photographs it gets in, so it stays hidden until you ask for it, and it does not belong on a slide or a screen-share. And this Mac has to be awake with Radiant running, because your phone is looking at it, not replacing it. If you have Tailscale the link works from anywhere; without it, only while your phone is on the same network.'],
       ['Show the model\u2019s thinking, or don\u2019t', 'Models that reason out loud were showing you that reasoning whether you wanted it or not \u2014 the trace opened itself while the model was working and only collapsed once it had finished, which is backwards if you just want the answer. There is a brain button in the row under the message box now: thinking on, thinking off.\n\nOne thing it is honest about, in the tooltip as well as here: this only hides the reasoning. The model still thinks, and you are still billed for it. How hard it thinks is a different control \u2014 the effort setting in the model picker \u2014 and it would be easy to assume this one saved you money. It does not.\n\nThe setting is remembered, so it is not something to set again in every new chat.'],
       ['Radiant tells you when it is open twice on the same folder', 'If you keep Radiant\u2019s folder in iCloud so your chats follow you between Macs, only one Mac should be running Radiant at a time. Two copies writing to the same folder overwrite each other \u2014 that has always been true, and it was said only in a hint inside a collapsed section of Settings, which is not where you look before it matters. Nothing detected it, so the first sign was work quietly going missing.\n\nRadiant now notices, and says so in a line across the top of the window, naming the machine: \u201cRadiant is also open on Tony\u2019s MacBook Air, using this same folder.\u201d It disappears on its own when that copy quits.\n\nIt does not stop you. Being refused entry to your own chats \u2014 because of a crash, or a slow sync, or a clock being off \u2014 is a worse outcome than the risk it would be protecting you from. It tells you the truth and leaves the decision with you. If you do want both Macs at once, the supported way is to run Radiant on one and reach it from the other over your network, in Settings \u2192 Devices.'],
@@ -3045,6 +3069,7 @@ const TABS = [
   { id: 'mcp', label: 'MCP' },
   { id: 'memory', label: 'Memory' },
   { id: 'devices', label: 'Devices' },
+  { id: 'chrome', label: 'Chrome' },
   { id: 'appearance', label: 'Appearance' },
   { id: 'agent', label: 'Automation' },
   { id: 'about', label: 'About' }
@@ -3076,6 +3101,7 @@ export default function Settings ({ config, initialTab = 'providers', initialAge
           {tab === 'memory' && <MemoryPane config={config} onSettings={onSettings} />}
           {tab === 'devices' && <DevicesPane />}
           {tab === 'appearance' && <AppearancePane config={config} onSettings={onSettings} />}
+          {tab === 'chrome' && <ChromePane />}
           {tab === 'agent' && <AgentPane config={config} onSettings={onSettings} />}
           {tab === 'about' && <AboutPane config={config} onSettings={onSettings} />}
         </div>
