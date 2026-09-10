@@ -165,6 +165,27 @@ It shares no styling with the desktop build: `App.jsx` lazy-imports
 `mobile.css` and the whole tree stay out of the Mac bundle's entry chunk. Keep
 it that way — check `vite build` still emits a separate `Phone-*.js` chunk.
 
+**Every iOS build goes to every device.** Standing instruction from Tony
+(2026-09-10): *"when you create new builds to the ios version, i want you to
+update it on all devices."* A dev install only changes when someone pushes a
+new one to that device, so a build that lands on one phone leaves the others
+on last week's code with no way to tell. One command does the whole job —
+web bundle, sync, build once, install on every paired device that answers:
+
+```bash
+scripts/ios-install-all.sh
+```
+
+It lists the devices that did not answer (off, asleep, not on this network)
+at the end; run it again when they are. Devices today: iPhone 17 Pro Max,
+iPad Pro 11, iPad mini (A17 Pro). All are on the paid team's profile, which
+lasts a year — not the seven days a free Apple ID gets.
+
+⚠️ `npx cap sync ios` REWRITES `CapApp-SPM/Package.swift` and drops the MLX and
+HuggingFace packages (TG-221); the next build fails with "unable to resolve
+module dependency: 'Cmlx'". The script restores the file from git after every
+sync. If you sync by hand, `git checkout -- apps/ios/ios/App/CapApp-SPM/Package.swift`.
+
 **Building it takes two non-obvious flags.** Plain `xcodebuild` fails twice:
 
 ```bash
