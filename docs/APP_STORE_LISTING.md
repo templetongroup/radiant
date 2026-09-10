@@ -141,6 +141,75 @@ Apple does not count either as collection by the developer.
 
 ---
 
+## REJECTED 2026-09-10 — guideline 5, and ONE FIELD CAUSED BOTH HALVES
+
+Reviewed on an **iPad Air 11-inch (M3)**, version 1.0 (6). Submission ID
+4cc9084e-2de8-437a-9ced-494c5f0ff170. Two citations:
+
+- **5.0.0 Legal: Preamble** — China's deep-synthesis (DST) rules. *"the app
+  appears to be associated with ChatGPT … the app's metadata includes the
+  following references to ChatGPT and/or OpenAI."*
+- **5.2.5 Legal: Intellectual Property – Apple Products** — *"Terms for iPhone
+  in the app subtitle in an inappropriate manner."*
+
+⚠️ **THE SUBTITLE WAS BOTH REJECTIONS AT ONCE.** It read
+**"Open AI models, on your iPhone"** — 30 characters carrying `iPhone`, which is
+5.2.5, and `Open AI`, which a reviewer reads as **OpenAI**, which is 5.0.0. The
+phrase meant "open-weight models". Nobody outside the project reads it that way,
+and the prediction recorded in this file (guideline 1.2, AI content with no
+filter) was wrong for the second time running.
+
+⚠️ **THE PREDICTION IN THIS FILE HAS NOW BEEN WRONG TWICE.** It said 1.2. Apple
+raised 2.1 the first time and 5.0.0 + 5.2.5 the second. Treat the next guess as
+worth exactly nothing.
+
+### Where the flagged terms actually were
+
+| Field | Contained | Action |
+|---|---|---|
+| subtitle | `iPhone`, `Open AI` | replaced — now **"Open models, fully offline"** (26 chars) |
+| description | `open AI models`, `OpenAI` | `open AI` → `open-weight`; the OpenAI in the provider list stays, see below |
+| keywords | `gpt` | removed |
+| review notes | `OpenAI` | kept; a response paragraph added at the top |
+
+`iPhone` in the **description** was NOT cited and stays. Apple flagged the
+subtitle specifically, because a subtitle reads as branding.
+
+### The fix taken: China mainland deselected
+
+Apple's own Next Steps offer it: *"you can choose to not distribute this app in
+China by deselecting the China mainland storefront"*, and *"Apps with ChatGPT
+functionality or metadata references can continue to be used in apps outside of
+China."* Availability is now **174 countries**; China mainland reads **Not
+Available**.
+
+⚠️ **THE ALTERNATIVE WAS NOT REALLY AVAILABLE.** Keeping China means stripping
+every OpenAI reference AND disabling the OpenAI provider in a China build — and
+then still needing an MIIT deep-synthesis licence, which a solo developer does
+not hold. Suppressing the metadata alone would be a claim Apple can disprove by
+opening Settings → Providers.
+
+So the OpenAI mention in the description's provider list is **deliberately kept**.
+It is true, it is useful, and outside China it is permitted.
+
+### Resubmitted the same day
+
+All changes are metadata only — **no new build**. 1.0 (6) is still the binary.
+On the version page the button is **Update Review** (which moves the item from
+Rejected to Ready for Review), and only then does **Resubmit to App Review** on
+the submission page become enabled. Two buttons on two pages; the second is
+greyed out until the first is pressed. Status now: **Waiting for Review**.
+
+Every field was verified by reloading the page afterwards, because App Store
+Connect greys its Save button whether or not the write reached the server.
+
+⚠️ Two App Store Connect fields refuse programmatic value-setting — they are
+React-controlled, so assigning `.value` leaves them empty and Save never
+enables. Click and type, or set through the native descriptor and dispatch
+`input` + `change`.
+
+---
+
 ## TestFlight Test Information — filled 2026-09-09
 
 ⚠️ **"Missing Test Information" IS A TESTFLIGHT WARNING, NOT AN APP STORE ONE,
@@ -227,7 +296,7 @@ Done and verified by reload:
 
 | Item | State |
 |---|---|
-| Name / subtitle | Radiant - Local AI Chat / "Open AI models, on your iPhone" (30 chars, at the cap) |
+| Name / subtitle | Radiant - Local AI Chat / "Open models, fully offline" (26) — was "Open AI models, on your iPhone", which drew BOTH halves of the 2026-09-10 rejection |
 | Category | Productivity, secondary Developer Tools |
 | Description, keywords, URLs, copyright, review notes | filled |
 | Screenshots | 4 on the 6.9" slot, RGB, no alpha |
