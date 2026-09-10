@@ -141,6 +141,51 @@ Apple does not count either as collection by the developer.
 
 ---
 
+## TestFlight Test Information — filled 2026-09-09
+
+⚠️ **"Missing Test Information" IS A TESTFLIGHT WARNING, NOT AN APP STORE ONE,
+and it does not block App Store review.** It was read as a problem with the
+submission; it is not. The App Store side was already complete — App Review
+Information on the version page had sign-in unchecked, the full contact block,
+and 3,600 of the 4,000 characters of notes. Meanwhile every field on
+**TestFlight → Test Information** was empty, which is where the warning lives.
+It gates EXTERNAL TestFlight testing only. Internal testers work without it.
+
+Checked in App Store Connect, not inferred: iOS App **1.0 Waiting for Review**,
+submitted Monday 4:43 PM, build **6** attached. An earlier Thursday submission
+shows **Removed**.
+
+Now set (verified by reloading the page, not just by the Save button greying):
+
+| Field | Value |
+|---|---|
+| Beta App Description | what testers see; names what feedback is useful |
+| Feedback Email | tony@templetongroup.com |
+| Marketing URL | https://www.templetongroup.dev/showcase/radiant/ |
+| Privacy Policy URL | https://www.templetongroup.dev/showcase/radiant/privacy.html |
+| Contact | Tony / Ricciardi / 212-517-3001 / tony@templetongroup.com |
+| Sign-in required | unchecked — the app has no login |
+| Review Notes | 1,248 chars, same substance as the App Store notes |
+
+⚠️ **Both URLs were fetched before saving**, because of the trap already recorded
+above: `templetongroup.dev` answers 200 with the homepage for unknown paths.
+`/showcase/radiant/` returned 43,466 bytes titled "Radiant: a local coding
+harness for Mac"; `/privacy.html` returned 6,695 bytes titled "Privacy —
+Radiant". A 200 alone would have proved nothing.
+
+⚠️ **The Marketing URL page is about the MAC app.** It is what the App Store
+listing already declares, so this is consistent rather than new — but a
+TestFlight tester on an iPhone lands on a page about a different product. Worth
+a decision, not a silent inheritance.
+
+**Two App Store Connect fields refuse programmatic value-setting.** They are
+React-controlled: setting `.value` leaves them empty and the Save button never
+enables. Click and type instead, or set through the native descriptor and
+dispatch `input` + `change`. The Beta App Description is a contenteditable div,
+not a textarea, so it will not appear in a `querySelectorAll('textarea')` sweep.
+
+---
+
 ## Submission status — 2026-08-24
 
 **REPLIED 2026-08-25 21:45.** All seven answers sent in App Review with two
@@ -189,7 +234,7 @@ Done and verified by reload:
 | Sign-in required | unchecked — the app has no login |
 | App Privacy | Data Not Collected |
 | Privacy policy | https://www.templetongroup.dev/showcase/radiant/privacy.html |
-| Content rights | yes, third-party content with rights (the 44 open-weight models) |
+| Content rights | yes, third-party content with rights (the open-weight models in the catalogue — 49 at time of writing) |
 | Age rating | 13+ — see below |
 | Price / availability | free, all 175 countries |
 | DSA trader | declared as a trader; NY Certificate of Assumed Name uploaded; **In Review** |
