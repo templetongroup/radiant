@@ -1257,7 +1257,15 @@ code, pre, .mono { font-family: var(--font-mono); }
   /* the dictate button is an .attach-btn, which is a fixed 28px grid cell — it
      has to become a flex row that can grow like the toggles do */
   width: auto; min-width: 28px; display: inline-flex; align-items: center;
-  transition: padding .22s ease, background-color .15s ease, border-color .15s ease, color .15s ease;
+}
+/* ⚠️ THE MOTION BLOCK FURTHER DOWN SETS transition ON .pill-toggle TOO, and it
+   comes later in the file, so a plain .pill-toggle rule here loses — the label
+   opened but the neighbours snapped instead of sliding. Scoped to the composer
+   so it wins, and it carries the press spring so that is not lost in return. */
+.composer-tools .pill-toggle,
+.composer-tools .attach-btn:has(.pill-label) {
+  transition: padding .22s ease, transform 0.18s var(--spring),
+              background-color .15s ease, border-color .15s ease, color .15s ease;
 }
 .pill-toggle:hover, .pill-toggle:focus-visible,
 .attach-btn:has(.pill-label):hover, .attach-btn:has(.pill-label):focus-visible {
@@ -1267,8 +1275,24 @@ code, pre, .mono { font-family: var(--font-mono); }
 .attach-btn:hover .pill-label, .attach-btn:focus-visible .pill-label {
   max-width: 220px; opacity: 1; margin-left: 6px;
 }
+/* ⚠️ THE WORDS WERE IN THE STATE COLOUR ON THE STATE FILL. Expanded, "computer
+   on" rendered accent-on-accent-wash and "Dictate" accent-on-hover, and in the
+   sage theme those are two shades of the same green. Tony: "the button text is
+   unreadable here." While the button is open the WORD says on or off, so the
+   text can be plain --text on the plain hover surface — the pair every other
+   hovered control here already uses — and the icon alone keeps the colour. */
+.pill-toggle.on:hover, .pill-toggle.on:focus-visible,
+.pill-toggle.warn:hover, .pill-toggle.warn:focus-visible,
+.attach-btn:has(.pill-label):hover, .attach-btn:has(.pill-label):focus-visible,
+.attach-btn.is-listening {
+  background: var(--bg-hover); border-color: var(--border); color: var(--text);
+}
+.pill-toggle.on:hover svg, .pill-toggle.on:focus-visible svg,
+.attach-btn:has(.pill-label):hover svg, .attach-btn:has(.pill-label):focus-visible svg,
+.attach-btn.is-listening svg { color: var(--accent); }
+.pill-toggle.warn:hover svg, .pill-toggle.warn:focus-visible svg { color: var(--danger); }
 @media (prefers-reduced-motion: reduce) {
-  .pill-toggle, .attach-btn:has(.pill-label), .pill-toggle .pill-label, .attach-btn .pill-label { transition: none; }
+  .composer-tools .pill-toggle, .composer-tools .attach-btn:has(.pill-label), .pill-toggle .pill-label, .attach-btn .pill-label { transition: none; }
 }
 .send-btn {
   width: 32px; height: 32px; border-radius: 999px; border: none;
@@ -2049,7 +2073,9 @@ button.hf-head:hover { background: var(--bg-hover); }
 .attach-btn.is-listening { padding: 4px 10px 4px 8px; }
 .attach-btn.is-listening .pill-label { max-width: 220px; opacity: 1; margin-left: 6px; }
 .attach-btn.is-listening {
-  color: var(--accent); border-color: var(--accent);
+  /* the word "Listening" is plain --text (see the hover-contrast note above);
+     the accent is on the icon and the ring */
+  border-color: var(--accent);
   animation: listen-pulse 1.4s ease-in-out infinite;
 }
 @keyframes listen-pulse {

@@ -527,16 +527,29 @@ for (const r of results) console.log(`  ${r.ok ? '✓' : '✗'} ${r.name}${r.det
   ok(/\.pill-toggle:hover \{[^}]*border-color: var\(--border\)/s.test(css), 'the chip is earned by hover')
   // Open counts as touched: the trigger keeps its chip while the panel is up.
   ok(/\.model-btn\[aria-expanded='true'\]/.test(css), 'and by being open')
-  // ⚠️ A filled chip on every enabled toggle is what made the row shout. Colour
-  // says on — and the word beside it already reads "on", so the state survives for
-  // anyone who cannot see colour.
-  ok(/\.pill-toggle\.on \{[^}]*background: none/s.test(css), 'on is said in colour, not in chrome')
+  // ⚠️ THIS SAID "background: none" FOR A RULE THAT HAS HAD A FILL SINCE 0.8.8,
+  // and nobody noticed because this file is not in test-all.sh. When the toggles
+  // became icons the word "on" left the screen, so colour would have been the
+  // only carrier of the state — on is a fill AND a border now, a difference in
+  // shape, small enough at icon size not to bring the shouting row back. Open
+  // (hovered), the word is back and the fill goes, which the assertions below
+  // pin. Restated to what the CSS actually does and why.
+  ok(/\.pill-toggle\.on \{[^}]*background: var\(--accent-wash\)/s.test(css), 'at icon size, on is a fill as well as a colour')
+  ok(/\.pill-toggle\.on \{[^}]*border-color: var\(--accent-dim\)/s.test(css), 'and a border — shape, for anyone who cannot see the hue')
   // ⚠️ AND SO IS THE WARNING STATE. I changed .pill-toggle and .pill-toggle.on and
   // missed .warn, so "allow all" sat in a red chip among plain labels and read as
   // the only real button in the row. Tony: "why does allow all appear in a bubble
   // but not hte other options".
-  ok(/\.pill-toggle\.warn \{[^}]*background: none/s.test(css), 'allow all is text too')
+  ok(/\.pill-toggle\.warn \{[^}]*background: color-mix\(in oklab, var\(--danger\)/s.test(css), 'allow all is a fill in the danger colour, like on is in the accent — the same shape, a different hue')
   ok(/\.pill-toggle\.warn:hover/.test(css), 'and earns its chip the same way')
+  // ⚠️ OPEN, THE WORDS ARE PLAIN TEXT. The expanded label was drawn in the state
+  // colour on the state fill — accent on accent-wash — and in the sage theme
+  // those are two shades of one green. Tony: "the button text is unreadable
+  // here." The word says on/off while it is open, so the colour is not needed.
+  ok(/\.pill-toggle\.on:hover[^{]*\{[^}]*color: var\(--text\)/s.test(css), 'an open "on" button writes its label in plain text')
+  ok(/\.pill-toggle\.on:hover[^{]*\{[^}]*background: var\(--bg-hover\)/s.test(css), 'on the plain hover surface')
+  ok(/\.attach-btn:has\(\.pill-label\):hover[^{]*\{[^}]*color: var\(--text\)/s.test(css), 'and so does the open dictate button')
+  ok(/\.composer-tools \.pill-toggle[^{]*\{[^}]*transition: padding/s.test(css), 'the width animates, so the neighbours slide rather than snap')
 
   // ⚠️ A CLASS MUST BE NAMED FOR WHAT IT DOES. Design Mode's busy state was called
   // `listening` and pulsed with a keyframe named `mic-pulse`, left over from a
