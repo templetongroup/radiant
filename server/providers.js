@@ -7,6 +7,7 @@ import { TOOL_DEFS, runTool, outsideWorkspace } from './tools.js'
 import { COMPUTER_TOOL_DEFS, COMPUTER_TOOL_NAMES, COMPUTER_SAFE, runComputerTool } from './computer-tools.js'
 import { boundResult, withBudget, MAX_TOOL_MS, ToolTimeout } from './tool-bounds.js'
 import { COPILOT_HEADERS } from './oauth.js'
+import { contextWindow } from './context-windows.js'
 
 // ⚠️ THIS WAS 30, AND 30 IS SMALLER THAN AN ORDINARY JOB. Tony asked Radiant to
 // pull a page of skills and install them; the turn that was actually doing it
@@ -279,23 +280,47 @@ async function * sseEvents (response) {
 const KEEP_WHOLE = 6          // the last N messages keep their results verbatim
 const FOLD_STEP = 8           // ...and the boundary only moves every N messages
 const FOLD_TO = 600           // how much of an older result survives
+// ⚠️ THE MESSAGE COUNT NEVER MOVES DURING A TURN. All of the above folds by
+// message, and an agentic turn is ONE message: thirty rounds of read_file and
+// run_command land in the same assistant.parts, every one of them re-sent whole
+// on every round. Tony's chat died at 259,445 tokens on a 256,000 model with
+// THREE messages in it — the per-message fold had nothing to fold, and
+// compaction, which also counts messages, declined too. So results are also
+// folded by ROUND inside a message: the last KEEP_ROUNDS rounds stay whole and
+// the boundary is quantized like the message one, for the same caching reason.
+const KEEP_ROUNDS = 4
+const ROUND_STEP = 4
 
-export function foldOldToolResults (messages) {
+function foldPart (p) {
+  if (p.type !== 'tool' || typeof p.result !== 'string' || p.result.length <= FOLD_TO) return p
+  return {
+    ...p,
+    result: p.result.slice(0, FOLD_TO) +
+      `\n\n[… ${p.result.length - FOLD_TO} more characters from this earlier ${p.name} were trimmed to keep the conversation small. Run it again if you need the rest.]`
+  }
+}
+
+// `hard` is the emergency setting for a request the provider has just refused:
+// every result folds except the current round's, whatever the quantization
+// would have kept — the cache is already lost on a rejected request.
+export function foldOldToolResults (messages, { hard = false } = {}) {
   const cut = Math.floor((messages.length - KEEP_WHOLE) / FOLD_STEP) * FOLD_STEP
-  if (cut <= 0) return messages
   let folded = 0
   const out = messages.map((m, i) => {
-    if (i >= cut || !Array.isArray(m.parts)) return m
+    if (!Array.isArray(m.parts)) return m
+    const wholeMessage = hard ? i < messages.length - 1 : i < cut
+    let lastRound = -1
+    for (const p of m.parts) if (p.type === 'tool' && Number.isInteger(p.round) && p.round > lastRound) lastRound = p.round
+    const cutRound = hard
+      ? lastRound
+      : Math.floor((lastRound + 1 - KEEP_ROUNDS) / ROUND_STEP) * ROUND_STEP
     let touched = false
     const parts = m.parts.map(p => {
-      if (p.type !== 'tool' || typeof p.result !== 'string' || p.result.length <= FOLD_TO) return p
-      touched = true
-      folded += p.result.length - FOLD_TO
-      return {
-        ...p,
-        result: p.result.slice(0, FOLD_TO) +
-          `\n\n[… ${p.result.length - FOLD_TO} more characters from this earlier ${p.name} were trimmed to keep the conversation small. Run it again if you need the rest.]`
-      }
+      const old = wholeMessage || (Number.isInteger(p.round) && p.round < cutRound)
+      if (!old) return p
+      const q = foldPart(p)
+      if (q !== p) { touched = true; folded += p.result.length - FOLD_TO }
+      return q
     })
     return touched ? { ...m, parts } : m
   })
@@ -685,9 +710,16 @@ function estimateTokens (messages) {
   }
   return Math.round(chars / 4)
 }
+// ⚠️ EVERY PROVIDER SAYS IT DIFFERENTLY, AND ONE THAT IS NOT MATCHED HERE ENDS
+// THE CHAT. xAI's "This model's maximum prompt length is 256000 but the request
+// contains 259445 tokens" matched nothing in the first list — "maximum" and
+// "tokens" sit 60 characters apart — so instead of compacting, the turn died and
+// Tony read raw JSON: `400: {"code":"invalid-argument", ...}`. Every phrasing
+// below is one a real provider has sent; test-turn-context.mjs pins them.
 function isContextError (msg) {
-  return /context length|context window|maximum context|too many tokens|prompt is too long|reduce the length|token.{0,4}limit|exceeds? the maximum|input is too long|maximum.{0,20}tokens/i.test(String(msg || ''))
+  return /context length|context window|maximum context|too many tokens|prompt is too long|reduce the length|token.{0,4}limit|exceeds? the maximum|input is too long|maximum.{0,20}tokens|maximum prompt length|prompt length|request contains \d+ tokens|input token count|too long/i.test(String(msg || ''))
 }
+export { isContextError }
 function renderForSummary (messages) {
   return messages.map(m => {
     if (m.role === 'user') return `User: ${m.text || ''}`
@@ -762,6 +794,14 @@ export async function runTurn ({ provider, model, apiKey, getAccessToken, getAcc
     emit({ type: 'notice', text: `This chat's folder is not on this Mac — ${strayCwd} — so it is working in ${cwd} instead. That usually means the chat was started on another Mac; pick a folder for it in the header to make it stick here.` })
   }
   let compacted = false
+  // ⚠️ THE PROVIDER ALREADY TOLD US HOW BIG THE LAST REQUEST WAS. usage.input on
+  // every round is the real prompt size in the model's own tokens — not chars/4,
+  // which under-counted Tony's code-heavy chat by a third and let the proactive
+  // net above sleep through 259k. Once it nears the model's window, fold hard
+  // for the rest of the turn rather than wait to be refused.
+  let lastPrompt = 0
+  let hardFold = false
+  const window_ = contextWindow(model)
 
   const accessToken = getAccessToken ? await getAccessToken() : null
   const accountId = getAccountId ? await getAccountId() : null
@@ -810,7 +850,7 @@ export async function runTurn ({ provider, model, apiKey, getAccessToken, getAcc
   // strictly worse than the round cap it replaced. Take the mark at the start
   // and measure the difference.
   const tokensBefore = (stats.inTokens || 0) + (stats.outTokens || 0)
-  const emitS = ev => { if (ev.type === 'usage') { stats.inTokens += ev.input || 0; stats.outTokens += ev.output || 0 } emit(ev) }
+  const emitS = ev => { if (ev.type === 'usage') { stats.inTokens += ev.input || 0; stats.outTokens += ev.output || 0; if (ev.input) lastPrompt = ev.input } emit(ev) }
   const finishStats = () => { session.stats = stats; emit({ type: 'stats', stats }) }
   for (let round = 0; round < MAX_ROUNDS; round++) {
     // ⚠️ STOP HAD EXACTLY ONE CHECK IN THIS WHOLE FUNCTION, and it sat after the
@@ -834,6 +874,10 @@ export async function runTurn ({ provider, model, apiKey, getAccessToken, getAcc
       return
     }
     emit({ type: 'round_start', round })
+    if (!hardFold && window_ && lastPrompt > window_ * 0.85) {
+      hardFold = true
+      emit({ type: 'notice', text: `The conversation is close to ${model}'s limit (${Math.round(lastPrompt / 1000)}k of ${Math.round(window_ / 1000)}k tokens) — older tool results are trimmed from here on so it can keep going.` })
+    }
     const args = {
       baseUrl: provider.baseUrl,
       apiKey,
@@ -854,7 +898,7 @@ export async function runTurn ({ provider, model, apiKey, getAccessToken, getAcc
     let result
     const roundStart = Date.now()
     try {
-      const reqMsgs = foldOldToolResults(groupSpeakerId ? groupFlatten(session.messages, groupSpeakerId, groupNames || {}) : session.messages)
+      const reqMsgs = foldOldToolResults(groupSpeakerId ? groupFlatten(session.messages, groupSpeakerId, groupNames || {}) : session.messages, { hard: hardFold })
       result = provider.type === 'anthropic'
         ? await anthropicRound({ ...args, messages: toAnthropic(reqMsgs) })
         : useChatgpt
@@ -878,14 +922,24 @@ export async function runTurn ({ provider, model, apiKey, getAccessToken, getAcc
           emit({ type: 'notice', text: 'This model does not take a thinking level — running at its default.' })
           continue
         }
-      // Ran out of context -> summarize older messages and retry this round.
-      if (isContextError(e.message) && autoCompact && summarize && !compacted) {
-        compacted = true
-        const i = session.messages.indexOf(assistant)
-        if (i >= 0) session.messages.splice(i, 1)
-        const did = await compactSession(session, 4, summarize, emit)
-        session.messages.push(assistant)
-        if (did) { emit({ type: 'notice', text: 'The conversation was getting long — summarized earlier messages to free up room, and continued.' }); continue }
+      // Ran out of context. First the cheap move — fold every tool result but
+      // this round's and resend — then summarize older messages, then give up
+      // in a sentence rather than the provider's JSON.
+      if (isContextError(e.message)) {
+        if (!hardFold) {
+          hardFold = true
+          emit({ type: 'notice', text: `The conversation outgrew ${model}'s limit — trimmed older tool results and continued.` })
+          continue
+        }
+        if (autoCompact && summarize && !compacted) {
+          compacted = true
+          const i = session.messages.indexOf(assistant)
+          if (i >= 0) session.messages.splice(i, 1)
+          const did = await compactSession(session, 4, summarize, emit)
+          session.messages.push(assistant)
+          if (did) { emit({ type: 'notice', text: 'The conversation was getting long — summarized earlier messages to free up room, and continued.' }); continue }
+        }
+        throw new Error(`The conversation is too long for ${model}${window_ ? ` (it takes about ${Math.round(window_ / 1000)}k tokens)` : ''}, even after trimming older tool results${compacted ? ' and summarizing' : ''}. Start a new chat for the next step${autoCompact ? '' : ', or turn on auto-compact in Settings → Automation'}.`)
       }
       throw e
     }
@@ -901,7 +955,7 @@ export async function runTurn ({ provider, model, apiKey, getAccessToken, getAcc
       // A model can ask for several tools in one round. Stop means stop before
       // the next one, not after all of them.
       if (signal?.aborted) { stats.toolMs += Date.now() - toolLoopStart; finishStats(); emit({ type: 'stopped' }); return }
-      const part = { type: 'tool', id: call.id, name: call.name, args: call.args }
+      const part = { type: 'tool', id: call.id, name: call.name, args: call.args, round }
       assistant.parts.push(part)
       emit({ type: 'tool_start', id: call.id, name: call.name, args: call.args })
       const isComputer = COMPUTER_TOOL_NAMES.has(call.name)
