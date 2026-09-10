@@ -57,7 +57,10 @@ jobs:
       # release was already out, exactly as designed — which is how it went
       # unread five times. The flag lives in the npm script so `npm run
       # dist:linux` is right on a laptop too.
-      - run: npm run dist:linux
+      # Spelled out here rather than via `npm run dist:linux`, so that a
+      # workflow_dispatch against an OLD tag — whose package.json predates the
+      # flag — still builds. The script has the flag too, for laptops.
+      - run: npm run build && npx electron-builder --linux --publish never
 
       # ⚠️ A BUILD THAT EXITS 0 IS NOT A BUILD THAT RUNS. This is the Linux
       # counterpart of scripts/test-smoke.mjs, which boots the built app and asks
