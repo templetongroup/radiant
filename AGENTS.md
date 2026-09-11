@@ -19,7 +19,9 @@ work was done on 2026-09-03 premised on a build that was not in review at all.
 Reading that page costs one navigation. Do it before repeating anything below.
 
 **Anything to do with the submission: use the `app-store-review` skill**
-(`.claude/skills/app-store-review/`, also installed at `~/.claude/skills`). It
+(`.claude/skills/app-store-review/`, also installed at `~/.claude/skills`;
+published at https://github.com/templetongroup/app-store-review — the repo is
+the copy people install, so a change here goes there too). It
 is the whole App Store adventure — both rejections, the TestFlight false alarm,
 the privacy Publish button, the two-button resubmit — turned into a protocol,
 and it is shareable with people outside this repo.
