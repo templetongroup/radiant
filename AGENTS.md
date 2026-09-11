@@ -18,6 +18,12 @@ work was done on 2026-09-03 premised on a build that was not in review at all.
 
 Reading that page costs one navigation. Do it before repeating anything below.
 
+**Anything to do with the submission: use the `app-store-review` skill**
+(`.claude/skills/app-store-review/`, also installed at `~/.claude/skills`). It
+is the whole App Store adventure — both rejections, the TestFlight false alarm,
+the privacy Publish button, the two-button resubmit — turned into a protocol,
+and it is shareable with people outside this repo.
+
 Build 4 was archived from `~/Library/Developer/Xcode/Archives/2026-09-03/` and
 carries the Gemma 4 fix plus the fetched catalogue. Apple has this binary; the
 App Store is the one place Radiant ships where a push to `master` does NOT reach
