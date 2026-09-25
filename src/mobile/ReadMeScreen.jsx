@@ -38,9 +38,9 @@ const sections = () => [
     ]
   },
   {
-    title: 'Try the new design',
+    title: 'A new, native design',
     body: [
-      'Home has a \u201cTry the new design\u201d link under the current model. It opens Radiant\u2019s new native look: your conversations as a list you can search and swipe (left to archive or delete), and a chat screen with the model\u2019s name at the top \u2014 tap it to switch models. Once you have opened it, Radiant starts there.',
+      'Radiant now opens in its new native look: your conversations as a list you can search and swipe (left to archive or delete), and a chat screen with the model\u2019s name at the top \u2014 tap it to switch models. If you would rather have the previous design, \u201cUse the current design\u201d in the gear menu switches back, and Radiant remembers; \u201cTry the new design\u201d on its Home brings the new one back.',
       'It uses the same conversations, models, skills and color theme as before. In a chat, the slash button picks a skill (or type / and its name), the plus adds a photo when the model can see, and cloud models work as they always have. The gear opens Models, Settings, Skills and Cloud models in the new design too. Models shows what is on this phone, every model by maker with whether it runs here, downloads you can stop, and Hugging Face search. Settings keeps every choice you had \u2014 all thirteen colors, dark, medium, light or system, text size, and where Radiant opens \u2014 and a new color takes effect as you tap it. Only this Read me still uses the current design for now. \u201cUse the current design\u201d in that menu switches back.'
     ]
   },

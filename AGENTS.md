@@ -210,6 +210,22 @@ at the end; run it again when they are. Devices today: iPhone 17 Pro Max,
 iPad Pro 11, iPad mini (A17 Pro). All are on the paid team's profile, which
 lasts a year — not the seven days a free Apple ID gets.
 
+⚠️ **The phone app is being rebuilt natively (SwiftUI), Minis-style — Tony, 2026-09-25.**
+The native screens live in `apps/ios/ios/App/App/Native/` and are what the app
+opens in (build 33+). They do NOT have their own store yet: the web app hands
+them a snapshot of every `radiant.phone.*` / `rx.*` localStorage key at launch
+(`src/mobile/nativePreview.js` → `NativePreview.open`), they read and write
+those keys in the web's exact shapes (`Native/Stores.swift` mirrors chats.js,
+skills.js, drafts.js, providers.js, consent.js), and every write goes back as a
+`kv` event. So both designs share one set of data and either can be used.
+Screens not rebuilt yet open in the web design (`app.openWeb(route)` →
+reload onto that route) and returning to Home reopens native. "Use the current
+design" sets `radiant.phone.nativeUI` = "0". Rules ported, not reinvented:
+themes (NativeKit.swift, same OKLCH values), fit (fit.js), Hugging Face checks
+(hf.js), prompt budget and thinking (ChatLogic.swift). The full list of what
+the web screens do is `docs/ios-native-inventory.md`. New Swift files must be
+registered: `python3 scripts/ios-add-swift.py App/Native/Foo.swift`.
+
 ⚠️ **The MLX engine is OUR FORK, pinned to one commit.** `CapApp-SPM/Package.swift`
 takes `mlx-swift-lm` from `templetongroup/mlx-swift-lm` at `a57f40f` — Apple's
 `14414441` plus one fix: dense Nemotron-H checkpoints (Nemotron 3 Nano 4B) failed

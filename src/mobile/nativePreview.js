@@ -8,8 +8,10 @@
  * have yet ("navigate") — the web app reloads, so everything it shows is read
  * fresh from that store rather than from state held before the native app ran.
  *
- * `radiant.phone.nativeUI` = "1" makes the native app the one you land in:
- * it opens at launch, and again whenever you come back to Home.
+ * The native app is the one you land in: it opens at launch, and again
+ * whenever you come back to Home. `radiant.phone.nativeUI` = "0" — set by
+ * "Use the current design" — is the only thing that turns it off, so a new
+ * install starts native and a deliberate choice to go back is kept.
  */
 const NATIVE_KEY = 'radiant.phone.nativeUI'
 const ROUTE_KEY = 'rx.nativeRoute'   // sessionStorage: the web screen to show after a reload
@@ -20,7 +22,8 @@ const plugin = () => (typeof window !== 'undefined' ? window.Capacitor?.Plugins?
 export const nativePreviewAvailable = () => Boolean(plugin()?.open)
 
 export function nativeUIEnabled () {
-  try { return localStorage.getItem(NATIVE_KEY) === '1' } catch { return false }
+  if (!nativePreviewAvailable()) return false
+  try { return localStorage.getItem(NATIVE_KEY) !== '0' } catch { return true }
 }
 
 /** A web screen the native app asked for, consumed once. */
