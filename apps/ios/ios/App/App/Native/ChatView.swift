@@ -10,6 +10,7 @@ struct ChatView: View {
     let chatId: String
     /// Show another conversation in place of this one ("New conversation").
     var openChat: (String) -> Void = { _ in }
+    var go: (Route) -> Void = { _ in }
     @State private var draft = ""
     @State private var photoItem: PhotosPickerItem?
     @State private var photo: Data?
@@ -86,7 +87,7 @@ struct ChatView: View {
                     }
                 }
                 Divider()
-                Button("More models…", systemImage: "square.stack.3d.up") { app.openWeb("models") }
+                Button("More models…", systemImage: "square.stack.3d.up") { go(.models) }
             } label: {
                 HStack(spacing: 4) {
                     Circle().fill(model == nil ? Color.orange : Color.green).frame(width: 6, height: 6)

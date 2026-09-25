@@ -72,23 +72,34 @@ public class NativePreview: CAPPlugin, CAPBridgedPlugin {
 }
 
 /// The native app's root: navigation, theme, and the cloud-permission sheet.
+/// Where the native app can go.
+enum Route: Hashable { case chat(String), models }
+
 struct NativeRoot: View {
     @EnvironmentObject var app: AppModel
     @EnvironmentObject var kv: KV
-    @State private var path: [String] = []
+    @State private var path: [Route] = []
 
     var body: some View {
         let appearance = Appearance(kv.json(Appearance.key))
         NavigationStack(path: $path) {
-            HomeView(open: { path.append($0) })
-                .navigationDestination(for: String.self) { id in
-                    ChatView(chatId: id, openChat: { path = [$0] })
+            HomeView(open: { path.append(.chat($0)) }, go: { path.append($0) })
+                .navigationDestination(for: Route.self) { r in
+                    switch r {
+                    case .chat(let id):
+                        ChatView(chatId: id, openChat: { path = [.chat($0)] }, go: { path.append($0) })
+                    case .models:
+                        ModelsView(engine: app.engine, startChat: { modelId in
+                            app.choose(modelId)
+                            path = [.chat(app.newChat())]
+                        })
+                    }
                 }
         }
         .modifier(Themed(appearance: appearance))
         .onAppear {
             // "Open to: Last chat" in Settings
-            if appearance.openTo == "chat", path.isEmpty, let last = app.chats.first(where: { !$0.archived }) { path = [last.id] }
+            if appearance.openTo == "chat", path.isEmpty, let last = app.chats.first(where: { !$0.archived }) { path = [.chat(last.id)] }
         }
         .sheet(item: $app.pendingConsent) { p in ConsentSheet(provider: p).modifier(Themed(appearance: appearance)) }
     }

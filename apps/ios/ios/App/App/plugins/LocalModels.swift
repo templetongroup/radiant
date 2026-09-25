@@ -819,9 +819,15 @@ public class LocalModels: CAPPlugin, CAPBridgedPlugin {
         guard let entry = effectiveCatalog.first(where: { $0.id == call.getString("id") }) else {
             return call.reject("Unknown model")
         }
+        beginDownload(entry, resolve: { call.resolve($0) }, reject: { call.reject($0) })
+    }
+
+    /// The download itself, for the web (download()) and the native Models
+    /// screen (startDownload()). Progress goes out as the same events to both.
+    private func beginDownload(_ entry: Entry, resolve: @escaping ([String: Any]) -> Void, reject: @escaping (String) -> Void) {
         let id = entry.id
         // A second tap must not start a second download of the same weights.
-        if job(id) != nil { return call.resolve(["id": id, "alreadyRunning": true]) }
+        if job(id) != nil { return resolve(["id": id, "alreadyRunning": true]) }
         let task = Task {
             // The progress overload's handler is @Sendable, so it cannot touch
             // the plugin — that is what blocked real percentages. It can hold an
@@ -954,7 +960,7 @@ public class LocalModels: CAPPlugin, CAPBridgedPlugin {
                 self.setJob(id, nil)
                 self.markDownloaded(id)
                 self.notifyListeners("downloadDone", data: ["id": id])
-                call.resolve(["id": id])
+                resolve(["id": id])
             } catch {
                 feed.finish()
                 poller.cancel()
@@ -969,12 +975,12 @@ public class LocalModels: CAPPlugin, CAPBridgedPlugin {
                     || Task.isCancelled
                 if cancelled {
                     self.notifyListeners("downloadCancelled", data: ["id": id])
-                    call.resolve(["id": id, "cancelled": true])
+                    resolve(["id": id, "cancelled": true])
                 } else {
                     self.notifyListeners("downloadFailed", data: [
                         "id": id, "message": error.localizedDescription
                     ])
-                    call.reject("Download failed: \(error.localizedDescription)")
+                    reject("Download failed: \(error.localizedDescription)")
                 }
             }
         }
@@ -1012,6 +1018,91 @@ public class LocalModels: CAPPlugin, CAPBridgedPlugin {
         }
         forget(entry.id)
         call.resolve()
+    }
+
+    // MARK: - for the native screens
+
+    /// Native screens hear the same events the web does (download progress,
+    /// done, failed…). Every notifyListeners call is forwarded here as well.
+    private var observers: [UUID: (String, [String: Any]) -> Void] = [:]
+
+    @discardableResult
+    func observe(_ fn: @escaping (String, [String: Any]) -> Void) -> UUID {
+        let id = UUID(); observers[id] = fn; return id
+    }
+    func unobserve(_ id: UUID) { observers.removeValue(forKey: id) }
+
+    override public func notifyListeners(_ eventName: String, data: [String: Any]?) {
+        super.notifyListeners(eventName, data: data)
+        let fns = Array(observers.values), d = data ?? [:]
+        DispatchQueue.main.async { for fn in fns { fn(eventName, d) } }
+    }
+
+    struct CatalogRow: Identifiable {
+        let id: String, name: String, maker: String, blurb: String, gb: Double
+        let vision: Bool, video: Bool, thinks: Bool, downloaded: Bool, custom: Bool, repo: String
+    }
+
+    /// The whole list, as list() gives the web.
+    func catalogRows() -> [CatalogRow] {
+        let customIDs = Set(custom.map(\.id))
+        return effectiveCatalog.map {
+            CatalogRow(id: $0.id, name: $0.name, maker: $0.maker, blurb: $0.blurb, gb: $0.gb, vision: $0.vision,
+                       video: $0.video, thinks: $0.thinks, downloaded: isOnDisk($0), custom: customIDs.contains($0.id),
+                       repo: $0.config.name)
+        }
+    }
+
+    func startDownload(_ id: String) {
+        guard let entry = effectiveCatalog.first(where: { $0.id == id }) else { return }
+        beginDownload(entry, resolve: { _ in }, reject: { _ in })
+    }
+
+    /// Add a Hugging Face find to the list, as addCustom does; nil means it
+    /// could not be saved and would vanish on restart (so say so).
+    func addCustomModel(_ row: RemoteCatalog.Row) -> String? {
+        let saved = withCustom { list -> Bool in
+            list.removeAll { $0.id == row.id || $0.repo == row.repo }
+            list.append(row)
+            if saveCustom(list) { return true }
+            list.removeAll { $0.id == row.id }
+            return false
+        }
+        return saved ? row.id : nil
+    }
+
+    func removeCustomModel(_ id: String) {
+        guard let row = custom.first(where: { $0.id == id }) else { return }
+        if loaded?.id == id { loaded = nil }
+        if let dir = cacheDir(for: row.repo) { try? FileManager.default.removeItem(at: dir) }
+        forget(id)
+        withCustom { list in list.removeAll { $0.id == id }; saveCustom(list) }
+    }
+
+    func stopDownload(_ id: String) { job(id)?.cancel() }
+    func isDownloading(_ id: String) -> Bool { job(id) != nil }
+
+    func removeModel(_ id: String) {
+        guard let entry = effectiveCatalog.first(where: { $0.id == id }) else { return }
+        if loaded?.id == entry.id { loaded = nil }
+        if let dir = cacheDir(for: entry.config.name) { try? FileManager.default.removeItem(at: dir) }
+        forget(entry.id)
+    }
+
+    /// What iOS lets this app use, in bytes — the fit labels' budget.
+    func memoryBudget() -> Double { Double(rxMemoryLimit()) }
+
+    /// Free and total bytes on the device, as Settings shows them.
+    func disk() -> (free: Int64, total: Int64) {
+        let url = URL(fileURLWithPath: NSHomeDirectory())
+        let v = try? url.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey, .volumeTotalCapacityKey])
+        return (v?.volumeAvailableCapacityForImportantUsage ?? 0, Int64(v?.volumeTotalCapacity ?? 0))
+    }
+
+    /// Bytes on disk for one model, for the storage bar.
+    func bytesOnDisk(_ id: String) -> Int64 {
+        guard let e = effectiveCatalog.first(where: { $0.id == id }) else { return 0 }
+        return bytesInCache(for: e.config.name)
     }
 
     // MARK: - generation

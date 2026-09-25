@@ -6,6 +6,7 @@ struct HomeView: View {
     @EnvironmentObject var app: AppModel
     @Environment(\.rx) private var rx
     let open: (String) -> Void
+    var go: (Route) -> Void = { _ in }
     @State private var query = ""
     @State private var showArchived = false
 
@@ -54,7 +55,7 @@ struct HomeView: View {
             ToolbarItem(placement: .topBarLeading) {
                 Menu {
                     Button("Settings", systemImage: "gearshape") { app.openWeb("settings") }
-                    Button("Models", systemImage: "square.stack.3d.up") { app.openWeb("models") }
+                    Button("Models", systemImage: "square.stack.3d.up") { go(.models) }
                     Button("Skills", systemImage: "wand.and.stars") { app.openWeb("skills") }
                     Button("Cloud models", systemImage: "cloud") { app.openWeb("providers") }
                     Button("Read me", systemImage: "book") { app.openWeb("readme") }
@@ -117,7 +118,7 @@ struct HomeView: View {
             Text(app.options.isEmpty ? "Get a model to talk to — it runs right here, offline." : "Start one with the button below.")
         } actions: {
             if app.options.isEmpty {
-                Button("Choose a model") { app.openWeb("models") }.buttonStyle(.borderedProminent)
+                Button("Choose a model") { go(.models) }.buttonStyle(.borderedProminent)
             }
         }
         .foregroundStyle(rx.label2)
