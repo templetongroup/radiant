@@ -81,7 +81,7 @@ export async function inspectRepo (repo, { signal } = {}) {
   const quant = cfg?.quantization || cfg?.quantization_config || null
   const params = paramCount(meta, cfg)
   const bytesPerParam = params ? bytes / params : null
-  return { repo, gb, bytes, modelType, quantized: Boolean(quant), bits: quant?.bits ?? null, params, bytesPerParam, vision: modelType ? VISION_TYPES.has(modelType) : false, hasWeights: weights.length > 0 }
+  return { repo, gb, bytes, modelType, quantized: Boolean(quant), bits: quant?.bits ?? null, params, bytesPerParam, vision: modelType ? VISION_TYPES.has(modelType) : false, hasWeights: weights.length > 0, draft: (cfg?.architectures || []).some(a => /draft/i.test(a)) }
 }
 
 function paramCount (meta, cfg) {
@@ -97,6 +97,9 @@ function paramCount (meta, cfg) {
 export function qualify (info, fit) {
   if (!info.hasWeights) return { ok: false, tone: 'negative', label: 'No weights', why: 'This repo has no safetensors files — it is not a model Radiant can download.' }
   if (!info.modelType) return { ok: false, tone: 'negative', label: 'Unknown type', why: 'No config.json with a model type — Radiant cannot tell what this is.' }
+  // A draft model (config says qwen3, architecture says DFlash2DraftModel) only
+  // speeds up a bigger model; its weights do not fit the chat loader.
+  if (info.draft) return { ok: false, tone: 'negative', label: 'Won’t run', why: 'This is a draft model — a helper that speeds up a bigger model. It cannot hold a conversation on its own.' }
   if (!SUPPORTED.has(info.modelType)) return { ok: false, tone: 'negative', label: 'Won’t run', why: `Radiant’s engine has no loader for “${info.modelType}” models yet.` }
   // ⚠️ THE GEMMA 4 DEFECT: packed weights, no declaration. Under ~1.2 bytes per
   // parameter with no quantization in config.json means 4-bit weights that MLX

@@ -263,6 +263,19 @@ struct Pulse: ViewModifier {
 /// Navigation titles are drawn by UIKit, so a theme change has to reach them
 /// directly: the appearance proxy for bars not made yet, and every bar on screen.
 enum NavTitles {
+    /// The window the native app is shown in, while it is shown.
+    @MainActor static weak var window: UIWindow?
+
+    /// Light or dark for everything UIKit draws — bars, glass buttons, the search
+    /// field, pickers, sheets. SwiftUI's preferredColorScheme does not reach a
+    /// hosting controller presented over the web view, so without this they
+    /// follow the phone: light-mode glass and black titles on a dark theme.
+    @MainActor static func style(_ a: Appearance) {
+        let s: UIUserInterfaceStyle = !Themes.theme(a.themeId).pinned.isEmpty ? .dark
+            : a.mode == "light" ? .light : a.mode == "system" ? .unspecified : .dark
+        window?.overrideUserInterfaceStyle = s
+    }
+
     @MainActor static func recolor(_ color: Color) {
         let attrs: [NSAttributedString.Key: Any] = [.foregroundColor: UIColor(color)]
         UINavigationBar.appearance().largeTitleTextAttributes = attrs
@@ -279,5 +292,28 @@ enum NavTitles {
         for scene in UIApplication.shared.connectedScenes {
             (scene as? UIWindowScene)?.windows.forEach { walk($0.rootViewController) }
         }
+    }
+}
+
+/// The Radiant swirl in the theme's tint, turning — the one sign a model is
+/// downloading, as BrandSpinner.jsx is on the web. No ring around it: the row
+/// already says how far along it is. It turns about the ink's centre, which
+/// sits 1.3% above the canvas centre; about the canvas it bobs as it spins.
+struct Swirl: View {
+    var size: CGFloat = 29
+    @Environment(\.rx) private var rx
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var turning = false
+
+    var body: some View {
+        Image("LogoMark").renderingMode(.template).resizable().scaledToFit()
+            .frame(width: size, height: size)
+            .foregroundStyle(rx.tintText)
+            .rotationEffect(.degrees(turning ? 360 : 0), anchor: UnitPoint(x: 0.499, y: 0.4868))
+            .onAppear {
+                guard !reduceMotion else { return }
+                withAnimation(.linear(duration: 2.4).repeatForever(autoreverses: false)) { turning = true }
+            }
+            .accessibilityHidden(true)
     }
 }

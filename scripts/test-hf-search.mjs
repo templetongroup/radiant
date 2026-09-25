@@ -13,6 +13,7 @@ ok(qualify(q4, 'no').label === 'Won’t fit' && !qualify(q4, 'no').ok, 'too big 
 const packed = { ...q4, repo: 'mlx-community/gemma-4-E4B-it-qat-mobile', modelType: 'gemma4', quantized: false, bits: null, bytesPerParam: 0.55 }
 ok(qualify(packed, 'well').label === 'Won’t load' && /config\.json does not say/.test(qualify(packed, 'well').why), 'packed weights with no declaration are refused before the download')
 ok(!qualify({ ...q4, modelType: 'mamba_new_thing' }, 'well').ok && /no loader/.test(qualify({ ...q4, modelType: 'mamba_new_thing' }, 'well').why), 'an architecture the engine lacks is refused, naming it')
+ok(!qualify({ ...q4, draft: true }, 'well').ok && /draft model/.test(qualify({ ...q4, draft: true }, 'well').why), 'a draft model (DFlash2DraftModel says qwen3) is refused, not called runs well')
 ok(!qualify({ ...q4, hasWeights: false }, 'well').ok, 'a repo without safetensors is not a model')
 ok(!qualify({ ...q4, modelType: null }, 'well').ok, 'no config.json → cannot tell → refused')
 ok(!qualify({ ...q4, quantized: false, bytesPerParam: 2.0, gb: 9 }, 'well').ok && /4-bit version/.test(qualify({ ...q4, quantized: false, bytesPerParam: 2.0, gb: 9 }, 'well').why), 'an unquantized 9 GB model is too big, and says what to look for')

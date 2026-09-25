@@ -38,6 +38,14 @@ const sections = () => [
     ]
   },
   {
+    title: 'The new design follows your colors',
+    body: [
+      'On a phone set to light mode, the new design put light buttons, a light search bar and a black \u201cRadiant\u201d title on top of a dark theme. It now follows the appearance you picked in Settings \u2014 dark, medium, light or system \u2014 and only follows the phone when you choose System.',
+      'While a model downloads, the Radiant logo turns beside its name again, with a plain stop square on the right, the same as the previous design.',
+      'Hugging Face search no longer says \u201cRuns well\u201d for draft models. A draft model is a small helper that speeds up a bigger one; it cannot hold a conversation, and downloading one ended in an error about a missing key. They are now marked \u201cWon\u2019t run\u201d before you download anything.'
+    ]
+  },
+  {
     title: 'A new, native design',
     body: [
       'Radiant now opens in its new native look: your conversations as a list you can search and swipe (left to archive or delete), and a chat screen with the model\u2019s name at the top \u2014 tap it to switch models. If you would rather have the previous design, \u201cUse the current design\u201d in the gear menu switches back, and Radiant remembers; \u201cTry the new design\u201d on its Home brings the new one back.',

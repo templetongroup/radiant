@@ -51,7 +51,7 @@ struct SettingsView: View {
                     }
                 }
                 .padding(.vertical, 4)
-            } header: { head("Color") } footer: { foot("The color runs through the whole app — buttons, bubbles, and the ring while a model downloads.") }
+            } header: { head("Color") } footer: { foot("The color runs through the whole app — buttons, bubbles, and the logo that turns while a model downloads.") }
             .listRowBackground(rx.cell)
 
             Section {

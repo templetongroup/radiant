@@ -43,6 +43,7 @@ public class NativePreview: CAPPlugin, CAPBridgedPlugin {
             let app = AppModel(kv: kv, engine: engine)
             app.openWeb = { [weak self] route in
                 engine.stopTurn()
+                NavTitles.window?.overrideUserInterfaceStyle = .unspecified
                 self?.host?.dismiss(animated: false)
                 self?.host = nil
                 self?.notifyListeners("navigate", data: ["route": route])
@@ -50,6 +51,7 @@ public class NativePreview: CAPPlugin, CAPBridgedPlugin {
             app.close = { [weak self] in
                 engine.stopTurn()
                 kv.set("radiant.phone.nativeUI", string: "0")
+                NavTitles.window?.overrideUserInterfaceStyle = .unspecified
                 self?.host?.dismiss(animated: true)
                 self?.host = nil
                 self?.notifyListeners("closed", data: [:])
@@ -57,8 +59,10 @@ public class NativePreview: CAPPlugin, CAPBridgedPlugin {
             // Titles are drawn by UIKit, not SwiftUI, so the theme's label color is
             // given to it before the screens exist — a pinned theme's cream text
             // otherwise sits under a pure-white "Radiant".
-            let pal = Themes.palette(Appearance(kv.json(Appearance.key)),
-                                     systemDark: presenter.traitCollection.userInterfaceStyle == .dark)
+            let appearance = Appearance(kv.json(Appearance.key))
+            let pal = Themes.palette(appearance, systemDark: presenter.traitCollection.userInterfaceStyle == .dark)
+            NavTitles.window = presenter.view.window
+            NavTitles.style(appearance)
             NavTitles.recolor(pal.label)
             let vc = UIHostingController(rootView: NativeRoot().environmentObject(app).environmentObject(kv))
             vc.modalPresentationStyle = .fullScreen
@@ -98,7 +102,10 @@ struct NativeRoot: View {
                 }
         }
         .modifier(Themed(appearance: appearance))
-        .onChange(of: appearance) { NavTitles.recolor(Themes.palette(appearance, systemDark: UITraitCollection.current.userInterfaceStyle == .dark).label) }
+        .onChange(of: appearance) {
+            NavTitles.style(appearance)
+            NavTitles.recolor(Themes.palette(appearance, systemDark: UIScreen.main.traitCollection.userInterfaceStyle == .dark).label)
+        }
         .onAppear {
             // "Open to: Last chat" in Settings
             if appearance.openTo == "chat", path.isEmpty, let last = app.chats.first(where: { !$0.archived }) { path = [.chat(last.id)] }

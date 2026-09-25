@@ -192,28 +192,30 @@ struct ModelsView: View {
         let p = models.progress[r.id]
         return Button { detail = r } label: {
             HStack(alignment: .top) {
+                // While it downloads, the logo turns beside the name and the
+                // trailing control is a plain stop square — one moving thing per row.
+                if p != nil { Swirl().padding(.top, 1) }
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 6) {
                         Text(r.name).foregroundStyle(rx.label)
                         if let fit { Text(fit.label).font(.caption.weight(.semibold)).foregroundStyle(fit.color) }
                     }
-                    Text(String(format: "%.1f GB", r.gb) + " · " + r.blurb).font(.caption).foregroundStyle(rx.label2).lineLimit(2)
+                    if p != nil {
+                        Text(models.preparing.contains(r.id) ? "Preparing…" : "Downloading… " + (ModelsModel.text(p) ?? ""))
+                            .font(.caption).monospacedDigit().foregroundStyle(rx.label2)
+                    } else {
+                        Text(String(format: "%.1f GB", r.gb) + " · " + r.blurb).font(.caption).foregroundStyle(rx.label2).lineLimit(2)
+                    }
                     if let why = models.failed[r.id] { Text(why).font(.caption).foregroundStyle(.red).lineLimit(2) }
                 }
                 Spacer()
                 if p != nil {
-                    VStack(spacing: 2) {
-                        Button { models.stop(r.id) } label: {
-                            ZStack {
-                                if let pct = p?.pct { ProgressView(value: pct).progressViewStyle(.circular) } else { ProgressView() }
-                                Image(systemName: "stop.fill").font(.system(size: 8))
-                            }
-                        }
-                        .buttonStyle(.plain).foregroundStyle(rx.tint)
-                        .accessibilityLabel("Stop downloading \(r.name)")
-                        Text(models.preparing.contains(r.id) ? "Preparing" : (ModelsModel.text(p) ?? "…"))
-                            .font(.caption2).monospacedDigit().foregroundStyle(rx.label2)
+                    Button { models.stop(r.id) } label: {
+                        RoundedRectangle(cornerRadius: 3).fill(rx.tint).frame(width: 15, height: 15)
+                            .frame(width: 29, height: 29).contentShape(Rectangle())
                     }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Stop downloading \(r.name)")
                 } else {
                     Button { models.download(r.id) } label: {
                         Image(systemName: "arrow.down.circle").font(.title3)
@@ -296,6 +298,7 @@ struct HFResult: Identifiable {
 
 struct HFInfo {
     let gb: Double, modelType: String?, quantized: Bool, bits: Int?, bytesPerParam: Double?, vision: Bool, hasWeights: Bool
+    var draft = false
 }
 
 enum HF {
@@ -336,13 +339,15 @@ enum HF {
         let quant = (cfg?["quantization"] as? [String: Any]) ?? (cfg?["quantization_config"] as? [String: Any])
         let params = ((meta["safetensors"] as? [String: Any])?["total"] as? Double) ?? Double((meta["safetensors"] as? [String: Any])?["total"] as? Int ?? 0)
         return HFInfo(gb: bytes / 1e9, modelType: type, quantized: quant != nil, bits: quant?["bits"] as? Int,
-                      bytesPerParam: params > 0 ? bytes / params : nil, vision: type.map { vision.contains($0) } ?? false, hasWeights: !weights.isEmpty)
+                      bytesPerParam: params > 0 ? bytes / params : nil, vision: type.map { vision.contains($0) } ?? false, hasWeights: !weights.isEmpty,
+                      draft: (cfg?["architectures"] as? [String] ?? []).contains { $0.localizedCaseInsensitiveContains("draft") })
     }
 
     /// Will it run? The same checks, in the same order, as qualify() in hf.js.
     static func qualify(_ i: HFInfo, fit: Fit?) -> (ok: Bool, label: String, why: String, color: Color) {
         if !i.hasWeights { return (false, "No weights", "This repo has no safetensors files — it is not a model Radiant can download.", .red) }
         guard let t = i.modelType else { return (false, "Unknown type", "No config.json with a model type — Radiant cannot tell what this is.", .red) }
+        if i.draft { return (false, "Won't run", "This is a draft model — a helper that speeds up a bigger model. It cannot hold a conversation on its own.", .red) }
         if !supported.contains(t) { return (false, "Won't run", "Radiant's engine has no loader for “\(t)” models yet.", .red) }
         if !i.quantized, let b = i.bytesPerParam, b < 1.2 { return (false, "Won't load", "The weights look quantized but config.json does not say so; the download would fail to load. Pick a repo from mlx-community with the same model instead.", .red) }
         if !i.quantized, i.gb > 8 { return (false, "Too big", String(format: "%.1f GB of unquantized weights — look for a 4-bit version.", i.gb), .red) }
@@ -421,7 +426,7 @@ struct HFSearchView: View {
             Spacer()
             if let existing {
                 if existing.downloaded { Image(systemName: "checkmark").foregroundStyle(rx.tint) }
-                else if models.progress[existing.id] != nil { Text(ModelsModel.text(models.progress[existing.id]) ?? "…").font(.caption).monospacedDigit() }
+                else if models.progress[existing.id] != nil { HStack(spacing: 6) { Swirl(size: 22); Text(ModelsModel.text(models.progress[existing.id]) ?? "…").font(.caption).monospacedDigit() } }
                 else { Button("Download") { models.download(existing.id) }.buttonStyle(.bordered) }
             } else if let row, q?.ok == true {
                 Button("Download") {
