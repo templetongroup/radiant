@@ -19,6 +19,14 @@ is 21; the next upload must be higher.
 still 1.0's — replace them with the next submission (`asc.mjs shots` counts
 them). `scripts/asc.mjs` can do everything short of signing in.
 
+**TestFlight from the command line: `scripts/ios-testflight.sh`** (bump
+`CURRENT_PROJECT_VERSION` first). It signs LOCALLY — an Apple Distribution
+certificate created with the API key on 2026-09-25 (expires 2027-09-25), its key
+in `~/Library/Keychains/radiant-signing.keychain-db`, profile "Radiant App Store
+(command line)" — and uploads with `altool`, so it works with nobody signed in
+to Xcode. Xcode's own upload needs an Apple ID in Settings → Accounts; the API
+key is refused cloud signing. The Internal TestFlight group gets every build.
+
 **Anything to do with the submission: use the `app-store-review` skill**
 (`.claude/skills/app-store-review/`, also installed at `~/.claude/skills`;
 published at https://github.com/templetongroup/app-store-review — the repo is
