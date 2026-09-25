@@ -59,9 +59,7 @@ public class NativePreview: CAPPlugin, CAPBridgedPlugin {
             // otherwise sits under a pure-white "Radiant".
             let pal = Themes.palette(Appearance(kv.json(Appearance.key)),
                                      systemDark: presenter.traitCollection.userInterfaceStyle == .dark)
-            let bar = UINavigationBar.appearance()
-            bar.largeTitleTextAttributes = [.foregroundColor: UIColor(pal.label)]
-            bar.titleTextAttributes = [.foregroundColor: UIColor(pal.label)]
+            NavTitles.recolor(pal.label)
             let vc = UIHostingController(rootView: NativeRoot().environmentObject(app).environmentObject(kv))
             vc.modalPresentationStyle = .fullScreen
             self.host = vc
@@ -73,7 +71,7 @@ public class NativePreview: CAPPlugin, CAPBridgedPlugin {
 
 /// The native app's root: navigation, theme, and the cloud-permission sheet.
 /// Where the native app can go.
-enum Route: Hashable { case chat(String), models }
+enum Route: Hashable { case chat(String), models, settings, cloud, skills }
 
 struct NativeRoot: View {
     @EnvironmentObject var app: AppModel
@@ -93,10 +91,14 @@ struct NativeRoot: View {
                             app.choose(modelId)
                             path = [.chat(app.newChat())]
                         })
+                    case .settings: SettingsView(go: { path.append($0) })
+                    case .cloud: CloudModelsView()
+                    case .skills: SkillsView()
                     }
                 }
         }
         .modifier(Themed(appearance: appearance))
+        .onChange(of: appearance) { NavTitles.recolor(Themes.palette(appearance, systemDark: UITraitCollection.current.userInterfaceStyle == .dark).label) }
         .onAppear {
             // "Open to: Last chat" in Settings
             if appearance.openTo == "chat", path.isEmpty, let last = app.chats.first(where: { !$0.archived }) { path = [.chat(last.id)] }

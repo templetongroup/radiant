@@ -176,3 +176,37 @@ enum CloudStream {
 
     static func err(_ m: String) -> NSError { NSError(domain: "Radiant", code: 3, userInfo: [NSLocalizedDescriptionKey: m]) }
 }
+
+// MARK: - the Keychain (as SecureStore.swift: same service, same accessibility)
+
+enum Keychain {
+    static let service = CloudStream.service
+
+    private static func query(_ account: String? = nil) -> [String: Any] {
+        var q: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service]
+        if let account { q[kSecAttrAccount as String] = account }
+        return q
+    }
+
+    @discardableResult
+    static func set(_ account: String, _ value: String) -> Bool {
+        SecItemDelete(query(account) as CFDictionary)
+        var add = query(account)
+        add[kSecValueData as String] = Data(value.utf8)
+        add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+        return SecItemAdd(add as CFDictionary, nil) == errSecSuccess
+    }
+
+    static func get(_ account: String) -> String? { CloudStream.key(for: account) }
+
+    static func remove(_ account: String) { SecItemDelete(query(account) as CFDictionary) }
+
+    static func accounts() -> [String] {
+        var q = query()
+        q[kSecReturnAttributes as String] = true
+        q[kSecMatchLimit as String] = kSecMatchLimitAll
+        var item: CFTypeRef?
+        guard SecItemCopyMatching(q as CFDictionary, &item) == errSecSuccess, let rows = item as? [[String: Any]] else { return [] }
+        return rows.compactMap { $0[kSecAttrAccount as String] as? String }
+    }
+}

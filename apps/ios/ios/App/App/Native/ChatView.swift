@@ -164,7 +164,7 @@ struct ChatView: View {
                     }
                     if skill != nil { Divider(); Button("No skill") { app.setSkill(chatId, nil) } }
                     Divider()
-                    Button("Manage skills…", systemImage: "wand.and.stars") { app.openWeb("skills") }
+                    Button("Manage skills…", systemImage: "wand.and.stars") { go(.skills) }
                 } label: {
                     Image(systemName: "slash.circle").font(.body.weight(.semibold)).frame(width: 34, height: 34)
                 }

@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		4ECF505F815750E78E124AE3 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAE88067EA9CC90923C2E04D /* SettingsView.swift */; };
 		55CA40AE9C1BEBD4DF6CC088 /* ModelsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73F0A1C49FB453943CF0CBFD /* ModelsView.swift */; };
 		7554B3C9B87B553AC0EEC252 /* ChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFB7A2C6DD02DE9E1B8FC9F7 /* ChatView.swift */; };
 		19479171FD043AE03ED8118B /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A646622BEF877C82F4CA3B3 /* HomeView.swift */; };
@@ -37,6 +38,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		CAE88067EA9CC90923C2E04D /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SettingsView.swift; path = App/Native/SettingsView.swift; sourceTree = "<group>"; };
 		73F0A1C49FB453943CF0CBFD /* ModelsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ModelsView.swift; path = App/Native/ModelsView.swift; sourceTree = "<group>"; };
 		CFB7A2C6DD02DE9E1B8FC9F7 /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ChatView.swift; path = App/Native/ChatView.swift; sourceTree = "<group>"; };
 		8A646622BEF877C82F4CA3B3 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HomeView.swift; path = App/Native/HomeView.swift; sourceTree = "<group>"; };
@@ -198,6 +200,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				E1D481BC15E14381BA3003EA /* LocalModels.swift in Sources */,
+				4ECF505F815750E78E124AE3 /* SettingsView.swift in Sources */,
 				55CA40AE9C1BEBD4DF6CC088 /* ModelsView.swift in Sources */,
 				7554B3C9B87B553AC0EEC252 /* ChatView.swift in Sources */,
 				19479171FD043AE03ED8118B /* HomeView.swift in Sources */,
@@ -357,7 +360,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = 5VY66S6G3M;
-				CURRENT_PROJECT_VERSION = 31;
+				CURRENT_PROJECT_VERSION = 32;
 				INFOPLIST_FILE = App/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -385,7 +388,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = 5VY66S6G3M;
-				CURRENT_PROJECT_VERSION = 31;
+				CURRENT_PROJECT_VERSION = 32;
 				INFOPLIST_FILE = App/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (

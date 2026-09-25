@@ -259,3 +259,25 @@ struct Pulse: ViewModifier {
             }
     }
 }
+
+/// Navigation titles are drawn by UIKit, so a theme change has to reach them
+/// directly: the appearance proxy for bars not made yet, and every bar on screen.
+enum NavTitles {
+    @MainActor static func recolor(_ color: Color) {
+        let attrs: [NSAttributedString.Key: Any] = [.foregroundColor: UIColor(color)]
+        UINavigationBar.appearance().largeTitleTextAttributes = attrs
+        UINavigationBar.appearance().titleTextAttributes = attrs
+        func walk(_ vc: UIViewController?) {
+            guard let vc else { return }
+            if let nav = vc as? UINavigationController {
+                nav.navigationBar.largeTitleTextAttributes = attrs
+                nav.navigationBar.titleTextAttributes = attrs
+            }
+            vc.children.forEach(walk)
+            walk(vc.presentedViewController)
+        }
+        for scene in UIApplication.shared.connectedScenes {
+            (scene as? UIWindowScene)?.windows.forEach { walk($0.rootViewController) }
+        }
+    }
+}

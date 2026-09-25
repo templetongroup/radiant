@@ -54,10 +54,10 @@ struct HomeView: View {
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 Menu {
-                    Button("Settings", systemImage: "gearshape") { app.openWeb("settings") }
+                    Button("Settings", systemImage: "gearshape") { go(.settings) }
                     Button("Models", systemImage: "square.stack.3d.up") { go(.models) }
-                    Button("Skills", systemImage: "wand.and.stars") { app.openWeb("skills") }
-                    Button("Cloud models", systemImage: "cloud") { app.openWeb("providers") }
+                    Button("Skills", systemImage: "wand.and.stars") { go(.skills) }
+                    Button("Cloud models", systemImage: "cloud") { go(.cloud) }
                     Button("Read me", systemImage: "book") { app.openWeb("readme") }
                     Divider()
                     Button("Use the current design", systemImage: "arrow.uturn.backward") { app.close() }

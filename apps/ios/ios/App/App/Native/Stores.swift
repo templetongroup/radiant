@@ -244,6 +244,21 @@ enum Providers {
         kv.set(consentKey, json: d)
     }
 
+    static func revokeConsent(_ kv: KV, _ providerId: String) {
+        var d = kv.json(consentKey) as? [String: Any] ?? [:]
+        d.removeValue(forKey: providerId)
+        kv.set(consentKey, json: d)
+    }
+
+    /// A pasted key that is plainly not a key (looksWrong in providers.js).
+    static func looksWrong(_ p: Provider, _ value: String) -> String? {
+        let v = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        if v.count < 16 { return "That looks too short to be a key." }
+        if v.rangeOfCharacter(from: .whitespaces) != nil { return "That has a space in it — check the paste." }
+        if let pre = p.prefix, !v.hasPrefix(pre) { return "\(p.name) keys start with \(pre)" }
+        return nil
+    }
+
     /// "anthropic/claude-sonnet-4.5" → "claude-sonnet-4.5" (shortModelName).
     static func shortName(_ model: String) -> String { model.components(separatedBy: "/").last ?? model }
 }
