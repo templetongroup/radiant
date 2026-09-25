@@ -31,6 +31,13 @@ const sections = () => [
     ]
   },
   {
+    title: 'An Uncensored shelf',
+    body: [
+      'The model list has a new shelf called Uncensored: eleven models with their refusals removed, from Dolphin 3 and Josiefied Qwen 3 to Hermes 3 and two Heretic builds. They answer questions other models turn down. Each one was downloaded and tested before it was added.',
+      'You could always find models like these with the Hugging Face search. Now the best-tested ones are on the list itself, next to everything else.'
+    ]
+  },
+  {
     title: 'Try the new design',
     body: [
       'Home has a \u201cTry the new design\u201d link under the current model. It opens a preview of a native look for Radiant: your conversations as a list you can search and swipe (left to archive or delete), and a chat screen with the model\u2019s name at the top \u2014 tap it to switch models.',
@@ -40,7 +47,7 @@ const sections = () => [
   {
     title: 'Fourteen new models, listed A to Z',
     body: [
-      'The list grew by fourteen, to sixty-seven: MiniCPM 5 in 1B and 2B, Qwen 3.5 0.8B, Qwen 2.5 Coder 7B for code, Granite 4.2 in 3B and 8B, LFM2.5 VL 3B (it reads photos), LFM2.5 8B, GLM 4 9B and Nanbeige 4.2 3B. Four more reason before they answer: Qwen 3 4B Thinking, DeepSeek R1 0528 8B, LFM2.5 1.2B Thinking and Jamba Reasoning 3B. Every one was downloaded and asked a question before it was added.',
+      'The list grew by fourteen: MiniCPM 5 in 1B and 2B, Qwen 3.5 0.8B, Qwen 2.5 Coder 7B for code, Granite 4.2 in 3B and 8B, LFM2.5 VL 3B (it reads photos), LFM2.5 8B, GLM 4 9B and Nanbeige 4.2 3B. Four more reason before they answer: Qwen 3 4B Thinking, DeepSeek R1 0528 8B, LFM2.5 1.2B Thinking and Jamba Reasoning 3B. Every one was downloaded and asked a question before it was added.',
       'Makers are now listed A to Z, and so are the models inside each one, so you can find a model by its name. Before, the makers with the most models came first, which was hard to follow.',
       'Nemotron 3 Nano 4B works now. It used to download all 2 GB and then fail with \u201cFailed to parse config.json\u201d, because the engine that runs models on the phone expected settings that only NVIDIA\u2019s much larger Nemotron has. That is fixed in this version.',
       'Models that reason before they answer, like DeepSeek R1, used to show their reasoning and a stray \u201c</think>\u201d before the answer. Now you see \u201cthinking\u2026\u201d by the name while they work, and then only the answer.',
@@ -77,7 +84,7 @@ const sections = () => [
   {
     title: 'Choosing a model',
     body: [
-      'There are sixty-seven to choose from, grouped by who made them — Google, Meta, Mistral, Microsoft, IBM, Alibaba, Apple, NVIDIA and more. The makers are in alphabetical order, and so are the models inside each one. Tap a name to open that shelf; tap it again to close it. Eight of them can look at pictures, and one of those can watch a short clip.',
+      'There are seventy-eight to choose from, grouped by who made them — Google, Meta, Mistral, Microsoft, IBM, Alibaba, Apple, NVIDIA and more. The makers are in alphabetical order, and so are the models inside each one. Tap a name to open that shelf; tap it again to close it. Eight of them can look at pictures, and one of those can watch a short clip.',
       `Every model is labeled for THIS ${deviceWord()}. Green runs well. Amber runs, but close to the limit — expect it to be slow, and to reload when you switch apps. Red is not expected to load at all. The label is guidance, not a lock: you can still download a red model and try it.`,
       `That label is about memory, not storage, and they are different questions: a phone can easily have room for a file it cannot then run. Bigger models answer better and use more battery. Qwen 3 1.7B is a good place to start on any recent ${deviceWord()}.`,
       `The panel above the list shows what this ${deviceWord()} gives Radiant to work with. It is less than the phone's total memory, because iOS limits how much any single app may use.`

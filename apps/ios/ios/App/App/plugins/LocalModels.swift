@@ -398,6 +398,45 @@ public class LocalModels: CAPPlugin, CAPBridgedPlugin {
               blurb: "Fast reasoner that handles long documents.",
               gb: 1.75, config: rxRepo("mlx-community/AI21-Jamba-Reasoning-3B-4bit", stop: "<|im_end|>"), thinks: true, minBuild: 28),
 
+        // ---- Uncensored ----
+        // ⚠️ ON PURPOSE, AND ON ONE SHELF. Tony: no content filtering, and
+        // uncensored models must be findable. Each one was downloaded and asked
+        // a math question and a request a filtered model refuses before it went
+        // in (2026-09-25); all eleven answered both.
+        Entry(id: "dolphin3-llama3.2-1b", name: "Dolphin 3 Llama 3.2 1B", maker: "Uncensored",
+              blurb: "Tiny and quick, and answers anything.",
+              gb: 0.71, config: rxRepo("mlx-community/dolphin3.0-llama3.2-1B-4Bit", stop: "<|im_end|>")),
+        Entry(id: "josie-qwen3-1.7b", name: "Josiefied Qwen 3 1.7B", maker: "Uncensored",
+              blurb: "Small Qwen 3 that doesn't refuse.",
+              gb: 0.98, config: rxRepo("mlx-community/Josiefied-Qwen3-1.7B-abliterated-v1-4bit", stop: "<|im_end|>")),
+        Entry(id: "dolphin3-llama3.2-3b", name: "Dolphin 3 Llama 3.2 3B", maker: "Uncensored",
+              blurb: "Dolphin's everyday size. Answers anything.",
+              gb: 1.82, config: rxRepo("mlx-community/dolphin3.0-llama3.2-3B-4Bit", stop: "<|im_end|>")),
+        Entry(id: "josie-qwen3-4b", name: "Josiefied Qwen 3 4B", maker: "Uncensored",
+              blurb: "Qwen 3 4B with its refusals removed.",
+              gb: 2.28, config: rxRepo("mlx-community/Josiefied-Qwen3-4B-abliterated-v1-4bit", stop: "<|im_end|>")),
+        Entry(id: "huihui-qwen3.5-4b", name: "Huihui Qwen 3.5 4B", maker: "Uncensored",
+              blurb: "Newest Qwen, abliterated. Thinks before answering.",
+              gb: 3.05, config: rxRepo("mlx-community/Huihui-Qwen3.5-4B-Claude-4.6-Opus-abliterated-4bit", stop: "<|im_end|>"), thinks: true, minBuild: 28),
+        Entry(id: "gemma4-e2b-heretic", name: "Gemma 4 E2B Heretic", maker: "Uncensored",
+              blurb: "Google's Gemma 4 with its refusals removed.",
+              gb: 3.61, config: rxRepo("deadbydawn101/gemma-4-E2B-Heretic-Uncensored-mlx-4bit")),
+        Entry(id: "dolphin3-llama3.1-8b", name: "Dolphin 3 Llama 3.1 8B", maker: "Uncensored",
+              blurb: "The big Dolphin. Answers anything, in depth.",
+              gb: 4.53, config: rxRepo("mlx-community/Dolphin3.0-Llama3.1-8B-MLX-4bit", stop: "<|im_end|>")),
+        Entry(id: "hermes3-llama3.1-8b", name: "Hermes 3 Llama 3.1 8B", maker: "Uncensored",
+              blurb: "Nous Research's steerable, unfiltered model.",
+              gb: 4.53, config: rxRepo("mlx-community/Hermes-3-Llama-3.1-8B-4bit", stop: "<|im_end|>")),
+        Entry(id: "josie-qwen3-8b", name: "Josiefied Qwen 3 8B", maker: "Uncensored",
+              blurb: "Larger Qwen 3 that doesn't refuse.",
+              gb: 4.62, config: rxRepo("mlx-community/Josiefied-Qwen3-8B-abliterated-v1-4bit", stop: "<|im_end|>")),
+        Entry(id: "huihui-qwen3.5-9b", name: "Huihui Qwen 3.5 9B", maker: "Uncensored",
+              blurb: "The largest abliterated Qwen that fits a phone.",
+              gb: 5.06, config: rxRepo("huihui-ai/Huihui-Qwen3.5-9B-abliterated-mlx-4bit", stop: "<|im_end|>")),
+        Entry(id: "qwen3.8-9b-heretic", name: "Qwen 3.8 9B Heretic", maker: "Uncensored",
+              blurb: "Newest Qwen generation, uncensored.",
+              gb: 5.56, config: rxRepo("Foresee/Qwen3.8-9B-heretic-uncensored-4bit-MTPLX", stop: "<|im_end|>")),
+
         // ---- OpenAI ----
         Entry(id: "gpt-oss-20b", name: "gpt-oss 20B", maker: "OpenAI",
               blurb: "OpenAI's open model. Listed so you can see the ceiling.",
