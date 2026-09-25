@@ -40,8 +40,8 @@ const sections = () => [
   {
     title: 'Try the new design',
     body: [
-      'Home has a \u201cTry the new design\u201d link under the current model. It opens a preview of a native look for Radiant: your conversations as a list you can search and swipe (left to archive or delete), and a chat screen with the model\u2019s name at the top \u2014 tap it to switch models.',
-      'It works with the models already on this phone and with Apple Intelligence. Everything you do in it is saved to your normal conversations as you go, so Close takes you back with nothing lost. It is a preview: photos and skills are not in it yet, and neither are models in the cloud.'
+      'Home has a \u201cTry the new design\u201d link under the current model. It opens Radiant\u2019s new native look: your conversations as a list you can search and swipe (left to archive or delete), and a chat screen with the model\u2019s name at the top \u2014 tap it to switch models. Once you have opened it, Radiant starts there.',
+      'It uses the same conversations, models, skills and color theme as before. In a chat, the slash button picks a skill (or type / and its name), the plus adds a photo when the model can see, and cloud models work as they always have. The gear opens Settings, Models, Skills and the rest, which still use the current design for now; coming back to Home returns to the new one. \u201cUse the current design\u201d in that menu switches back.'
     ]
   },
   {

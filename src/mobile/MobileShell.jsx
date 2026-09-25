@@ -37,6 +37,7 @@
  * loaded on the phone. So this file assumes only the --rx-* tokens from
  * mobile.css, and carries a fallback for every single one of them.
  */
+import { openNativePreview, nativeUIEnabled, takeNativeRoute } from './nativePreview.js'
 import React, {
   useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState
 } from 'react'
@@ -848,6 +849,9 @@ export default function MobileShell () {
 
   const [stack, setStack] = useState(() => {
     const base = [{ key: 'root', route: 'home', props: {} }]
+    // The native app asked for a screen it does not have yet (nativePreview.js).
+    const fromNative = takeNativeRoute()
+    if (fromNative) { base.push({ key: 'k1', route: fromNative, props: {} }); return base }
     // "Open to" in Settings: Home, or straight back into the last conversation.
     if (loadAppearance().openTo === 'chat' && listChats()[0]) {
       base.push({ key: 'k1', route: 'chat', props: { chatId: listChats()[0].id } })
@@ -862,6 +866,20 @@ export default function MobileShell () {
   const [chromeMap, setChromeMap] = useState({})
 
   const stackRef = useRef(stack); stackRef.current = stack
+
+  // ⚠️ THE NATIVE APP IS WHERE YOU LAND, when it is switched on. It opens at
+  // launch, and again whenever a web screen it borrowed is closed back to Home
+  // — so Settings, Models and the rest feel like pages pushed from it.
+  const prevDepth = useRef(stack.length)
+  useEffect(() => {
+    if (nativeUIEnabled() && stack.length === 1 && prevDepth.current === 1 && !window.__rxNativeOpened) {
+      window.__rxNativeOpened = true
+      openNativePreview({ animated: false })
+    } else if (nativeUIEnabled() && stack.length === 1 && prevDepth.current > 1) {
+      openNativePreview({ animated: true })
+    }
+    prevDepth.current = stack.length
+  }, [stack.length])
   const keySeq = useRef(2)
   const busy = useRef(false)              // an animation owns the layers right now
   const layerEls = useRef(new Map())      // key -> { el, dim }

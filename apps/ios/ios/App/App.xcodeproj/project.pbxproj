@@ -7,6 +7,13 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		7554B3C9B87B553AC0EEC252 /* ChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFB7A2C6DD02DE9E1B8FC9F7 /* ChatView.swift */; };
+		19479171FD043AE03ED8118B /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A646622BEF877C82F4CA3B3 /* HomeView.swift */; };
+		C448970BC804C86464F13351 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F63F57115E2085ED3A438CC /* AppModel.swift */; };
+		18EBF651FBB926B619A2C9EF /* ChatLogic.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71C3EC4E0FA5FB98011424D6 /* ChatLogic.swift */; };
+		056FCED219FC7972372E079E /* Engines.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7886A04AD1E15C0B719E1423 /* Engines.swift */; };
+		794B72308FB12680F51D16DC /* Stores.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7ACD20742A31E82AD87C1457 /* Stores.swift */; };
+		845C46C37C7EFE87A04AA3D3 /* NativeKit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46C903929AFC1F012D24CB8E /* NativeKit.swift */; };
 		E1D481BC15E14381BA3003EA /* LocalModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0ABDDFEC3FD340BAA3089F7C /* LocalModels.swift */; };
 		E1D481BC15E14381BA3003D3 /* DownloadMath.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0ABDDFEC3FD340BAA3089FD3 /* DownloadMath.swift */; };
 		E1D481BC15E14381BA3003D4 /* RemoteCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0ABDDFEC3FD340BAA3089FD5 /* RemoteCatalog.swift */; };
@@ -29,6 +36,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		CFB7A2C6DD02DE9E1B8FC9F7 /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ChatView.swift; path = App/Native/ChatView.swift; sourceTree = "<group>"; };
+		8A646622BEF877C82F4CA3B3 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HomeView.swift; path = App/Native/HomeView.swift; sourceTree = "<group>"; };
+		8F63F57115E2085ED3A438CC /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppModel.swift; path = App/Native/AppModel.swift; sourceTree = "<group>"; };
+		71C3EC4E0FA5FB98011424D6 /* ChatLogic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ChatLogic.swift; path = App/Native/ChatLogic.swift; sourceTree = "<group>"; };
+		7886A04AD1E15C0B719E1423 /* Engines.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Engines.swift; path = App/Native/Engines.swift; sourceTree = "<group>"; };
+		7ACD20742A31E82AD87C1457 /* Stores.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Stores.swift; path = App/Native/Stores.swift; sourceTree = "<group>"; };
+		46C903929AFC1F012D24CB8E /* NativeKit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = NativeKit.swift; path = App/Native/NativeKit.swift; sourceTree = "<group>"; };
 		0ABDDFEC3FD340BAA3089F7C /* LocalModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LocalModels.swift; path = App/plugins/LocalModels.swift; sourceTree = "<group>"; };
 		0ABDDFEC3FD340BAA3089FD3 /* DownloadMath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DownloadMath.swift; path = App/plugins/DownloadMath.swift; sourceTree = "<group>"; };
 		0ABDDFEC3FD340BAA3089FD5 /* RemoteCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = RemoteCatalog.swift; path = App/plugins/RemoteCatalog.swift; sourceTree = "<group>"; };
@@ -182,6 +196,13 @@
 			buildActionMask = 2147483647;
 			files = (
 				E1D481BC15E14381BA3003EA /* LocalModels.swift in Sources */,
+				7554B3C9B87B553AC0EEC252 /* ChatView.swift in Sources */,
+				19479171FD043AE03ED8118B /* HomeView.swift in Sources */,
+				C448970BC804C86464F13351 /* AppModel.swift in Sources */,
+				18EBF651FBB926B619A2C9EF /* ChatLogic.swift in Sources */,
+				056FCED219FC7972372E079E /* Engines.swift in Sources */,
+				794B72308FB12680F51D16DC /* Stores.swift in Sources */,
+				845C46C37C7EFE87A04AA3D3 /* NativeKit.swift in Sources */,
 				E1D481BC15E14381BA3003D3 /* DownloadMath.swift in Sources */,
 				E1D481BC15E14381BA3003D4 /* RemoteCatalog.swift in Sources */,
 				E1D481BC15E14381BA3003E1 /* NativePreview.swift in Sources */,
@@ -333,7 +354,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = 5VY66S6G3M;
-				CURRENT_PROJECT_VERSION = 29;
+				CURRENT_PROJECT_VERSION = 30;
 				INFOPLIST_FILE = App/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -361,7 +382,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = 5VY66S6G3M;
-				CURRENT_PROJECT_VERSION = 29;
+				CURRENT_PROJECT_VERSION = 30;
 				INFOPLIST_FILE = App/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (

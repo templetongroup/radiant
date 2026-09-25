@@ -1105,16 +1105,17 @@ public class LocalModels: CAPPlugin, CAPBridgedPlugin {
 
     // MARK: - for the native screens (NativePreview.swift)
 
-    struct OnDevice { let id: String, name: String, maker: String, thinks: Bool }
+    struct OnDevice { let id: String, name: String, maker: String, thinks: Bool; var vision = false }
 
     /// The on-device models that are downloaded and ready.
     func downloadedOnDevice() -> [OnDevice] {
-        effectiveCatalog.filter { isOnDisk($0) }.map { OnDevice(id: $0.id, name: $0.name, maker: $0.maker, thinks: $0.thinks) }
+        effectiveCatalog.filter { isOnDisk($0) }.map { OnDevice(id: $0.id, name: $0.name, maker: $0.maker, thinks: $0.thinks, vision: $0.vision) }
     }
 
     /// Stream one reply. Starting a new one cancels the one in flight, exactly
     /// as generate() does — the web chat and the native one share this slot.
     func startTurn(modelId: String, prompt: String, conversation: String, reset: Bool,
+                   instructions: String = "", imageJPEG: Data? = nil,
                    onToken: @escaping (String) -> Void, onEnd: @escaping (Error?) -> Void) {
         guard let entry = effectiveCatalog.first(where: { $0.id == modelId }) else {
             onEnd(NSError(domain: "Radiant", code: 1, userInfo: [NSLocalizedDescriptionKey: "That model is not on this phone."]))
@@ -1123,8 +1124,11 @@ public class LocalModels: CAPPlugin, CAPBridgedPlugin {
         task?.cancel()
         task = Task {
             do {
-                _ = try await runTurn(entry: entry, prompt: prompt, images: [], conversation: conversation,
-                                      instructions: "", reset: reset, onToken: onToken)
+                // a picture reaches only a model that can see (see generate())
+                var images: [UserInput.Image] = []
+                if entry.vision, let imageJPEG, let ci = CIImage(data: imageJPEG) { images = [.ciImage(ci)] }
+                _ = try await runTurn(entry: entry, prompt: prompt, images: images, conversation: conversation,
+                                      instructions: instructions, reset: reset, onToken: onToken)
                 onEnd(nil)
             } catch {
                 onEnd(error)

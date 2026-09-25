@@ -1,30 +1,66 @@
 /**
- * The native SwiftUI preview (NativePreview.swift): open it with this phone's
- * conversations, and keep this store in step with what happens there.
+ * The native SwiftUI app (apps/ios/.../Native/*.swift), during the rebuild.
  *
- * ⚠️ THE WEB STORE STAYS THE ONLY STORE. The preview gets a copy when it opens
- * and reports every change back as it happens, so closing it — or the app —
- * loses nothing, and the web home already shows the result.
+ * ⚠️ ONE STORE, TWO FRONTS. The native screens are handed a snapshot of every
+ * `radiant.phone.*` and `rx.*` key when they open and send back each write as it
+ * happens ("kv"), so both designs share one set of chats, skills, models and
+ * settings. On close — or when the native side asks for a screen it does not
+ * have yet ("navigate") — the web app reloads, so everything it shows is read
+ * fresh from that store rather than from state held before the native app ran.
+ *
+ * `radiant.phone.nativeUI` = "1" makes the native app the one you land in:
+ * it opens at launch, and again whenever you come back to Home.
  */
-import { allChats, saveFromNative, deleteChat, setArchived } from './chats.js'
-
-const ACTIVE_MODEL_KEY = 'rx.activeModel'   // MobileShell.jsx
+const NATIVE_KEY = 'radiant.phone.nativeUI'
+const ROUTE_KEY = 'rx.nativeRoute'   // sessionStorage: the web screen to show after a reload
 let listening = false
 
 const plugin = () => (typeof window !== 'undefined' ? window.Capacitor?.Plugins?.NativePreview : null)
 
 export const nativePreviewAvailable = () => Boolean(plugin()?.open)
 
-export function openNativePreview () {
+export function nativeUIEnabled () {
+  try { return localStorage.getItem(NATIVE_KEY) === '1' } catch { return false }
+}
+
+/** A web screen the native app asked for, consumed once. */
+export function takeNativeRoute () {
+  try {
+    const r = sessionStorage.getItem(ROUTE_KEY)
+    if (r) sessionStorage.removeItem(ROUTE_KEY)
+    return r || null
+  } catch { return null }
+}
+
+function snapshot () {
+  const out = {}
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i)
+      if (k && (k.startsWith('radiant.phone.') || k.startsWith('rx.'))) out[k] = localStorage.getItem(k)
+    }
+  } catch { /* private mode */ }
+  return out
+}
+
+export function openNativePreview ({ animated = true } = {}) {
   const np = plugin()
   if (!np?.open) return
   if (!listening) {
     listening = true
-    np.addListener('saved', e => { if (e?.chat) saveFromNative(e.chat) })
-    np.addListener('deleted', e => { if (e?.id) deleteChat(e.id) })
-    np.addListener('archived', e => { if (e?.id) setArchived(e.id, true) })
+    np.addListener('kv', e => {
+      if (!e?.key) return
+      try {
+        if (e.value === null || e.value === undefined) localStorage.removeItem(e.key)
+        else localStorage.setItem(e.key, e.value)
+      } catch { /* private mode */ }
+    })
+    np.addListener('navigate', e => {
+      try { if (e?.route) sessionStorage.setItem(ROUTE_KEY, e.route) } catch {}
+      window.location.reload()
+    })
+    np.addListener('closed', () => window.location.reload())
   }
-  let current = null
-  try { current = localStorage.getItem(ACTIVE_MODEL_KEY) } catch { /* private mode */ }
-  np.open({ chats: allChats().filter(c => !c.archived), currentModelId: current }).catch(() => {})
+  try { localStorage.setItem(NATIVE_KEY, '1') } catch {}
+  np.open({ store: snapshot(), animated }).catch(() => {})
 }
