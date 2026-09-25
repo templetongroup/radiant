@@ -2417,6 +2417,15 @@
 /* A block, so the two sentences never share a line however the text scales. */
 .is-native .rx-home-empty-2 { display: block; }
 
+.is-native .rx-home-preview {
+  display: block;
+  margin: 10px auto 0;
+  padding: 8px 14px;
+  border: 0;
+  background: none;
+  font: -apple-system-subheadline;
+  color: var(--rx-tint);
+}
 .is-native .rx-home-current {
   margin: 12px 0 0;
   text-align: center;

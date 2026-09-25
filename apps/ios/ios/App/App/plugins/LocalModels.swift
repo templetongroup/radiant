@@ -998,54 +998,102 @@ public class LocalModels: CAPPlugin, CAPBridgedPlugin {
         task?.cancel()
         task = Task {
             do {
-                let container: ModelContainer
-                if let l = loaded, l.id == entry.id {
-                    container = l.container
-                } else {
-                    // loading evicts the previous model: two multi-GB models
-                    // will not fit in a phone's memory at once
-                    loaded = nil
-                    chat = nil
-                    container = try await #huggingFaceLoadModelContainer(configuration: entry.config)
-                    loaded = (entry.id, container)
-                }
-                let session: ChatSession
-                let reused: Bool
-                if !reset, let c = chat, c.conversation == conversation, c.modelId == entry.id, c.instructions == instructions {
-                    session = c.session; reused = true
-                } else {
-                    // ⚠️ NO THINKING OUT LOUD. Qwen 3's chat template writes a
-                    // <think> block before every answer unless told not to,
-                    // and on a phone that is a wall of deliberation scrolling
-                    // past before the reply. Tony, build 25: "tons of internal
-                    // thinking. not good." Templates that know the flag honour
-                    // it; the rest ignore it, and the JS side folds any <think>
-                    // block that still arrives (DeepSeek R1 always thinks).
-                    session = ChatSession(container, instructions: instructions.isEmpty ? nil : instructions,
-                                          additionalContext: ["enable_thinking": false])
-                    chat = (conversation, entry.id, instructions, session)
-                    reused = false
-                }
-                let started = Date()
-                var first: TimeInterval?
-                var cancelled = false
-                for try await chunk in session.streamResponse(to: prompt, images: images) {
-                    if Task.isCancelled { cancelled = true; break }
-                    if first == nil { first = Date().timeIntervalSince(started) }
+                let r = try await runTurn(entry: entry, prompt: prompt, images: images, conversation: conversation,
+                                          instructions: instructions, reset: reset) { chunk in
                     self.notifyListeners("token", data: ["id": entry.id, "text": chunk])
                 }
-                if cancelled { chat = nil }   // half an answer in its history is not a memory worth keeping
-                let ms = Int(((first ?? Date().timeIntervalSince(started)) * 1000).rounded())
-                print("[gen] first token after \(ms) ms · prompt \(prompt.count) chars · session \(reused ? "reused" : "fresh")")
-                self.notifyListeners("done", data: ["id": entry.id, "firstTokenMs": ms, "reused": reused])
+                self.notifyListeners("done", data: ["id": entry.id, "firstTokenMs": r.firstTokenMs, "reused": r.reused])
                 call.resolve()
             } catch {
-                chat = nil
                 self.notifyListeners("failed", data: ["message": error.localizedDescription])
                 call.reject(error.localizedDescription)
             }
         }
     }
+
+    /// One reply from an on-device model: the model slot, session reuse and
+    /// cancellation that generate() and the native screens (NativePreview.swift)
+    /// share, so both drive ONE loaded model — two multi-GB models will not fit
+    /// in a phone's memory at once.
+    private func runTurn(entry: Entry, prompt: String, images: [UserInput.Image], conversation: String,
+                         instructions: String, reset: Bool,
+                         onToken: @escaping (String) -> Void) async throws -> (firstTokenMs: Int, reused: Bool) {
+        do {
+            let container: ModelContainer
+            if let l = loaded, l.id == entry.id {
+                container = l.container
+            } else {
+                // loading evicts the previous model
+                loaded = nil
+                chat = nil
+                container = try await #huggingFaceLoadModelContainer(configuration: entry.config)
+                loaded = (entry.id, container)
+            }
+            let session: ChatSession
+            let reused: Bool
+            if !reset, let c = chat, c.conversation == conversation, c.modelId == entry.id, c.instructions == instructions {
+                session = c.session; reused = true
+            } else {
+                // ⚠️ NO THINKING OUT LOUD. Qwen 3's chat template writes a
+                // <think> block before every answer unless told not to,
+                // and on a phone that is a wall of deliberation scrolling
+                // past before the reply. Tony, build 25: "tons of internal
+                // thinking. not good." Templates that know the flag honour
+                // it; the rest ignore it, and the chat folds any <think>
+                // block that still arrives (DeepSeek R1 always thinks).
+                session = ChatSession(container, instructions: instructions.isEmpty ? nil : instructions,
+                                      additionalContext: ["enable_thinking": false])
+                chat = (conversation, entry.id, instructions, session)
+                reused = false
+            }
+            let started = Date()
+            var first: TimeInterval?
+            var cancelled = false
+            for try await chunk in session.streamResponse(to: prompt, images: images) {
+                if Task.isCancelled { cancelled = true; break }
+                if first == nil { first = Date().timeIntervalSince(started) }
+                onToken(chunk)
+            }
+            if cancelled { chat = nil }   // half an answer in its history is not a memory worth keeping
+            let ms = Int(((first ?? Date().timeIntervalSince(started)) * 1000).rounded())
+            print("[gen] first token after \(ms) ms · prompt \(prompt.count) chars · session \(reused ? "reused" : "fresh")")
+            return (ms, reused)
+        } catch {
+            chat = nil
+            throw error
+        }
+    }
+
+    // MARK: - for the native screens (NativePreview.swift)
+
+    struct OnDevice { let id: String, name: String, maker: String, thinks: Bool }
+
+    /// The on-device models that are downloaded and ready.
+    func downloadedOnDevice() -> [OnDevice] {
+        effectiveCatalog.filter { isOnDisk($0) }.map { OnDevice(id: $0.id, name: $0.name, maker: $0.maker, thinks: $0.thinks) }
+    }
+
+    /// Stream one reply. Starting a new one cancels the one in flight, exactly
+    /// as generate() does — the web chat and the native one share this slot.
+    func startTurn(modelId: String, prompt: String, conversation: String, reset: Bool,
+                   onToken: @escaping (String) -> Void, onEnd: @escaping (Error?) -> Void) {
+        guard let entry = effectiveCatalog.first(where: { $0.id == modelId }) else {
+            onEnd(NSError(domain: "Radiant", code: 1, userInfo: [NSLocalizedDescriptionKey: "That model is not on this phone."]))
+            return
+        }
+        task?.cancel()
+        task = Task {
+            do {
+                _ = try await runTurn(entry: entry, prompt: prompt, images: [], conversation: conversation,
+                                      instructions: "", reset: reset, onToken: onToken)
+                onEnd(nil)
+            } catch {
+                onEnd(error)
+            }
+        }
+    }
+
+    func stopTurn() { task?.cancel(); task = nil; chat = nil }
 
     @objc func stop(_ call: CAPPluginCall) {
         task?.cancel(); task = nil

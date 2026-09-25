@@ -119,6 +119,25 @@ export function saveChat ({ id, messages, modelId, modelName, skillId }) {
   write(rows)
 }
 
+/** Every stored conversation, whole — for the native preview, which shows them itself. */
+export function allChats () {
+  return read()
+}
+
+/**
+ * A conversation changed in the native preview (NativePreview.swift). It sends
+ * back only id, role and text per message, so anything else a message carries
+ * here (a photo, an error, a model name) is kept from the stored copy, and the
+ * chat keeps its skill.
+ */
+export function saveFromNative ({ id, messages, modelId, modelName }) {
+  if (!id || !Array.isArray(messages)) return
+  const prev = loadChat(id)
+  const byId = new Map((prev?.messages || []).map(m => [m.id, m]))
+  const merged = messages.map(m => (byId.has(m.id) ? { ...byId.get(m.id), text: m.text } : { id: m.id, role: m.role, text: m.text }))
+  saveChat({ id, messages: merged, modelId: modelId || prev?.modelId, modelName: modelName || prev?.modelName, skillId: prev?.skillId })
+}
+
 export function deleteChat (id) {
   write(read().filter(c => c.id !== id))
 }

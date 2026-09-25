@@ -31,6 +31,13 @@ const sections = () => [
     ]
   },
   {
+    title: 'Try the new design',
+    body: [
+      'Home has a \u201cTry the new design\u201d link under the current model. It opens a preview of a native look for Radiant: your conversations as a list you can search and swipe (left to archive or delete), and a chat screen with the model\u2019s name at the top \u2014 tap it to switch models.',
+      'It works with the models already on this phone and with Apple Intelligence. Everything you do in it is saved to your normal conversations as you go, so Close takes you back with nothing lost. It is a preview: photos and skills are not in it yet, and neither are models in the cloud.'
+    ]
+  },
+  {
     title: 'Fourteen new models, listed A to Z',
     body: [
       'The list grew by fourteen, to sixty-seven: MiniCPM 5 in 1B and 2B, Qwen 3.5 0.8B, Qwen 2.5 Coder 7B for code, Granite 4.2 in 3B and 8B, LFM2.5 VL 3B (it reads photos), LFM2.5 8B, GLM 4 9B and Nanbeige 4.2 3B. Four more reason before they answer: Qwen 3 4B Thinking, DeepSeek R1 0528 8B, LFM2.5 1.2B Thinking and Jamba Reasoning 3B. Every one was downloaded and asked a question before it was added.',

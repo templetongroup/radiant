@@ -17,6 +17,7 @@ import SwipeRow from './SwipeRow.jsx'
 import { BrandMark } from './BrandSpinner.jsx'
 import wordUrl from '../assets/brand/radiant-wordmark.png'
 import { listChats, deleteChat, setArchived, whenLabel, onChatsChanged } from './chats.js'
+import { openNativePreview, nativePreviewAvailable } from './nativePreview.js'
 import CompanyLine from './CompanyLine.jsx'
 
 /** Time of day, because a greeting that never changes stops being one. */
@@ -111,6 +112,7 @@ export default function HomeScreen ({
     disabled: !activeModel
   })
   const choose = usePress(() => onChooseModel?.(), { label: 'Models' })
+  const preview = usePress(() => openNativePreview(), { label: 'Try the new design, a native preview' })
 
   const downloaded = models.filter(m => m?.downloaded)
 
@@ -160,6 +162,14 @@ export default function HomeScreen ({
         <p className="rx-home-current" aria-hidden="true">
           Current model: <span className="rx-home-current-name">{activeModel.name}</span>
         </p>
+      )}
+
+      {/* A trial of a native SwiftUI design (NativePreview.swift), same chats
+          and models. Tony: "Try swift ui and chat first". */}
+      {nativePreviewAvailable() && (
+        <button type="button" className={'rx-home-preview' + preview.className} {...preview.handlers}>
+          Try the new design
+        </button>
       )}
 
       {chats.length > 0 && (
