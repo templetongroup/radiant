@@ -18,6 +18,9 @@ struct HomeView: View {
 
     var body: some View {
         List {
+            header
+                .listRowBackground(rx.bg)
+                .listRowSeparator(.hidden)
             ForEach(live) { chat in
                 row(chat)
                     .listRowSeparator(chat.id == live.first?.id ? .hidden : .visible, edges: .top)
@@ -42,15 +45,18 @@ struct HomeView: View {
                 }
                 .listRowBackground(rx.bg)
             }
+            byline
+                .listRowBackground(rx.bg)
+                .listRowSeparator(.hidden)
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .background(rx.bg)
-        .overlay {
-            if app.chats.isEmpty { empty }
-        }
         .searchable(text: $query, prompt: "Search conversations")
-        .navigationTitle("Radiant")
+        // The logo and wordmark ARE the header, as on the previous Home — a
+        // "Radiant" title above a RADIANT wordmark would be the name twice.
+        .navigationTitle("")
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 Menu {
@@ -111,17 +117,50 @@ struct HomeView: View {
         .accessibilityElement(children: .combine)
     }
 
-    private var empty: some View {
-        ContentUnavailableView {
-            Label("No conversations yet", systemImage: "bubble.left.and.bubble.right")
-        } description: {
-            Text(app.options.isEmpty ? "Get a model to talk to — it runs right here, offline." : "Start one with the button below.")
-        } actions: {
+    /// The previous Home's lockup: the swirl, the wordmark, a greeting for the
+    /// time of day, and the model a new chat will use. Both marks take the
+    /// theme's text tint, so they follow the color picked in Settings.
+    private var header: some View {
+        VStack(spacing: 0) {
+            Image("LogoMark").renderingMode(.template).resizable().scaledToFit()
+                .frame(width: 72, height: 72)
+            Image("Wordmark").renderingMode(.template).resizable().scaledToFit()
+                .frame(width: 132).padding(.top, 10)
+                .accessibilityLabel("Radiant").accessibilityAddTraits(.isHeader)
+            Text(Self.greeting()).font(.subheadline).foregroundStyle(rx.label2).padding(.top, 14)
             if app.options.isEmpty {
-                Button("Choose a model") { go(.models) }.buttonStyle(.borderedProminent)
+                Text("No model on this iPhone yet.\nChoose one and it runs here, offline.")
+                    .font(.subheadline).foregroundStyle(rx.label2).padding(.top, 10)
+                Button("Choose a model") { go(.models) }.buttonStyle(.borderedProminent).padding(.top, 14)
+            } else if let name = app.option(app.currentModelId)?.name {
+                (Text("Current model: ").foregroundStyle(rx.label2) + Text(name).fontWeight(.semibold).foregroundStyle(rx.label))
+                    .font(.footnote).padding(.top, 12)
+            }
+            if app.chats.isEmpty, !app.options.isEmpty {
+                Text("Start a conversation with the button below.").font(.footnote).foregroundStyle(rx.label2).padding(.top, 28)
             }
         }
-        .foregroundStyle(rx.label2)
+        .foregroundStyle(rx.tintText)
+        .multilineTextAlignment(.center)
+        .frame(maxWidth: .infinity)
+        .padding(.top, 4).padding(.bottom, 12)
+    }
+
+    /// Whose app this is, at the foot of the list as on the previous Home.
+    private var byline: some View {
+        Link(destination: URL(string: "https://templetontech.com")!) {
+            (Text("Radiant is a ").foregroundStyle(rx.label2) + Text("Templeton Technologies").foregroundStyle(rx.tintText) + Text(" product.").foregroundStyle(rx.label2))
+                .font(.caption2)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 20).padding(.bottom, 90)   // clear of the new-chat button
+        .accessibilityLabel("Radiant is a Templeton Technologies product. Opens templetontech.com.")
+    }
+
+    /// Time of day, because a greeting that never changes stops being one (HomeScreen.jsx).
+    static func greeting(_ now: Date = Date()) -> String {
+        let h = Calendar.current.component(.hour, from: now)
+        return h < 5 ? "Still up" : h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening"
     }
 
     /// On the phone, Apple's, or in the cloud — the one thing worth knowing at a glance.

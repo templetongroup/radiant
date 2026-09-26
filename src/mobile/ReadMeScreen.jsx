@@ -41,6 +41,7 @@ const sections = () => [
     title: 'The new design follows your colors',
     body: [
       'On a phone set to light mode, the new design put light buttons, a light search bar and a black \u201cRadiant\u201d title on top of a dark theme. It now follows the appearance you picked in Settings \u2014 dark, medium, light or system \u2014 and only follows the phone when you choose System.',
+      'Home in the new design has the Radiant logo and name at the top again, with a greeting for the time of day, the model a new chat will use, and \u201cRadiant is a Templeton Technologies product\u201d at the foot of the list. The logo and name take the color you picked in Settings.',
       'While a model downloads, the Radiant logo turns beside its name again, with a plain stop square on the right, the same as the previous design.',
       'Hugging Face search no longer says \u201cRuns well\u201d for draft models. A draft model is a small helper that speeds up a bigger one; it cannot hold a conversation, and downloading one ended in an error about a missing key. They are now marked \u201cWon\u2019t run\u201d before you download anything.'
     ]
