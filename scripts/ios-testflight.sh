@@ -41,8 +41,10 @@ echo "== sign (Apple Distribution, local)"
 xcodebuild -exportArchive -archivePath "$A" -exportOptionsPlist apps/ios/exportOptions-manual.plist \
   -exportPath "$OUT" >/tmp/radiant-export.log 2>&1 || { grep -E "error" /tmp/radiant-export.log | head; exit 1; }
 codesign -dvv "$A/Products/Applications/App.app" >/dev/null 2>&1
-echo "   $OUT/App.ipa"
+# named after CFBundleName ("Radiant" since build 36, "App" before), so take whatever was exported
+IPA=$(ls "$OUT"/*.ipa | head -1)
+echo "   $IPA"
 [ "${1:-}" = "--no-upload" ] && { echo "== not uploaded (--no-upload)"; exit 0; }
 echo "== upload"
-xcrun altool --upload-app -f "$OUT/App.ipa" -t ios --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID" 2>&1 | grep -E "UPLOAD|ERROR|error" | head
+xcrun altool --upload-app -f "$IPA" -t ios --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID" 2>&1 | grep -E "UPLOAD|ERROR|error" | head
 echo "== uploaded. Apple processes it in 10–20 min; the Internal group gets every build."
