@@ -1,4 +1,5 @@
 import SwiftUI
+import AuthenticationServices
 
 // Settings, Cloud models and Skills, native. Same choices, same stored shapes
 // as SettingsScreen.jsx, ProvidersScreen.jsx and SkillsScreen.jsx.
@@ -136,27 +137,48 @@ struct CloudModelsView: View {
     @EnvironmentObject var app: AppModel
     @EnvironmentObject var kv: KV
     @Environment(\.rx) private var rx
-    @State private var connected = Set(Keychain.accounts())
+    @State private var connected = Providers.connected()
 
     var body: some View {
         List {
+            // Plans people already pay for come first: signing in costs nothing extra.
             Section {
-                ForEach(Providers.all) { p in
+                ForEach(Subscriptions.specs, id: \.id) { spec in
+                    if let p = Providers.byId(spec.id) {
+                        NavigationLink {
+                            ProviderView(provider: p, connected: $connected)
+                        } label: {
+                            HStack {
+                                Text(spec.label).foregroundStyle(rx.label)
+                                if Subscriptions.stored(spec.id) != nil { Text("Signed in").font(.caption.weight(.semibold)).foregroundStyle(.green) }
+                                if Providers.chosen(kv)?.providerId == p.id { Text("In use").font(.caption.weight(.semibold)).foregroundStyle(rx.tintText) }
+                            }
+                        }
+                    }
+                }
+            } header: { Text("Sign in with a subscription").foregroundStyle(rx.label2) } footer: {
+                Text("Use a plan you already pay for, with no API key. Claude subscriptions are not offered: Anthropic only allows them in its own apps.")
+                    .foregroundStyle(rx.label2)
+            }
+            .listRowBackground(rx.cell)
+
+            Section {
+                ForEach(Providers.all.filter { !$0.keyless }) { p in
                     NavigationLink {
                         ProviderView(provider: p, connected: $connected)
                     } label: {
                         VStack(alignment: .leading, spacing: 2) {
                             HStack {
                                 Text(p.name).foregroundStyle(rx.label)
-                                if connected.contains(p.id) { Text("Connected").font(.caption.weight(.semibold)).foregroundStyle(.green) }
+                                if Keychain.get(p.id) != nil { Text("Connected").font(.caption.weight(.semibold)).foregroundStyle(.green) }
                                 if Providers.chosen(kv)?.providerId == p.id { Text("In use").font(.caption.weight(.semibold)).foregroundStyle(rx.tintText) }
                             }
                             Text(p.hint).font(.caption).foregroundStyle(rx.label2).lineLimit(2)
                         }
                     }
                 }
-            } footer: {
-                Text("Your key is kept in this phone's Keychain and sent only to that provider. A cloud model answers on the provider's servers, not on this phone.")
+            } header: { Text("API keys").foregroundStyle(rx.label2) } footer: {
+                Text("Keys and sign-ins are kept in this phone's Keychain and sent only to that provider. A cloud model answers on the provider's servers, not on this phone.")
                     .foregroundStyle(rx.label2)
             }
             .listRowBackground(rx.cell)
@@ -180,6 +202,13 @@ struct ProviderView: View {
     @State private var error: String?
     @State private var query = ""
     @State private var askConsent = false
+    @State private var consentFor: (() -> Void)?
+    @State private var signing: Task<Void, Never>?
+    @State private var device: DeviceStart?
+    @State private var subError: String?
+    @State private var signedIn = false
+    @Environment(\.openURL) private var openURL
+    private var spec: SubSpec? { Subscriptions.spec(provider.id) }
 
     private var isConnected: Bool { connected.contains(provider.id) }
     private var shown: [String] {
@@ -189,23 +218,22 @@ struct ProviderView: View {
 
     var body: some View {
         List {
-            Section {
+            if let spec { subscription(spec) }
+            if !provider.keyless { Section {
                 SecureField(isConnected ? "Paste a new key to replace" : "Paste your API key", text: $key)
                     .textInputAutocapitalization(.never).autocorrectionDisabled()
                     .foregroundStyle(rx.label)
                 if let problem { Text(problem).font(.caption).foregroundStyle(.red) }
                 Button(isConnected ? "Replace key" : "Save key") { save() }
                     .disabled(key.trimmingCharacters(in: .whitespaces).isEmpty)
-                if isConnected {
-                    Button("Remove", role: .destructive) {
+                if Keychain.get(provider.id) != nil {
+                    Button("Remove key", role: .destructive) {
                         Keychain.remove(provider.id)
-                        Providers.revokeConsent(kv, provider.id)
-                        if Providers.chosen(kv)?.providerId == provider.id { Providers.setChosen(kv, nil) }
-                        connected.remove(provider.id); models = []
+                        disconnected()
                     }
                 }
             } header: { Text("API key").foregroundStyle(rx.label2) } footer: { Text(provider.hint).foregroundStyle(rx.label2) }
-            .listRowBackground(rx.cell)
+            .listRowBackground(rx.cell) }
 
             if isConnected {
                 Section {
@@ -239,16 +267,87 @@ struct ProviderView: View {
         .navigationTitle(provider.name)
         .searchable(text: $query, prompt: "Search \(models.count) models")
         .task(id: isConnected) { if isConnected { await load() } }
+        .onAppear { signedIn = Subscriptions.stored(provider.id) != nil }
+        .onDisappear { signing?.cancel() }
         .sheet(isPresented: $askConsent) {
-            ConsentSheet(provider: provider).onDisappear { if Providers.hasConsent(kv, provider.id) { store() } }
+            ConsentSheet(provider: provider).onDisappear {
+                if Providers.hasConsent(kv, provider.id) { consentFor?() }
+                consentFor = nil
+            }
         }
+    }
+
+    /// Sign in with a subscription instead of a key (Subscriptions.swift).
+    @ViewBuilder private func subscription(_ spec: SubSpec) -> some View {
+        Section {
+            if signedIn {
+                Label("Signed in with \(spec.label)", systemImage: "checkmark.seal.fill").foregroundStyle(rx.label)
+                Button("Sign out", role: .destructive) {
+                    Subscriptions.signOut(provider.id); signedIn = false
+                    disconnected()
+                }
+            } else if let device {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Enter this code on the page that opened:").font(.subheadline).foregroundStyle(rx.label2)
+                    Text(device.user).font(.system(.title, design: .monospaced).weight(.semibold)).foregroundStyle(rx.label)
+                        .textSelection(.enabled)
+                    Text("It is already copied. Come back here when the page says you are done.").font(.caption).foregroundStyle(rx.label2)
+                }
+                Button("Copy code and open the page again") { UIPasteboard.general.string = device.user; openURL(device.url) }
+                Button("Cancel", role: .cancel) { signing?.cancel() }
+            } else if signing != nil {
+                HStack { ProgressView(); Text("Signing in…").foregroundStyle(rx.label2) }
+            } else {
+                Button("Sign in with \(spec.label)") { withConsent(signIn) }
+            }
+            if let subError { Text(subError).font(.caption).foregroundStyle(.red) }
+        } header: { Text("Subscription").foregroundStyle(rx.label2) } footer: {
+            Text("Uses the plan you already pay for instead of an API key. This is the same sign-in \(spec.mode == .browser ? "Codex" : "the provider's own command-line tool") uses, not an official way in, so the provider can change or stop it at any time.")
+                .foregroundStyle(rx.label2)
+        }
+        .listRowBackground(rx.cell)
+    }
+
+    private func signIn() {
+        guard let spec else { return }
+        subError = nil
+        signing = Task {
+            do {
+                switch spec.mode {
+                case .browser: try await Subscriptions.signInBrowser(spec)
+                case .device:
+                    let d = try await Subscriptions.startDevice(spec)
+                    device = d
+                    UIPasteboard.general.string = d.user
+                    openURL(d.url)
+                    try await Subscriptions.finishDevice(spec, device: d.device, verifier: d.verifier, interval: d.interval)
+                }
+                signedIn = true
+                connected.insert(provider.id)
+            } catch is CancellationError {
+            } catch let e as ASWebAuthenticationSessionError where e.code == .canceledLogin {
+            } catch { subError = error.localizedDescription }
+            device = nil; signing = nil
+        }
+    }
+
+    /// Nothing left to reach this provider with: forget the permission and the choice.
+    private func disconnected() {
+        guard Keychain.get(provider.id) == nil, Subscriptions.stored(provider.id) == nil else { return }
+        Providers.revokeConsent(kv, provider.id)
+        if Providers.chosen(kv)?.providerId == provider.id { Providers.setChosen(kv, nil) }
+        connected.remove(provider.id); models = []
+    }
+
+    /// The provider sees your words only after you have said it may.
+    private func withConsent(_ then: @escaping () -> Void) {
+        if Providers.hasConsent(kv, provider.id) { then() } else { consentFor = then; askConsent = true }
     }
 
     private func save() {
         if let p = Providers.looksWrong(provider, key) { problem = p; return }
         problem = nil
-        // the provider sees your words only after you have said it may
-        if !Providers.hasConsent(kv, provider.id) { askConsent = true } else { store() }
+        withConsent(store)
     }
 
     private func store() {

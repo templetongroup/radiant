@@ -121,6 +121,14 @@ struct ConsentSheet: View {
     @Environment(\.dismiss) private var dismiss
     let provider: Provider
 
+    static func host(_ p: Provider) -> String {
+        let h = URL(string: p.baseUrl)?.host ?? p.baseUrl
+        return p.id == "openai" ? "\(h) (chatgpt.com when you sign in with ChatGPT)" : h
+    }
+    static func how(_ p: Provider) -> String {
+        p.keyless ? "your subscription sign-in" : Subscriptions.spec(p.id) != nil ? "your API key or subscription sign-in" : "your API key"
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -128,7 +136,7 @@ struct ConsentSheet: View {
                     Text("You chose a model that runs on \(provider.name)'s servers, not on this device. To answer, Radiant has to send the conversation there.")
                         .foregroundStyle(rx.label)
                     section("What is sent", "The messages in this conversation, any photo you attach, and the replies.")
-                    section("Where it goes", "\(provider.name)'s servers at \(URL(string: provider.baseUrl)?.host ?? provider.baseUrl), using your API key, under \(provider.name)'s policy — not Templeton's.")
+                    section("Where it goes", "\(provider.name)'s servers at \(Self.host(provider)), using \(Self.how(provider)), under \(provider.name)'s policy — not Templeton's.")
                     section("What is not sent", "Your other chats, your contacts, photos you did not attach, and your location.")
                     Link("Privacy policy", destination: URL(string: "https://www.templetongroup.dev/showcase/radiant/privacy.html")!)
                         .font(.footnote).tint(rx.tintText)

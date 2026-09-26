@@ -95,14 +95,32 @@ enum CloudStream {
         return String(data: data, encoding: .utf8)
     }
 
-    static func authorize(_ req: inout URLRequest, provider: String, key: String) {
-        if provider == "anthropic" {
-            req.setValue(key, forHTTPHeaderField: "x-api-key")
+    /// What pays for a request: a pasted API key wins, as on the Mac; otherwise
+    /// a signed-in subscription (Subscriptions.swift), refreshed if it is due.
+    enum Cred { case key(String), sub(SubToken) }
+
+    static func credential(_ provider: String) async throws -> Cred {
+        if let k = key(for: provider) { return .key(k) }
+        if let t = try await Subscriptions.valid(provider) { return .sub(t) }
+        throw err("Not connected to \(Providers.byId(provider)?.name ?? provider) — add a key or sign in under Cloud models.")
+    }
+
+    static func authorize(_ req: inout URLRequest, provider: String, cred: Cred) {
+        switch cred {
+        case .key(let k) where provider == "anthropic":
+            req.setValue(k, forHTTPHeaderField: "x-api-key")
             req.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
-        } else {
-            req.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization")
+        case .key(let k): req.setValue("Bearer \(k)", forHTTPHeaderField: "Authorization")
+        case .sub(let t): req.setValue("Bearer \(t.access)", forHTTPHeaderField: "Authorization")
         }
+        if provider == "copilot" { Subscriptions.copilotHeaders.forEach { req.setValue($1, forHTTPHeaderField: $0) } }
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+    }
+
+    /// Qwen's token names the host it is good for.
+    private static func base(_ baseUrl: String, _ cred: Cred) -> String {
+        if case .sub(let t) = cred, let b = t.apiBase { return b }
+        return baseUrl
     }
 
     /// Pull a human-readable reason out of an error body, whatever shape it is.
@@ -118,10 +136,11 @@ enum CloudStream {
 
     /// The provider's own model list, for the picker.
     static func models(provider: String, baseUrl: String) async throws -> [String] {
-        guard let apiKey = key(for: provider) else { throw err("No key saved for \(provider)") }
-        guard let url = URL(string: baseUrl + (provider == "anthropic" ? "/v1/models" : "/models")) else { throw err("Bad baseUrl") }
+        let cred = try await credential(provider)
+        if case .sub(let t) = cred, provider == "openai" { return await Codex.models(t) }
+        guard let url = URL(string: base(baseUrl, cred) + (provider == "anthropic" ? "/v1/models" : "/models")) else { throw err("Bad baseUrl") }
         var req = URLRequest(url: url)
-        authorize(&req, provider: provider, key: apiKey)
+        authorize(&req, provider: provider, cred: cred)
         let (data, resp) = try await URLSession.shared.data(for: req)
         guard let http = resp as? HTTPURLResponse else { throw err("No response") }
         guard (200..<300).contains(http.statusCode) else { throw err(message(from: data, status: http.statusCode)) }
@@ -133,9 +152,10 @@ enum CloudStream {
     /// Anthropic's separate system field. Returns normally when cancelled.
     static func stream(provider: String, baseUrl: String, model: String, messages: [[String: String]],
                        onToken: @escaping (String) -> Void) async throws {
-        guard let apiKey = key(for: provider) else { throw err("No key saved for \(provider)") }
+        let cred = try await credential(provider)
+        if case .sub(let t) = cred, provider == "openai" { return try await Codex.stream(t, model: model, messages: messages, onToken: onToken) }
         let anthropic = provider == "anthropic"
-        guard let url = URL(string: baseUrl + (anthropic ? "/v1/messages" : "/chat/completions")) else { throw err("Bad baseUrl") }
+        guard let url = URL(string: base(baseUrl, cred) + (anthropic ? "/v1/messages" : "/chat/completions")) else { throw err("Bad baseUrl") }
         var body: [String: Any] = ["model": model, "stream": true]
         if anthropic {
             body["max_tokens"] = 4096
@@ -146,7 +166,7 @@ enum CloudStream {
         }
         var req = URLRequest(url: url)
         req.httpMethod = "POST"
-        authorize(&req, provider: provider, key: apiKey)
+        authorize(&req, provider: provider, cred: cred)
         req.httpBody = try? JSONSerialization.data(withJSONObject: body)
         do {
             let (bytes, resp) = try await URLSession.shared.bytes(for: req)
@@ -175,6 +195,75 @@ enum CloudStream {
     }
 
     static func err(_ m: String) -> NSError { NSError(domain: "Radiant", code: 3, userInfo: [NSLocalizedDescriptionKey: m]) }
+}
+
+// MARK: - ChatGPT subscription: the Codex backend (providers.js, chatgptRound)
+
+/// A ChatGPT sign-in cannot call api.openai.com ("missing scope"); Codex sends
+/// subscription traffic to chatgpt.com's Responses endpoint with the account
+/// id, and so does this.
+enum Codex {
+    static let base = "https://chatgpt.com/backend-api/codex"
+    static let clientVersion = "0.146.0"
+    static let fallbackModel = "gpt-5.6-sol"
+
+    private static func headers(_ req: inout URLRequest, _ t: SubToken) {
+        req.setValue("Bearer \(t.access)", forHTTPHeaderField: "Authorization")
+        req.setValue(t.accountId ?? "", forHTTPHeaderField: "chatgpt-account-id")
+        req.setValue("responses=experimental", forHTTPHeaderField: "openai-beta")
+        req.setValue("codex_cli_rs", forHTTPHeaderField: "originator")
+    }
+
+    /// The live list — the backend renames models often and refuses retired ids.
+    static func models(_ t: SubToken) async -> [String] {
+        var req = URLRequest(url: URL(string: "\(base)/models?client_version=\(clientVersion)")!)
+        headers(&req, t)
+        req.setValue("application/json", forHTTPHeaderField: "Accept")
+        guard let (data, resp) = try? await URLSession.shared.data(for: req), (resp as? HTTPURLResponse)?.statusCode == 200,
+              let rows = (try? JSONSerialization.jsonObject(with: data) as? [String: Any])?["models"] as? [[String: Any]] else { return [fallbackModel] }
+        let list = rows.filter { ($0["supported_in_api"] as? Bool) == true && ($0["visibility"] as? String) == "list" }.compactMap { $0["slug"] as? String }
+        return list.isEmpty ? [fallbackModel] : list
+    }
+
+    static func stream(_ t: SubToken, model: String, messages: [[String: String]], onToken: @escaping (String) -> Void) async throws {
+        let system = messages.first { $0["role"] == "system" }?["content"] ?? ""
+        let input: [[String: Any]] = messages.filter { $0["role"] != "system" }.map { m in
+            let user = m["role"] == "user"
+            return ["type": "message", "role": user ? "user" : "assistant",
+                    "content": [["type": user ? "input_text" : "output_text", "text": m["content"] ?? ""]]]
+        }
+        let body: [String: Any] = ["model": model, "instructions": system.isEmpty ? "You are a helpful assistant." : system,
+                                   "input": input, "store": false, "stream": true]
+        var req = URLRequest(url: URL(string: "\(base)/responses")!)
+        req.httpMethod = "POST"
+        headers(&req, t)
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("text/event-stream", forHTTPHeaderField: "Accept")
+        req.setValue(UUID().uuidString, forHTTPHeaderField: "session_id")
+        req.httpBody = try JSONSerialization.data(withJSONObject: body)
+        do {
+            let (bytes, resp) = try await URLSession.shared.bytes(for: req)
+            let status = (resp as? HTTPURLResponse)?.statusCode ?? 0
+            guard (200..<300).contains(status) else {
+                var raw = Data()
+                for try await b in bytes { raw.append(b) }
+                throw CloudStream.err(CloudStream.message(from: raw, status: status))
+            }
+            for try await line in bytes.lines {
+                if Task.isCancelled { break }
+                guard line.hasPrefix("data:"), let d = line.dropFirst(5).trimmingCharacters(in: .whitespaces).data(using: .utf8),
+                      let j = try? JSONSerialization.jsonObject(with: d) as? [String: Any] else { continue }
+                switch j["type"] as? String {
+                case "response.output_text.delta": if let t = j["delta"] as? String, !t.isEmpty { onToken(t) }
+                case "response.failed":
+                    throw CloudStream.err((((j["response"] as? [String: Any])?["error"] as? [String: Any])?["message"] as? String) ?? "ChatGPT could not answer.")
+                default: break
+                }
+            }
+        } catch let e as URLError where e.code == .cancelled {
+            return
+        }
+    }
 }
 
 // MARK: - the Keychain (as SecureStore.swift: same service, same accessibility)

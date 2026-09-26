@@ -205,11 +205,12 @@ enum Skills {
 struct Provider: Identifiable {
     let id: String, name: String, baseUrl: String, hint: String
     var prefix: String? = nil
+    var keyless = false     // sign-in only: there is no API key to paste
 }
 
 @MainActor
 enum Providers {
-    static let all: [Provider] = [
+    nonisolated static let all: [Provider] = [
         Provider(id: "anthropic", name: "Anthropic", baseUrl: "https://api.anthropic.com", hint: "Claude models. Key from console.anthropic.com.", prefix: "sk-ant-"),
         Provider(id: "openai", name: "OpenAI", baseUrl: "https://api.openai.com/v1", hint: "GPT models. Key from platform.openai.com.", prefix: "sk-"),
         Provider(id: "openrouter", name: "OpenRouter", baseUrl: "https://openrouter.ai/api/v1", hint: "Hundreds of models behind one key. openrouter.ai/keys.", prefix: "sk-or-"),
@@ -220,9 +221,17 @@ enum Providers {
         Provider(id: "zai", name: "GLM (Z.ai)", baseUrl: "https://api.z.ai/api/paas/v4", hint: "GLM-4.6 and 4.5. Works with the GLM Coding Plan."),
         Provider(id: "minimax", name: "MiniMax", baseUrl: "https://api.minimax.io/v1", hint: "MiniMax-M3 and the M2 series. Key from platform.minimax.io — the international platform, not the mainland-China one."),
         Provider(id: "groq", name: "Groq", baseUrl: "https://api.groq.com/openai/v1", hint: "Very fast open models. console.groq.com.", prefix: "gsk_"),
-        Provider(id: "mistral", name: "Mistral", baseUrl: "https://api.mistral.ai/v1", hint: "Mistral and Codestral. console.mistral.ai.")
+        Provider(id: "mistral", name: "Mistral", baseUrl: "https://api.mistral.ai/v1", hint: "Mistral and Codestral. console.mistral.ai."),
+        // Subscription sign-in only (Subscriptions.swift). The web design does not list these.
+        Provider(id: "copilot", name: "GitHub Copilot", baseUrl: "https://api.githubcopilot.com", hint: "GPT, Claude and Gemini through your Copilot subscription.", keyless: true),
+        Provider(id: "qwen", name: "Qwen", baseUrl: "https://portal.qwen.ai/v1", hint: "Qwen models through your chat.qwen.ai account.", keyless: true)
     ]
-    static func byId(_ id: String) -> Provider? { all.first { $0.id == id } }
+    nonisolated static func byId(_ id: String) -> Provider? { all.first { $0.id == id } }
+
+    /// Providers this phone can reach: a key in the Keychain, or a subscription signed in.
+    static func connected() -> Set<String> {
+        Set(Keychain.accounts().map { $0.hasPrefix("sub:") ? String($0.dropFirst(4)) : $0 })
+    }
 
     static let chosenKey = "radiant.phone.cloudModel"
     static let consentKey = "radiant.phone.cloudConsent"

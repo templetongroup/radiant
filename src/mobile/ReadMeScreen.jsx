@@ -38,6 +38,14 @@ const sections = () => [
     ]
   },
   {
+    title: 'Sign in with ChatGPT, Grok, Copilot, Qwen or Nous',
+    body: [
+      'Cloud models now opens with \u201cSign in with a subscription\u201d: ChatGPT (Plus / Pro), Grok (SuperGrok / Premium+), GitHub Copilot, Qwen and Nous Portal. Sign in once and you can chat with that service\u2019s models using the plan you already pay for \u2014 no API key. GitHub Copilot alone brings GPT, Claude and Gemini models.',
+      'ChatGPT opens its own sign-in page and returns you to Radiant when you are done. The others open a page in Safari with a short code already filled in; confirm it there, then come back to Radiant and it finishes by itself. Your sign-in stays in this phone\u2019s Keychain, and Sign out removes it.',
+      'This uses the same sign-in as each company\u2019s own command-line tools, not an official way in, so a company can change or stop it at any time. Claude subscriptions are not offered, because Anthropic only allows them in its own apps; a Claude API key still works.'
+    ]
+  },
+  {
     title: 'The new design follows your colors',
     body: [
       'On a phone set to light mode, the new design put light buttons, a light search bar and a black \u201cRadiant\u201d title on top of a dark theme. It now follows the appearance you picked in Settings \u2014 dark, medium, light or system \u2014 and only follows the phone when you choose System.',
