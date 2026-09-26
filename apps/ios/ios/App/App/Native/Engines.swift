@@ -141,7 +141,7 @@ enum CloudStream {
         guard let url = URL(string: base(baseUrl, cred) + (provider == "anthropic" ? "/v1/models" : "/models")) else { throw err("Bad baseUrl") }
         var req = URLRequest(url: url)
         authorize(&req, provider: provider, cred: cred)
-        let (data, resp) = try await URLSession.shared.data(for: req)
+        let (data, resp) = try await CloudStream.data(req)
         guard let http = resp as? HTTPURLResponse else { throw err("No response") }
         guard (200..<300).contains(http.statusCode) else { throw err(message(from: data, status: http.statusCode)) }
         let rows = ((try? JSONSerialization.jsonObject(with: data) as? [String: Any])?["data"] as? [[String: Any]]) ?? []
@@ -169,7 +169,7 @@ enum CloudStream {
         authorize(&req, provider: provider, cred: cred)
         req.httpBody = try? JSONSerialization.data(withJSONObject: body)
         do {
-            let (bytes, resp) = try await URLSession.shared.bytes(for: req)
+            let (bytes, resp) = try await CloudStream.bytes(req)
             guard let http = resp as? HTTPURLResponse else { throw err("No response") }
             guard (200..<300).contains(http.statusCode) else {
                 var raw = Data()
@@ -192,6 +192,23 @@ enum CloudStream {
     private static func chunk(_ j: [String: Any], anthropic: Bool) -> String? {
         if anthropic { return (j["delta"] as? [String: Any])?["text"] as? String }
         return ((j["choices"] as? [[String: Any]])?.first?["delta"] as? [String: Any])?["content"] as? String
+    }
+
+    /// A connection the phone dropped, not an answer from the server.
+    static func transient(_ e: URLError) -> Bool {
+        [.networkConnectionLost, .notConnectedToInternet, .timedOut, .cannotConnectToHost, .dnsLookupFailed, .cannotFindHost].contains(e.code)
+    }
+
+    /// One retry when the connection was dropped. Coming back to Radiant from
+    /// another app, the first request often goes out on a connection iOS
+    /// closed while Radiant was paused, and fails "network connection was lost".
+    static func data(_ r: URLRequest) async throws -> (Data, URLResponse) {
+        do { return try await URLSession.shared.data(for: r) }
+        catch let e as URLError where e.code == .networkConnectionLost { return try await URLSession.shared.data(for: r) }
+    }
+    static func bytes(_ r: URLRequest) async throws -> (URLSession.AsyncBytes, URLResponse) {
+        do { return try await URLSession.shared.bytes(for: r) }
+        catch let e as URLError where e.code == .networkConnectionLost { return try await URLSession.shared.bytes(for: r) }
     }
 
     static func err(_ m: String) -> NSError { NSError(domain: "Radiant", code: 3, userInfo: [NSLocalizedDescriptionKey: m]) }
@@ -219,7 +236,7 @@ enum Codex {
         var req = URLRequest(url: URL(string: "\(base)/models?client_version=\(clientVersion)")!)
         headers(&req, t)
         req.setValue("application/json", forHTTPHeaderField: "Accept")
-        guard let (data, resp) = try? await URLSession.shared.data(for: req), (resp as? HTTPURLResponse)?.statusCode == 200,
+        guard let (data, resp) = try? await CloudStream.data(req), (resp as? HTTPURLResponse)?.statusCode == 200,
               let rows = (try? JSONSerialization.jsonObject(with: data) as? [String: Any])?["models"] as? [[String: Any]] else { return [fallbackModel] }
         let list = rows.filter { ($0["supported_in_api"] as? Bool) == true && ($0["visibility"] as? String) == "list" }.compactMap { $0["slug"] as? String }
         return list.isEmpty ? [fallbackModel] : list
@@ -242,7 +259,7 @@ enum Codex {
         req.setValue(UUID().uuidString, forHTTPHeaderField: "session_id")
         req.httpBody = try JSONSerialization.data(withJSONObject: body)
         do {
-            let (bytes, resp) = try await URLSession.shared.bytes(for: req)
+            let (bytes, resp) = try await CloudStream.bytes(req)
             let status = (resp as? HTTPURLResponse)?.statusCode ?? 0
             guard (200..<300).contains(status) else {
                 var raw = Data()

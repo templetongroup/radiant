@@ -171,7 +171,13 @@ enum Subscriptions {
             try await Task.sleep(nanoseconds: UInt64(wait * 1e9))
             var form = ["grant_type": "urn:ietf:params:oauth:grant-type:device_code", "client_id": s.clientId, "device_code": device]
             if let verifier { form["code_verifier"] = verifier }
-            let j = try await postForm(s.tokenUrl, form, allowError: true)
+            // ⚠️ THE USER IS IN SAFARI WHILE THIS RUNS. iOS pauses Radiant, and a
+            // check in flight comes back "The network connection was lost" —
+            // which ended the sign-in for Grok and Nous on Tony's phone
+            // (2026-09-25). A dropped check is not a refusal: keep asking.
+            let j: [String: Any]
+            do { j = try await postForm(s.tokenUrl, form, allowError: true) }
+            catch let e as URLError where CloudStream.transient(e) { continue }
             if let access = j["access_token"] as? String {
                 if s.id == "copilot" { save(s.id, try await copilotToken(github: access)); return }
                 save(s.id, SubToken(access: access, refresh: j["refresh_token"] as? String,
@@ -194,7 +200,7 @@ enum Subscriptions {
         r.setValue("token \(github)", forHTTPHeaderField: "Authorization")
         r.setValue("application/json", forHTTPHeaderField: "Accept")
         copilotHeaders.forEach { r.setValue($1, forHTTPHeaderField: $0) }
-        let (data, resp) = try await URLSession.shared.data(for: r)
+        let (data, resp) = try await CloudStream.data(r)
         let status = (resp as? HTTPURLResponse)?.statusCode ?? 0
         guard status == 200, let j = try? JSONSerialization.jsonObject(with: data) as? [String: Any], let tok = j["token"] as? String else {
             throw CloudStream.err(status == 403 ? "This GitHub account has no active Copilot subscription." : "Copilot would not issue a token (\(status)).")
@@ -242,7 +248,7 @@ enum Subscriptions {
         return try await send(r, allowError: false)
     }
     private static func send(_ r: URLRequest, allowError: Bool) async throws -> [String: Any] {
-        let (data, resp) = try await URLSession.shared.data(for: r)
+        let (data, resp) = try await CloudStream.data(r)
         let status = (resp as? HTTPURLResponse)?.statusCode ?? 0
         let j = (try? JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:]
         if !(200..<300).contains(status) && !allowError { throw CloudStream.err(CloudStream.message(from: data, status: status)) }
