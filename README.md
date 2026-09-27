@@ -80,6 +80,12 @@
 - **Your project's rules** — Radiant reads a project's `AGENTS.md`,
   `CLAUDE.md`, `.clinerules` or `.cursorrules` into every chat, and shows the
   branch's pull request and CI status above the composer.
+- **Reasoning carries between steps** — a model that thinks (Claude with a
+  thinking level, ChatGPT models on a ChatGPT sign-in) gets its own earlier
+  reasoning back at each tool step instead of starting over.
+- **Sandbox commands** (optional) — macOS enforces a fence around every
+  command the agent runs: writes only inside the project folder, and, if you
+  choose, no internet. A blocked command tells the agent to ask you.
 - **One message, one reply** — a message that arrives twice (a retried
   connection, a repeated voice request) runs once. A turn that stops for any
   reason says why in the chat, with a Continue button — never an empty reply.
