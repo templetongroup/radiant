@@ -105,7 +105,9 @@
   command is stopped instead of burning tokens.
 - **Long chats keep what matters** — past half the model's window, Jev sets
   aside older tool results the task no longer needs (and any result a later,
-  identical call replaced), so what the task depends on keeps its place.
+  identical call replaced), so what the task depends on keeps its place. When a
+  chat outgrows its model, earlier exchanges about something else are set
+  aside before anything is summarized — kept in the chat, just not sent.
 
 **Models, chosen well**
 

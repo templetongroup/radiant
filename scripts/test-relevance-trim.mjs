@@ -5,7 +5,8 @@
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { setAsideStale, foldOldToolResults } from '../server/providers.js'
+import { setAsideStale, setAsideTurns, foldOldToolResults, runTurn } from '../server/providers.js'
+import http from 'node:http'
 import { chooseStale, decide, STALE_BELOW } from '../server/decide.js'
 
 let pass = 0, fail = 0
@@ -92,6 +93,83 @@ function session () {
   ok(/^\[Replaced: a later, identical read_file \(src\/a\.js\)/.test(foldOldToolResults(s.messages)[1].parts[0].result), 'a replaced result is sent as one line saying so')
 }
 
+// ── whole exchanges about something else are set aside before any summary
+{
+  const u = text => ({ role: 'user', text })
+  const a = (text, tools = []) => ({ role: 'assistant', parts: [...tools.map((n, i) => tool(n, { path: 'x' }, big('r'), i)), { type: 'text', text }] })
+  const msgs = [
+    u('Build the invoice export for the billing page'), a('Started on the CSV export', ['read_file']),
+    u('Unrelated: what is a good name for my cat?'), a('How about Pixel or Mochi?'),
+    u('Also, write me a haiku about autumn'), a('Leaves drift on cold wind…'),
+    u('Back to the export: add the tax column'), a('Added the tax column', ['edit_file']),
+    u('Now make the export include refunds'), a('Working on refunds', ['read_file', 'run_command'])
+  ]
+  const s = { messages: msgs.map(m => ({ ...m })) }
+  let asked = null
+  const judge = async ({ subject, task, candidates }) => {
+    asked = { subject, task, candidates }
+    const stale = [], kept = []
+    for (const c of candidates) (/cat|haiku/i.test(c.excerpt) ? stale : kept).push({ key: c.key, p: /cat|haiku/i.test(c.excerpt) ? 0.05 : 0.92 })
+    return { stale, kept }
+  }
+  const notes = []
+  const r = await setAsideTurns({ session: s, assistant: null, judgeRelevance: judge, emit: e => notes.push(e.text) })
+  ok(asked?.subject === 'exchange', 'Jev is asked about exchanges, not tool results')
+  ok(asked.candidates.length === 2, `the first request and the last four messages are never candidates (asked about ${asked.candidates.length})`)
+  ok(/refunds/.test(asked.task) && /invoice export/.test(asked.task), 'the task is the latest request, with how the conversation began')
+  ok(r?.dropped === 2, `the cat and the haiku are set aside (got ${r?.dropped})`)
+  const aside = s.messages.filter(m => m.setAside).map(m => m.text || m.parts?.at(-1)?.text)
+  ok(aside.length === 4 && aside.every(t => /cat|Pixel|haiku|Leaves/.test(t)), 'each set aside whole: the request and its reply')
+  ok(s.messages.length === 10, 'nothing is deleted from the saved chat')
+  ok(/instead of summarizing/.test(notes[0] || ''), 'the chat is told, and why')
+  ok(s.messages.slice(0, 2).every(m => !m.setAside) && s.messages.slice(-4).every(m => !m.setAside), 'the goal and the recent work stay')
+  const again = await setAsideTurns({ session: s, assistant: null, judgeRelevance: judge, emit: () => {} })
+  ok(again === null, 'exchanges already judged are not asked about again')
+  const odd = { messages: [u('goal'), a('ok'), u('side'), a('r1'), a('r2 still going'), u('latest'), a('now')] }
+  let got = null
+  await setAsideTurns({ session: odd, assistant: null, judgeRelevance: async ({ candidates }) => { got = candidates; return { stale: [], kept: [] } }, emit: () => {} })
+  ok(got === null || got.every(c => !/latest/.test(c.excerpt)), 'an exchange that runs into the recent messages is never split')
+}
+
+// ── end to end: a model that says "too long" gets the unrelated exchanges set aside, not a summary
+{
+  const bodies = []
+  const srv = http.createServer((req, res) => {
+    let b = ''; req.on('data', c => b += c); req.on('end', () => {
+      bodies.push(b)
+      if (/good name for my cat/.test(b)) { res.writeHead(400, { 'content-type': 'application/json' }); return res.end(JSON.stringify({ error: { message: 'prompt is too long: 213456 tokens > 200000 maximum' } })) }
+      res.writeHead(200, { 'content-type': 'text/event-stream' })
+      res.write(`data: ${JSON.stringify({ choices: [{ delta: { content: 'Refunds are in the export now.' } }] })}\n\n`)
+      res.write(`data: ${JSON.stringify({ choices: [{ delta: {}, finish_reason: 'stop' }] })}\n\n`)
+      res.write('data: [DONE]\n\n'); res.end()
+    })
+  })
+  await new Promise(r => srv.listen(0, r))
+  const port = srv.address().port
+  const session = { id: 'e2e', cwd: os.tmpdir(), messages: [
+    { role: 'user', text: 'Build the invoice export for the billing page' }, { role: 'assistant', parts: [{ type: 'text', text: 'Started the CSV export.' }] },
+    { role: 'user', text: 'Unrelated: what is a good name for my cat?' }, { role: 'assistant', parts: [{ type: 'text', text: 'Pixel or Mochi.' }] },
+    { role: 'user', text: 'Back to the export: add the tax column' }, { role: 'assistant', parts: [{ type: 'text', text: 'Added.' }] },
+    { role: 'user', text: 'Sort the rows by date' }, { role: 'assistant', parts: [{ type: 'text', text: 'Sorted.' }] },
+    { role: 'user', text: 'Now include refunds' }
+  ] }
+  let summarized = 0
+  const events = []
+  await runTurn({
+    provider: { id: 'fakeco', type: 'openai', baseUrl: `http://127.0.0.1:${port}/v1` }, model: 'm1', apiKey: 'k', session, useTools: false,
+    autoCompact: true, summarize: async () => { summarized++; return 'a summary' },
+    judgeRelevance: async ({ candidates }) => ({ stale: candidates.filter(c => /cat/.test(c.excerpt)).map(c => ({ key: c.key, p: 0.05 })), kept: candidates.filter(c => !/cat/.test(c.excerpt)).map(c => ({ key: c.key, p: 0.9 })) }),
+    emit: e => events.push(e), signal: AbortSignal.timeout(20000)
+  })
+  srv.close()
+  const reply = session.messages.at(-1).parts?.find(p => p.type === 'text')?.text
+  ok(reply === 'Refunds are in the export now.', `the turn goes on to answer (got ${JSON.stringify(reply)})`)
+  ok(summarized === 0 && !events.some(e => e.type === 'compacted'), 'no summary was written')
+  ok(events.some(e => e.type === 'notice' && /instead of summarizing/.test(e.text)), 'the chat says an exchange was set aside instead')
+  ok(!/good name for my cat/.test(bodies.at(-1)) && /Build the invoice export/.test(bodies.at(-1)), 'the request that worked left out the cat, and kept the goal')
+  ok(session.messages.some(m => m.setAside && /cat/.test(m.text || '')), 'the exchange is still in the saved chat, marked set aside')
+}
+
 // ── chooseStale turns Jev's answers into verdicts
 {
   const fake = async ({ questions, state }) => ({ answers: Object.fromEntries(Object.keys(questions).map((k, i) => [k, { noul: i === 0 ? 0.1 : 0.8 }])), usage: {}, state })
@@ -121,6 +199,24 @@ if (process.argv.includes('--live')) {
       decideFn: decide,
       apiKey: key
     })
+    const turns = await chooseStale({
+      subject: 'exchange',
+      task: 'Now make the invoice export include refunds.\n\n(The conversation began with: Build the invoice CSV export for the billing page)',
+      candidates: [
+        { key: 'tax', name: 'exchange', head: '', excerpt: 'Request: Back to the export: add the tax column\nReply: Added a tax column to exportInvoices() and a test for it.\nTools used: read_file, edit_file, run_command' },
+        { key: 'cat', name: 'exchange', head: '', excerpt: 'Request: Unrelated: what is a good name for my cat?\nReply: How about Pixel or Mochi?' },
+        { key: 'haiku', name: 'exchange', head: '', excerpt: 'Request: Write me a haiku about autumn\nReply: Leaves drift on cold wind…' },
+        { key: 'schema', name: 'exchange', head: '', excerpt: 'Request: What columns does the invoices table have?\nReply: id, customer_id, amount, tax, status, refunded_at.\nTools used: run_command' }
+      ],
+      decideFn: decide,
+      apiKey: key
+    })
+    if (turns) {
+      const q = k => [...turns.stale, ...turns.kept].find(v => v.key === k)?.p?.toFixed(2)
+      console.log(`  live Jev, exchanges: tax column ${q('tax')}, invoices schema ${q('schema')}, cat name ${q('cat')}, haiku ${q('haiku')}`)
+      const st = turns.stale.map(v => v.key)
+      ok(st.includes('cat') && st.includes('haiku') && !st.includes('tax') && !st.includes('schema'), 'live: the off-topic exchanges go, the ones the task builds on stay')
+    }
     const secs = ((Date.now() - t0) / 1000).toFixed(1)
     if (!r) { console.log('  (live: Jev did not answer — skipped)') } else {
       const staleKeys = r.stale.map(v => v.key)

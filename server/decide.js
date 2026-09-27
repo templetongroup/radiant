@@ -377,7 +377,7 @@ export async function verifyClaims ({ text, toolParts = [], decideFn, apiKey, se
  */
 export const STALE_BELOW = 0.25
 
-export async function chooseStale ({ task, plan, recent, candidates = [], decideFn, apiKey, sessionId, signal }) {
+export async function chooseStale ({ task, plan, recent, candidates = [], subject = 'tool', decideFn, apiKey, sessionId, signal }) {
   if (!candidates.length || !decideFn || !apiKey) return null
   // ⚠️ THE RESULT GOES IN THE QUESTION, NOT IN THE STATE. Measured against the
   // real Jev on one case (2026-09-27): with the results listed in the state and
@@ -387,15 +387,26 @@ export async function chooseStale ({ task, plan, recent, candidates = [], decide
   // test), 0.04 (the changelog), 0.01 (an off-topic search). "Will it still be
   // needed" and "could it be dropped" both separated worse.
   const questions = {}
+  // `subject: 'exchange'` asks the same question about a whole earlier exchange
+  // (a request and the replies to it) — providers.js setAsideTurns.
   candidates.forEach((c, i) => {
-    questions[`need_${i}`] = {
-      type: 'noul',
-      instructions: `Is this earlier tool result relevant to the task described in the state?\n${c.name}(${c.head}) → ${c.excerpt}`,
-      criteria: {
-        true: 'It is about the thing being fixed or built: the code, the error, the requirement, data the answer will use.',
-        false: 'It is unrelated to the task, or only incidental (an off-topic search, docs or files about something else).'
-      }
-    }
+    questions[`need_${i}`] = subject === 'exchange'
+      ? {
+          type: 'noul',
+          instructions: `Is this earlier part of the conversation relevant to the current task described in the state?\n${c.excerpt}`,
+          criteria: {
+            true: 'It is about the current task: its code, its errors, its requirements or decisions the current work builds on.',
+            false: 'It is about something else — a different request that was finished or dropped, small talk, an unrelated question.'
+          }
+        }
+      : {
+          type: 'noul',
+          instructions: `Is this earlier tool result relevant to the task described in the state?\n${c.name}(${c.head}) → ${c.excerpt}`,
+          criteria: {
+            true: 'It is about the thing being fixed or built: the code, the error, the requirement, data the answer will use.',
+            false: 'It is unrelated to the task, or only incidental (an off-topic search, docs or files about something else).'
+          }
+        }
   })
   const out = await decideFn({ apiKey, sessionId, signal, timeoutMs: 8000, state: { task, plan: plan || '(no plan written)', latest_work: recent || '(none yet)' }, questions })
   if (!out) return null

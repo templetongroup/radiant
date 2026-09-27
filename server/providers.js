@@ -767,6 +767,54 @@ export async function setAsideStale ({ session, assistant, round, judgeRelevance
   return { judged: batch.length, stale: out.stale.length, superseded, chars: chars + supersededChars, ms: Date.now() - t0 }
 }
 
+/**
+ * Set aside whole earlier exchanges — a request and the replies to it — that
+ * Jev judges unrelated to the current task (m.setAside on every message in
+ * it). They stay in the saved chat and on screen; they are not sent. The first
+ * request (the goal, or a compaction summary) and the last KEEP_TURNS_RECENT
+ * messages are never candidates, and an exchange is only taken whole, so a
+ * tool call is never separated from its result. Returns { dropped, chars } or
+ * null. Never throws.
+ */
+const KEEP_TURNS_RECENT = 4
+export async function setAsideTurns ({ session, assistant, judgeRelevance, emit }) {
+  const live = session.messages.filter(m => !m.setAside && m !== assistant)
+  let cutoff = live.length - KEEP_TURNS_RECENT
+  while (cutoff > 0 && live[cutoff]?.role !== 'user') cutoff--   // end on an exchange boundary
+  const groups = []
+  for (const m of live.slice(0, Math.max(cutoff, 0))) {
+    if (m.role === 'user') groups.push([m])
+    else if (groups.length) groups[groups.length - 1].push(m)
+  }
+  const candidates = groups.slice(1).filter(g => g[0].relevance == null)
+  if (candidates.length < 1) return null
+  const asks = live.filter(m => m.role === 'user' && m.text).map(m => m.text)
+  const latest = asks[asks.length - 1] || ''
+  const task = asks[0] && asks[0] !== latest ? `${latest.slice(0, 1000)}\n\n(The conversation began with: ${asks[0].slice(0, 400)})` : latest.slice(0, 1400)
+  const excerpt = g => {
+    const said = g.slice(1).flatMap(m => (m.parts || []).filter(p => p.type === 'text').map(p => p.text)).join(' ').replace(/\s+/g, ' ')
+    const tools = [...new Set(g.slice(1).flatMap(m => (m.parts || []).filter(p => p.type === 'tool').map(p => p.name)))]
+    return `Request: ${String(g[0].text || '').replace(/\s+/g, ' ').slice(0, 400)}\nReply: ${said.slice(0, 500) || '(tools only)'}${tools.length ? `\nTools used: ${tools.slice(0, 10).join(', ')}` : ''}`
+  }
+  const t0 = Date.now()
+  let out = null
+  try {
+    out = await judgeRelevance({ task, plan: (session.todos || []).map(t => `${t.status === 'completed' ? '[x]' : '[ ]'} ${t.content}`).join('\n'), recent: '', subject: 'exchange', candidates: candidates.slice(0, RELEVANCE_BATCH).map((g, i) => ({ key: i, name: 'exchange', head: '', excerpt: excerpt(g) })) })
+  } catch { out = null }
+  if (!out) return null
+  let chars = 0
+  for (const v of out.kept) candidates[v.key][0].relevance = Math.round(v.p * 100) / 100
+  for (const v of out.stale) {
+    const g = candidates[v.key]
+    g[0].relevance = Math.round(v.p * 100) / 100
+    for (const m of g) { m.setAside = true; chars += JSON.stringify(m).length }
+  }
+  if (out.stale.length) {
+    emit({ type: 'notice', text: `Set aside ${out.stale.length} earlier exchange${out.stale.length === 1 ? '' : 's'} about something other than the current task — about ${Math.max(1, Math.round(chars / 4000))}k tokens, decided in ${((Date.now() - t0) / 1000).toFixed(1)} s — instead of summarizing the conversation. ${out.stale.length === 1 ? 'It stays' : 'They stay'} in the chat; ${out.stale.length === 1 ? 'it is' : 'they are'} just not sent to the model.` })
+  }
+  return { dropped: out.stale.length, judged: candidates.length, chars, ms: Date.now() - t0 }
+}
+
 /** <tool_call>{"name":"x","arguments":{...}}</tool_call> blocks in text → calls. */
 export function parseInlineToolCalls (text) {
   const out = []
@@ -1013,6 +1061,7 @@ const PROACTIVE_TOKENS = 180_000 // rough safety net for huge-context models
 function estimateTokens (messages) {
   let chars = 0
   for (const m of messages) {
+    if (m.setAside) continue   // an exchange set aside is not sent at all
     chars += (m.text || '').length
     for (const p of m.parts || []) {
       if (p.text) chars += p.text.length
@@ -1050,7 +1099,7 @@ async function compactSession (session, keepRecent, summarize, emit) {
   const older = msgs.slice(0, msgs.length - keepRecent)
   const recent = msgs.slice(msgs.length - keepRecent)
   let summary = ''
-  try { summary = (await summarize(renderForSummary(older).slice(-50_000))).trim() } catch {}
+  try { summary = (await summarize(renderForSummary(older.filter(m => !m.setAside)).slice(-50_000))).trim() } catch {}
   if (!summary) return false
   session.messages = [
     { role: 'user', text: `[Summary of the earlier conversation — the full history was compacted to save context. Continue from here.]\n\n${summary}`, compacted: true },
@@ -1101,8 +1150,10 @@ export async function runTurn ({ provider, model, routed, verifyClaims, apiKey, 
   const { dir: cwd, missing: strayCwd } = usableCwd(session.cwd)
   const system = systemPrompt(cwd, useTools, model, computerControl, skills, persona, planMode, planAddendum, memory, readOnly, projectRules)
   // proactive compaction before a very long turn
-  if (autoCompact && summarize && estimateTokens(session.messages) > PROACTIVE_TOKENS) {
-    await compactSession(session, 4, summarize, emit)
+  if (estimateTokens(session.messages) > PROACTIVE_TOKENS) {
+    // Set aside unrelated earlier exchanges first; summarize only if that was not enough.
+    if (judgeRelevance) await setAsideTurns({ session, assistant: null, judgeRelevance, emit })
+    if (autoCompact && summarize && estimateTokens(session.messages) > PROACTIVE_TOKENS) await compactSession(session, 4, summarize, emit)
   }
   const assistant = { role: 'assistant', model, parts: [], ...(routed ? { routed } : {}) }
   if (agentId) assistant.agentId = agentId
@@ -1148,6 +1199,7 @@ export async function runTurn ({ provider, model, routed, verifyClaims, apiKey, 
   let lastPrompt = 0
   let hardFold = false
   let lastJudgedRound = -99
+  let turnsSetAside = false
   // A local model's window is whatever Ollama loaded it with — ask, rather
   // than guess from the name. See ollamaContext().
   //
@@ -1320,7 +1372,8 @@ export async function runTurn ({ provider, model, routed, verifyClaims, apiKey, 
         lastJudgedRound = round
         await setAsideStale({ session, assistant, round, judgeRelevance, emit })
       }
-      const reqMsgs = foldOldToolResults(voiceAsText(groupSpeakerId ? groupFlatten(session.messages, groupSpeakerId, groupNames || {}) : session.messages), { hard: hardFold })
+      const liveMsgs = session.messages.filter(m => !m.setAside)
+      const reqMsgs = foldOldToolResults(voiceAsText(groupSpeakerId ? groupFlatten(liveMsgs, groupSpeakerId, groupNames || {}) : liveMsgs), { hard: hardFold })
       // ⚠️ MODEL-VISIBLE MEANS LOGGED. Everything this round sends is written
       // down beside the reply — which model, how much system text (and a hash
       // of it), which tools, how many messages, whether old results were
@@ -1380,6 +1433,16 @@ export async function runTurn ({ provider, model, routed, verifyClaims, apiKey, 
           hardFold = true
           emit({ type: 'notice', text: `The conversation outgrew ${model}'s limit — trimmed older tool results and continued.` })
           continue
+        }
+        // ⚠️ BEFORE THE SUMMARY, THE EXCHANGES THAT ARE ABOUT SOMETHING ELSE.
+        // A summary is slow, loses detail, and rewrites the saved chat for good.
+        // Earlier requests unrelated to the current task are set aside instead —
+        // kept in the chat, not sent — and only if that is not enough does the
+        // summary run. (decide.js chooseStale, subject 'exchange'.)
+        if (judgeRelevance && !turnsSetAside) {
+          turnsSetAside = true
+          const r = await setAsideTurns({ session, assistant, judgeRelevance, emit })
+          if (r?.dropped) continue
         }
         if (autoCompact && summarize && !compacted) {
           compacted = true
@@ -1648,7 +1711,7 @@ export async function runTurn ({ provider, model, routed, verifyClaims, apiKey, 
         role: 'user',
         text: `This is an unusually long turn (${MAX_ROUNDS} rounds of tool use) and it has reached the backstop. Do not call a tool. In 2-4 plain sentences tell the user what is finished, what is left, and what to say to keep going — Continue will resume.`
       }
-      const msgs = [...session.messages, wrapUp]
+      const msgs = [...session.messages.filter(m => !m.setAside), wrapUp]
       const args = {
         baseUrl: provider.baseUrl, apiKey, accessToken, model, system,
         tools: false, toolDefs: [],
