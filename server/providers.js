@@ -624,7 +624,9 @@ async function openaiRound ({ baseUrl, apiKey, accessToken, model, messages, too
   let text = ''
   const calls = [] // by index: {id, name, args:''}
   let finish = null
+  let servedBy = null // a router (Jev Router, openrouter/auto) names the model it chose on each chunk
   for await (const chunk of sseEvents(res)) {
+    if (!servedBy && chunk.model) servedBy = chunk.model
     const choice = chunk.choices?.[0]
     if (chunk.usage) {
       // Unlike Anthropic, OpenAI-family cached_tokens is a SUBSET of prompt_tokens,
@@ -667,7 +669,7 @@ async function openaiRound ({ baseUrl, apiKey, accessToken, model, messages, too
     try { args = c.args ? JSON.parse(c.args) : {} } catch {}
     parts.push({ type: 'tool', id: c.id, name: c.name, args })
   }
-  return { parts, stopOnTools: finish === 'tool_calls' || live.length > 0, finish }
+  return { parts, stopOnTools: finish === 'tool_calls' || live.length > 0, finish, ...(model === JEV_ROUTER && servedBy && servedBy !== model ? { servedBy } : {}) }
 }
 
 /** <tool_call>{"name":"x","arguments":{...}}</tool_call> blocks in text → calls. */
@@ -1272,6 +1274,9 @@ export async function runTurn ({ provider, model, routed, verifyClaims, apiKey, 
     for (const p of result.parts) {
       if (p.type === 'text') assistant.parts.push(p)
     }
+    // ⚠️ SAY WHO ANSWERED. Jev Router hands the message to a model of its
+    // choosing; the reply is labeled with that model, not only "jev-router".
+    if (result.servedBy) { assistant.servedBy = result.servedBy; emit({ type: 'served_by', model: result.servedBy }) }
     // Cut off by the output cap: what arrived is kept, and the chat is told
     // it is not the whole reply rather than left to look finished.
     if (result.finish === 'length') emit({ type: 'notice', text: 'The model hit its output limit mid-reply — what it wrote is kept, but it did not finish. Say "continue" to get the rest.' })
@@ -1547,6 +1552,10 @@ export async function runTurn ({ provider, model, routed, verifyClaims, apiKey, 
   })
   emit({ type: 'done' })
 }
+
+// OpenRouter's Jev Router: send it the message and it picks the model and
+// reasoning effort itself (TypeSafe's Jev, the same model decide.js asks).
+export const JEV_ROUTER = 'typesafe/jev-router'
 
 // Fallback model lists for subscription sign-ins whose model endpoints aren't
 // reachable with an OAuth token (e.g. ChatGPT). Keeps the picker usable.

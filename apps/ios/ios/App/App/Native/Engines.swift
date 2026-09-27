@@ -81,6 +81,8 @@ enum AppleLM {
 /// here and never leaves native code — the web layer never had it either.
 enum CloudStream {
     static let service = "com.templetongroup.radiant.providers"
+    /// OpenRouter's Jev Router: sends each message to the model it judges best.
+    static let jevRouter = "typesafe/jev-router"
 
     static func key(for provider: String) -> String? {
         let q: [String: Any] = [
@@ -145,7 +147,9 @@ enum CloudStream {
         guard let http = resp as? HTTPURLResponse else { throw err("No response") }
         guard (200..<300).contains(http.statusCode) else { throw err(message(from: data, status: http.statusCode)) }
         let rows = ((try? JSONSerialization.jsonObject(with: data) as? [String: Any])?["data"] as? [[String: Any]]) ?? []
-        return rows.compactMap { $0["id"] as? String }.sorted()
+        let ids = rows.compactMap { $0["id"] as? String }.sorted()
+        // Jev Router leads: it picks the model for each message, so it is the one to try first.
+        return ids.contains(jevRouter) ? [jevRouter] + ids.filter { $0 != jevRouter } : ids
     }
 
     /// Stream a reply. `messages` are {role, content}; a "system" one becomes

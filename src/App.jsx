@@ -641,6 +641,7 @@ function DesktopApp () {
             break
           }
           case 'usage': if (openSessionRef.current === sessionId) setUsage(u => ({ input: ev.input ?? u?.input, output: ev.output ?? u?.output, window: ev.window ?? u?.window, cacheRead: ev.cacheRead ?? u?.cacheRead })); break
+          case 'served_by': liveMsg.servedBy = ev.model; break
           case 'notice': liveMsg.parts.push({ type: 'notice', text: ev.text }); break
           // The turn ended before the work did. Not a notice — notices are
           // asides, and this is the headline.

@@ -38,6 +38,12 @@ const sections = () => [
     ]
   },
   {
+    title: 'Jev Router, at the top of OpenRouter',
+    body: [
+      'With an OpenRouter key, the first model in its list is now Jev Router. Choose it and each message goes to whichever model Jev judges best for it \u2014 a quick question to a fast one, a hard one to a strong one \u2014 so you do not have to pick.'
+    ]
+  },
+  {
     title: 'Sign in with ChatGPT, Grok, Copilot, Qwen or Nous',
     body: [
       'Cloud models now opens with \u201cSign in with a subscription\u201d: ChatGPT (Plus / Pro), Grok (SuperGrok / Premium+), GitHub Copilot, Qwen and Nous Portal. Sign in once and you can chat with that service\u2019s models using the plan you already pay for \u2014 no API key. GitHub Copilot alone brings GPT, Claude and Gemini models.',

@@ -13,7 +13,7 @@ import { WebSocketServer } from 'ws'
 import pty from 'node-pty'
 import { execSync, spawn } from 'child_process'
 import { RADIANT_DIR, DIR_POINTER, CONFIG_PATH, defaultDataDir, dataDirStatus, loadConfig, saveConfig as writeConfig, publicConfig, listSessions, loadSession, saveSession, deleteSession, searchSessions, upsertCredential, activateAccount, removeAccount, SESSIONS_DIR, listProjects, getProject, saveProject, deleteProject, migrateProjects, agentsStore, skillsStore, recipesStore, cloudStatus, MACHINE_KEYS, saveMachineSettings, skillLibrary, inspectSkillFolder, resolveSkillDir, USER_SKILLS_ROOT, repairCloudFolder, builtinAgent, listTasks, loadTask, saveTask, deleteTask, TASK_STATES, listLoops, loadLoop, saveLoop, deleteLoop, LOOP_STATES, listGraphs, loadGraph, saveGraph, deleteGraph, saveTurnSession , loadProjectRules } from './config.js'
-import { runTurn, listModels } from './providers.js'
+import { runTurn, listModels, JEV_ROUTER } from './providers.js'
 import { checkVoiceRequest, liveSessionBody, createLiveSession, voiceKey, VOICE_ADDENDUM } from './voice.js'
 import { geminiVoiceKey, checkGeminiVoiceRequest, geminiSetupFrame, mintEphemeralToken, geminiLiveModel, GEMINI_WS_URL, GEMINI_LIVE_MODELS, GEMINI_LIVE_VOICES, GEMINI_RATE_IN_PER_MINUTE, GEMINI_RATE_OUT_PER_MINUTE } from './voice-gemini.js'
 import { addressing, groupPersona } from './group.js'
@@ -1680,7 +1680,9 @@ app.get('/api/models', async (req, res) => {
     const accessToken = hasOAuth ? await validAccessToken(p.id, config, saveConfig).catch(() => null) : null
     const prov = (p.id === 'qwen' && config.oauth.qwen?.apiBase) ? { ...p, baseUrl: config.oauth.qwen.apiBase } : p
     const models = await listModels(prov, config.keys[p.id], accessToken, hasOAuth ? config.oauth[p.id]?.accountId : null)
-    models.sort((a, b) => a.id.localeCompare(b.id))
+    // Jev Router leads OpenRouter's list: it picks the model for each message,
+    // so it is the one to try first, not one of 400 to scroll past.
+    models.sort((a, b) => (b.id === JEV_ROUTER) - (a.id === JEV_ROUTER) || a.id.localeCompare(b.id))
     return models.map(m => ({ ...m, provider: p.id, providerName: p.name }))
   }))
   res.json(results.flat())
@@ -3658,7 +3660,8 @@ ${r.error ? `(no answer: ${r.error})` : (r.answer || '(the subagent returned not
   // the request below is built for THIS provider's auth.
   let turnModel = session.model
   let routed = null
-  if (config.settings.smartRouting !== false && !session.group && !session.planMode && !agent?.model) {
+  // Jev Router already picks the model for each message; routing it again would pick for the picker.
+  if (config.settings.smartRouting !== false && !session.group && !session.planMode && !agent?.model && session.model !== JEV_ROUTER) {
     try {
       const { chooseModel, decide } = await import('./decide.js')
       const fast = await pickUtilityModel(provider, session.model)

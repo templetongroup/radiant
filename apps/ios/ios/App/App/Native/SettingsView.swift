@@ -247,7 +247,12 @@ struct ProviderView: View {
                             app.objectWillChange.send()
                         } label: {
                             HStack {
-                                Text(m).foregroundStyle(rx.label).lineLimit(1)
+                                VStack(alignment: .leading, spacing: 1) {
+                                    Text(m).foregroundStyle(rx.label).lineLimit(1)
+                                    if m == CloudStream.jevRouter {
+                                        Text("Picks the best model for each message").font(.caption).foregroundStyle(rx.label2)
+                                    }
+                                }
                                 Spacer()
                                 if Providers.chosen(kv)?.providerId == provider.id && Providers.chosen(kv)?.model == m {
                                     Image(systemName: "checkmark").foregroundStyle(rx.tint)

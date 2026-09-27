@@ -213,7 +213,7 @@ enum Providers {
     nonisolated static let all: [Provider] = [
         Provider(id: "anthropic", name: "Anthropic", baseUrl: "https://api.anthropic.com", hint: "Claude models. Key from console.anthropic.com.", prefix: "sk-ant-"),
         Provider(id: "openai", name: "OpenAI", baseUrl: "https://api.openai.com/v1", hint: "GPT models. Key from platform.openai.com.", prefix: "sk-"),
-        Provider(id: "openrouter", name: "OpenRouter", baseUrl: "https://openrouter.ai/api/v1", hint: "Hundreds of models behind one key. openrouter.ai/keys.", prefix: "sk-or-"),
+        Provider(id: "openrouter", name: "OpenRouter", baseUrl: "https://openrouter.ai/api/v1", hint: "Hundreds of models behind one key, including Jev Router, which picks one for each message. openrouter.ai/keys.", prefix: "sk-or-"),
         Provider(id: "xai", name: "xAI (Grok)", baseUrl: "https://api.x.ai/v1", hint: "Grok models. Key from console.x.ai.", prefix: "xai-"),
         Provider(id: "nousresearch", name: "Nous Portal", baseUrl: "https://inference-api.nousresearch.com/v1", hint: "Hermes models. Key from portal.nousresearch.com → API Keys."),
         Provider(id: "deepseek", name: "DeepSeek", baseUrl: "https://api.deepseek.com", hint: "deepseek-chat and deepseek-reasoner. platform.deepseek.com."),
