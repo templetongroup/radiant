@@ -17,7 +17,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 KC=~/Library/Keychains/radiant-signing.keychain-db
 PW=~/.appstoreconnect/radiant-signing.keychain-password
-[ -f "$KC" ] && [ -f "$PW" ] || { echo "no signing keychain — see AGENTS.md, TestFlight from the command line"; exit 1; }
+[ -f "$KC" ] && [ -f "$PW" ] || { echo "no signing keychain — see apps/ios/AGENTS.md, TestFlight from the command line"; exit 1; }
 set -a; . ~/.appstoreconnect/radiant.env; set +a
 PBX=apps/ios/ios/App/App.xcodeproj/project.pbxproj
 BUILD=$(grep -m1 'CURRENT_PROJECT_VERSION = ' $PBX | tr -dc '0-9')
