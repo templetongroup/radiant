@@ -976,7 +976,7 @@ function planBlocked (name) {
 // Did this tool call run a shell command, and did that command fail? Only
 // run_command and a fused write/edit `then` actually run a shell; everything
 // else returns false so it does not count toward the thrash window.
-const CMD_FAIL_RX = /\[exit code [1-9]|\[command timed out|\[could not run it|npm ERR!|\bERESOLVE\b|\bELIFECYCLE\b|command not found|\bTraceback \(most recent|\bpanic:|\bfatal:|error TS\d|\bBuild failed\b|\bTest failed\b/i
+export const CMD_FAIL_RX = /\[exit code [1-9]|\[command timed out|\[could not run it|npm ERR!|\bERESOLVE\b|\bELIFECYCLE\b|command not found|\bTraceback \(most recent|\bpanic:|\bfatal:|error TS\d|\bBuild failed\b|\bTest failed\b/i
 function commandOutcome (name, args, result) {
   const ranShell = name === 'run_command' ||
     ((name === 'write_file' || name === 'edit_file') && /\n--- then: /.test(String(result || '')))
