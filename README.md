@@ -103,6 +103,9 @@
 - **Long builds** — no cap on rounds. The only ceiling is a spend budget you
   set, measured in real cost, and a turn that keeps failing the same kind of
   command is stopped instead of burning tokens.
+- **Long chats keep what matters** — past half the model's window, Jev sets
+  aside older tool results the task no longer needs (and any result a later,
+  identical call replaced), so what the task depends on keeps its place.
 
 **Models, chosen well**
 

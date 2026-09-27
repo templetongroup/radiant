@@ -357,3 +357,53 @@ export async function verifyClaims ({ text, toolParts = [], decideFn, apiKey, se
   })
   return { claims: claims.length, unsupported, usage: out.usage }
 }
+
+/**
+ * Which earlier tool results does the task no longer need? — relevance
+ * trimming (providers.js setAsideStale).
+ *
+ * ⚠️ WHY. When a chat gets long, Radiant trimmed old tool results by AGE: every
+ * result past the last few rounds shrank to 600 characters, the file the whole
+ * task hinges on as much as the directory listing nobody will look at again.
+ * Then, near the limit, a model wrote a summary — slow, and lossy for
+ * everything. Jev can read each old result against the task and say which are
+ * dead weight in about a second (the "instant compaction" idea Tony brought
+ * from the Jev Engineering guide, 2026-09-27). Only those are set aside; what
+ * still matters keeps its place.
+ *
+ * `candidates` are { key, name, head, excerpt }. Returns { stale: [{ key, p }],
+ * kept: [{ key, p }], usage } or null — null changes nothing. `p` is the
+ * probability the result is still needed; below STALE_BELOW it is set aside.
+ */
+export const STALE_BELOW = 0.25
+
+export async function chooseStale ({ task, plan, recent, candidates = [], decideFn, apiKey, sessionId, signal }) {
+  if (!candidates.length || !decideFn || !apiKey) return null
+  // ⚠️ THE RESULT GOES IN THE QUESTION, NOT IN THE STATE. Measured against the
+  // real Jev on one case (2026-09-27): with the results listed in the state and
+  // each question pointing at results[i], an unrelated changelog scored 0.53
+  // "still needed" beside 0.66 for the file being fixed — no separation. Inline,
+  // asked as RELEVANCE, the same four scored 0.94 (the file), 0.96 (the failing
+  // test), 0.04 (the changelog), 0.01 (an off-topic search). "Will it still be
+  // needed" and "could it be dropped" both separated worse.
+  const questions = {}
+  candidates.forEach((c, i) => {
+    questions[`need_${i}`] = {
+      type: 'noul',
+      instructions: `Is this earlier tool result relevant to the task described in the state?\n${c.name}(${c.head}) → ${c.excerpt}`,
+      criteria: {
+        true: 'It is about the thing being fixed or built: the code, the error, the requirement, data the answer will use.',
+        false: 'It is unrelated to the task, or only incidental (an off-topic search, docs or files about something else).'
+      }
+    }
+  })
+  const out = await decideFn({ apiKey, sessionId, signal, timeoutMs: 8000, state: { task, plan: plan || '(no plan written)', latest_work: recent || '(none yet)' }, questions })
+  if (!out) return null
+  const stale = [], kept = []
+  candidates.forEach((c, i) => {
+    const p = out.answers?.[`need_${i}`]?.noul
+    if (typeof p !== 'number') return
+    ;(p < STALE_BELOW ? stale : kept).push({ key: c.key, p })
+  })
+  return { stale, kept, usage: out.usage }
+}

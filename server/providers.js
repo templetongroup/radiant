@@ -376,7 +376,29 @@ const FOLD_TO = 600           // how much of an older result survives
 const KEEP_ROUNDS = 4
 const ROUND_STEP = 4
 
+// ⚠️ RELEVANCE, NOT JUST AGE (decide.js chooseStale). Past RELEVANCE_AT of the
+// model's window, Jev reads the older results against the task and the ones it
+// calls dead weight are set aside to one line — before the age fold, the hard
+// fold and the summary ever have to run. The verdict is stored on the part, so
+// each result is judged once and the prompt changes once: the cache survives.
+const RELEVANCE_AT = 0.5          // share of the window before Jev is asked
+const RELEVANCE_FALLBACK = 60_000 // tokens, when the window is not known
+const RELEVANCE_MIN = 400         // results smaller than this are not worth a question
+const RELEVANCE_BATCH = 40        // results judged per request (oldest first)
+const RELEVANCE_EVERY = 6         // new candidates needed before asking again
+
+function stubPart (p) {
+  const a = p.args || {}
+  const head = String(a.command || a.path || a.file_path || a.url || a.query || a.pattern || '').slice(0, 100)
+  if (p.stale === 'superseded') return { ...p, result: `[Replaced: a later, identical ${p.name}${head ? ` (${head})` : ''} below has the current output.]` }
+  return {
+    ...p,
+    result: `[Set aside: this earlier ${p.name}${head ? ` (${head})` : ''} was judged no longer needed for the task. ${p.archive?.id ? `recall(id: "${p.archive.id}") reads it back if it is.` : 'Run it again if you need it.'}]`
+  }
+}
+
 function foldPart (p) {
+  if (p.type === 'tool' && p.stale && typeof p.result === 'string') return stubPart(p)
   if (p.type !== 'tool' || typeof p.result !== 'string' || p.result.length <= FOLD_TO) return p
   // ⚠️ KEEP THE TAIL TOO, AND POINT AT THE ARCHIVE. A result folded to its
   // first 600 characters loses the line that mattered — the exit code, the
@@ -414,10 +436,10 @@ export function foldOldToolResults (messages, { hard = false } = {}) {
       : Math.floor((lastRound + 1 - KEEP_ROUNDS) / ROUND_STEP) * ROUND_STEP
     let touched = false
     const parts = m.parts.map(p => {
-      const old = wholeMessage || (Number.isInteger(p.round) && p.round < cutRound)
+      const old = p.stale || wholeMessage || (Number.isInteger(p.round) && p.round < cutRound)
       if (!old) return p
       const q = foldPart(p)
-      if (q !== p) { touched = true; folded += p.result.length - FOLD_TO }
+      if (q !== p) { touched = true; folded += Math.max(1, p.result.length - q.result.length) }
       return q
     })
     return touched ? { ...m, parts } : m
@@ -672,6 +694,79 @@ async function openaiRound ({ baseUrl, apiKey, accessToken, model, messages, too
   return { parts, stopOnTools: finish === 'tool_calls' || live.length > 0, finish, ...(model === JEV_ROUTER && servedBy && servedBy !== model ? { servedBy } : {}) }
 }
 
+/**
+ * Ask Jev which older tool results the task no longer needs, and set those
+ * aside (p.stale). Candidates: results big enough to matter, not yet judged,
+ * outside the current reply's last KEEP_ROUNDS rounds. Never throws, never
+ * blocks the turn on a failure — a null answer leaves everything as it was.
+ */
+export async function setAsideStale ({ session, assistant, round, judgeRelevance, emit }) {
+  // ⚠️ SUPERSEDED NEEDS NO JUDGE. The same file read again, the same command run
+  // again: the earlier copy is out of date by definition, and the code can see
+  // that exactly. Only an identical call counts — a read of a different range
+  // or a different command is not a newer copy of anything.
+  const lastCall = new Map()
+  const tools = []
+  for (const m of session.messages) {
+    if (m.role !== 'assistant' || !Array.isArray(m.parts)) continue
+    for (const p of m.parts) if (p.type === 'tool' && /^(read_file|run_command)$/.test(p.name)) tools.push(p)
+  }
+  for (const p of tools) lastCall.set(`${p.name}:${JSON.stringify(p.args || {})}`, p)
+  let superseded = 0, supersededChars = 0
+  for (const p of tools) {
+    if (p.stale || typeof p.result !== 'string' || p.result.length < RELEVANCE_MIN) continue
+    if (lastCall.get(`${p.name}:${JSON.stringify(p.args || {})}`) !== p) { p.stale = 'superseded'; superseded++; supersededChars += p.result.length }
+  }
+  const candidates = []
+  for (const m of session.messages) {
+    if (m.role !== 'assistant' || !Array.isArray(m.parts)) continue
+    for (const p of m.parts) {
+      if (p.type !== 'tool' || p.relevance != null || p.stale || typeof p.result !== 'string' || p.result.length < RELEVANCE_MIN) continue
+      if (m === assistant && Number.isInteger(p.round) && p.round >= round - KEEP_ROUNDS) continue
+      candidates.push(p)
+    }
+  }
+  const said = (n, chars, how) => n && emit({ type: 'notice', text: `Set aside ${n} earlier tool result${n === 1 ? '' : 's'} ${how} — about ${Math.max(1, Math.round(chars / 4000))}k tokens lighter. ${n === 1 ? 'It stays' : 'They stay'} in the chat; the agent can read ${n === 1 ? 'it' : 'them'} back if needed.` })
+  if (candidates.length < RELEVANCE_EVERY) {
+    said(superseded, supersededChars, 'that a later, identical call replaced')
+    return superseded ? { judged: 0, stale: 0, superseded, chars: supersededChars, ms: 0 } : null
+  }
+  const batch = candidates.slice(0, RELEVANCE_BATCH)
+  // The goal is usually the FIRST thing asked; the latest message is often "keep going".
+  const asks = session.messages.filter(m => m.role === 'user' && m.text).map(m => m.text)
+  const task = asks.length > 1 && asks[asks.length - 1] !== asks[0] ? `${asks[0].slice(0, 1000)}\n\nLatest: ${asks[asks.length - 1].slice(0, 500)}` : (asks[0] || '')
+  const plan = (session.todos || []).map(t => `${t.status === 'completed' ? '[x]' : t.status === 'in_progress' ? '[>]' : '[ ]'} ${t.content}`).join('\n')
+  const recent = assistant.parts.filter(p => p.type === 'text').map(p => p.text).join('\n').slice(-800)
+  const t0 = Date.now()
+  let out = null
+  try {
+    out = await judgeRelevance({
+      task: task.slice(0, 1500),
+      plan,
+      recent,
+      candidates: batch.map((p, i) => {
+        const a = p.args || {}
+        const r = p.result
+        return { key: i, name: p.name, head: String(a.command || a.path || a.file_path || a.url || a.query || a.pattern || JSON.stringify(a)).slice(0, 140), excerpt: r.length > 700 ? `${r.slice(0, 450)} … ${r.slice(-200)}` : r }
+      })
+    })
+  } catch { out = null }
+  if (!out) {
+    said(superseded, supersededChars, 'that a later, identical call replaced')
+    return superseded ? { judged: 0, stale: 0, superseded, chars: supersededChars, ms: 0 } : null
+  }
+  let chars = 0
+  for (const v of out.kept) batch[v.key].relevance = Math.round(v.p * 100) / 100
+  for (const v of out.stale) {
+    const p = batch[v.key]
+    p.relevance = Math.round(v.p * 100) / 100
+    p.stale = true
+    chars += p.result.length
+  }
+  said(out.stale.length + superseded, chars + supersededChars, `this task no longer needs (decided in ${((Date.now() - t0) / 1000).toFixed(1)} s)`)
+  return { judged: batch.length, stale: out.stale.length, superseded, chars: chars + supersededChars, ms: Date.now() - t0 }
+}
+
 /** <tool_call>{"name":"x","arguments":{...}}</tool_call> blocks in text → calls. */
 export function parseInlineToolCalls (text) {
   const out = []
@@ -921,7 +1016,8 @@ function estimateTokens (messages) {
     chars += (m.text || '').length
     for (const p of m.parts || []) {
       if (p.text) chars += p.text.length
-      if (p.result) chars += String(p.result).length
+      // a result set aside by relevance (p.stale) is sent as one line, not whole
+      if (p.result) chars += p.stale ? 160 : String(p.result).length
       if (p.args) chars += JSON.stringify(p.args).length
     }
   }
@@ -999,7 +1095,7 @@ function readOnlyRefusal (call, cwd) {
 }
 
 // ---------- the agent loop ----------
-export async function runTurn ({ provider, model, routed, verifyClaims, apiKey, getAccessToken, getAccountId, session, useTools, computerControl, skills, persona, planAddendum, memory, agentId, groupSpeakerId, groupNames, mcpTools, callMcp, askAgent, peerAgents, research, board, readOnly, maxRounds, turnTokenBudget, projectRules, planMode, onPlanExit, effort, summarize, autoCompact, localContext, autoApproveComputer, cachingEnabled, cacheTtl, emit, requestApproval, requestUserChoice, signal }) {
+export async function runTurn ({ provider, model, routed, verifyClaims, apiKey, getAccessToken, getAccountId, session, useTools, computerControl, skills, persona, planAddendum, memory, agentId, groupSpeakerId, groupNames, mcpTools, callMcp, askAgent, peerAgents, research, board, judgeRelevance, readOnly, maxRounds, turnTokenBudget, projectRules, planMode, onPlanExit, effort, summarize, autoCompact, localContext, autoApproveComputer, cachingEnabled, cacheTtl, emit, requestApproval, requestUserChoice, signal }) {
   // ⚠️ NOT `session.cwd || os.homedir()`. A folder that is set and not here is
   // the case that broke every tool call in the chat — see usableCwd.
   const { dir: cwd, missing: strayCwd } = usableCwd(session.cwd)
@@ -1051,6 +1147,7 @@ export async function runTurn ({ provider, model, routed, verifyClaims, apiKey, 
   // for the rest of the turn rather than wait to be refused.
   let lastPrompt = 0
   let hardFold = false
+  let lastJudgedRound = -99
   // A local model's window is whatever Ollama loaded it with — ask, rather
   // than guess from the name. See ollamaContext().
   //
@@ -1219,6 +1316,10 @@ export async function runTurn ({ provider, model, routed, verifyClaims, apiKey, 
     roundText = ''
     try {
       // a saved voice conversation reads as user text; toAnthropic would choke on its role
+      if (judgeRelevance && !signal?.aborted && round - lastJudgedRound >= 2 && lastPrompt > (window_ ? window_ * RELEVANCE_AT : RELEVANCE_FALLBACK)) {
+        lastJudgedRound = round
+        await setAsideStale({ session, assistant, round, judgeRelevance, emit })
+      }
       const reqMsgs = foldOldToolResults(voiceAsText(groupSpeakerId ? groupFlatten(session.messages, groupSpeakerId, groupNames || {}) : session.messages), { hard: hardFold })
       // ⚠️ MODEL-VISIBLE MEANS LOGGED. Everything this round sends is written
       // down beside the reply — which model, how much system text (and a hash

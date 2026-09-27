@@ -3991,6 +3991,19 @@ ${r.error ? `(no answer: ${r.error})` : (r.answer || '(the subagent returned not
     }
   }
 
+  // Relevance trimming (providers.js setAsideStale): Jev says which older tool
+  // results the task no longer needs once a chat passes half its window.
+  // Without an OpenRouter key it is off, and trimming stays age-only as before.
+  let judgeRelevance = null
+  if (config.settings.relevanceTrim !== false && config.keys.openrouter) {
+    const { chooseStale, decide } = await import('./decide.js')
+    judgeRelevance = async args => {
+      const v = await chooseStale({ ...args, decideFn: decide, apiKey: config.keys.openrouter, sessionId, signal: controller.signal })
+      if (v) (decided.relevance ||= []).push({ judged: v.stale.length + v.kept.length, stale: v.stale.length, bar: 0.25 })
+      return v
+    }
+  }
+
   // The workspace's own rules file(s), loaded into every turn unless turned off.
   // Announced once per session (again only if the folder — and its rules — change),
   // so it is not a per-turn line in the transcript.
@@ -4010,6 +4023,7 @@ ${r.error ? `(no answer: ${r.error})` : (r.answer || '(the subagent returned not
     model: turnModel,
     routed,
     verifyClaims,
+    judgeRelevance,
     apiKey,
     getAccessToken: hasOAuth ? () => validAccessToken(provider.id, config, saveConfig) : null,
     getAccountId: hasOAuth ? () => config.oauth[provider.id]?.accountId || null : null,
