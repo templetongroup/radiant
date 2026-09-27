@@ -66,53 +66,94 @@
 
 ## Features
 
-- **Agent chat** with streaming responses and visible model thinking
-- **Any model, one history** — sessions store messages in a neutral format, so
-  you can switch between Anthropic, OpenAI, OpenRouter, Ollama, and LM Studio
-  mid-conversation and keep your context
-- **Agent tools** — the model can list/read/write/edit files and run shell
-  commands in a per-session workspace folder, with an approval prompt before
-  every command (toggle in Settings)
-- **Activity panel** — live feed of every tool call and its output
-- **Terminal panel** — a real login shell (node-pty + xterm.js) in the sidebar
-- **Theming** — light, medium and dark, fourteen presets (Tokyo Night,
-  Catppuccin, Everforest, Gruvbox, Nord, Dracula, Rosé Pine, Solarized and
-  more), or colors you choose yourself: pick a background and a text color
-  independently and the rest of the palette is derived from them in OKLCH,
-  with a contrast check so nothing you pick becomes unreadable
-- **Private by design** — API keys are stored locally in
-  `~/.radiant/config.json` (mode 0600) and never sent to the browser; the
-  server binds to 127.0.0.1 by default. Turning on Settings → Devices → share
-  with my other Macs deliberately binds all interfaces so your other machines
-  and your phone can reach it, gated by an access token — the loopback-only
-  promise holds until you make that choice. Local providers need no key at all
-- **Custom providers** — add any OpenAI-compatible base URL (Groq, Mistral,
-  Together, a remote Ollama box…)
+**Agents that do real work**
+
+- **Agent chat** with streaming replies and visible model thinking, on any
+  model: Anthropic, OpenAI, OpenRouter, xAI, Nous, Groq, Mistral and more, or
+  Ollama and LM Studio on your own Mac. Sessions store messages in a neutral
+  format, so you can switch models mid-conversation and keep your context.
+- **Real tools** — read, write and edit files and run shell commands in the
+  chat's project folder. Ask before every command, auto-run the low-risk ones
+  (with a second opinion on each from a small decision model), or allow all.
+- **Undo** — every reply that edits files leaves a checkpoint; roll the files
+  back and keep the conversation.
+- **Your project's rules** — Radiant reads a project's `AGENTS.md`,
+  `CLAUDE.md`, `.clinerules` or `.cursorrules` into every chat, and shows the
+  branch's pull request and CI status above the composer.
+- **One message, one reply** — a message that arrives twice (a retried
+  connection, a repeated voice request) runs once. A turn that stops for any
+  reason says why in the chat, with a Continue button — never an empty reply.
+- **Steer while it works** — messages typed mid-turn queue up; Steer stops the
+  agent and sends them now. Stop keeps whatever was already written.
+
+**Work that runs longer**
+
+- **Task board** — a kanban board where the run moves the card: Queued,
+  Working, Needs you (the moment the agent asks something), Review, Done.
+  Click a task for a two-column view: its description and one feed of your
+  comments, its history and every run with the tools it used on the left;
+  status, priority, labels, due date and dependencies on the right. Tasks can
+  wait on other tasks, and an agent can read the board, add subtasks and leave
+  comments itself.
+- **Loops** — a run of steps where each step has a check it must pass (a
+  command that exits 0, or a sentence another agent judges); a step that fails
+  goes round again carrying the reason.
+- **Graphs** — several jobs with only the waits that are real: steps that do
+  not depend on each other run at the same time.
+- **Long builds** — no cap on rounds. The only ceiling is a spend budget you
+  set, measured in real cost, and a turn that keeps failing the same kind of
+  command is stopped instead of burning tokens.
+
+**Models, chosen well**
+
+- **Sign in with a subscription** you already pay for — Claude, ChatGPT, Grok,
+  GitHub Copilot, Qwen or Nous Portal — or paste an API key.
+- **The right model for each message** — easy messages can go to a fast model
+  from the same provider, decided by Jev (a small decision model) in about 300
+  ms. Or choose **Jev Router** at the top of OpenRouter's list and let it pick
+  any model for each message; every reply is labeled with the model that
+  actually answered.
+- **Local models, measured against your Mac** — each one is labelled Runs
+  well, Runs tight or Won't run before you download it.
+
+**The workspace**
+
+- **Activity panel** — a live feed of every tool call and its output, plus a
+  Preview tab that shows what the agent makes.
+- **Terminal panel** — a real login shell (node-pty + xterm.js).
 - **Browser control from your own Chrome** — the
   [Radiant Browser Bridge](https://chromewebstore.google.com/detail/jhljglakgocklinpblgcoppljflnacfk)
   extension lets the agent read pages, click, and see the network calls a site
-  makes, in the browser you are already signed into. No separate profile, no
-  debugging port
+  makes, in the browser you are already signed into.
+- **Voice** — hold a spoken conversation over any chat on OpenAI GPT-Live or
+  Google Gemini Live; your own model, tools and approvals do the work.
+- **Skills and MCP** — reusable skills globally or per agent, MCP tool
+  servers attached only when a message needs them, and 142 ready-made agents.
+- **Theming** — light, medium and dark, fourteen presets (Tokyo Night,
+  Catppuccin, Everforest, Gruvbox, Nord, Dracula, Rosé Pine, Solarized and
+  more), or your own background and text colors with the rest of the palette
+  derived in OKLCH and a contrast check.
+- **Private by design** — API keys live in `~/.radiant/config.json` (mode
+  0600) and never reach the browser; the agent's shell runs without your
+  secrets in its environment; the server binds to 127.0.0.1 unless you turn on
+  sharing with your other Macs and phone, which is gated by an access token.
+
+## Radiant for iPhone and iPad
+
+[On the App Store](https://apps.apple.com/us/app/radiant-local-ai-chat/id6804891721). It runs open models
+directly on the device with Apple's MLX — search Hugging Face, see whether a
+model fits your device before you download it, and chat with nothing leaving
+the phone. It also talks to Apple Intelligence and to cloud models with your
+own key, which stays in the Keychain. The source is in `apps/ios` (the app) and
+`src/mobile` (its screens).
 
 ## Install the Mac app
 
-Grab `Radiant-<version>-arm64.dmg` from the releases (Apple Silicon), open it,
-and drag Radiant into Applications.
-
-The app is not signed by Apple, so on first launch macOS blocks it. Drag
-Radiant to Applications, then **right-click Radiant → Open → Open** (or allow it
-under System Settings → Privacy & Security → "Open Anyway"). You only do this
-once.
-
-If macOS says **"Radiant is damaged and can't be opened"**, that's Gatekeeper on
-a downloaded unsigned app — the app is fine. Clear the quarantine flag once:
-
-```bash
-xattr -cr /Applications/Radiant.app
-```
-
-then open it normally. (Proper signing + notarization, which removes this step
-entirely, is planned.)
+Download the latest
+[Radiant for Mac](https://github.com/templetongroup/radiant/releases/latest/download/radiant.dmg)
+(Apple Silicon), open it, and drag Radiant into Applications. It is signed and
+notarized by Apple, so it opens like any other app, and it keeps itself up to
+date.
 
 Or build it yourself:
 

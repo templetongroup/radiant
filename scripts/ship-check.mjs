@@ -15,7 +15,8 @@
 // ship-sync agent covers that half.
 
 import { execFileSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { readFileSync, existsSync } from 'node:fs'
+import os from 'node:os'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 
@@ -85,6 +86,46 @@ if (!range) {
           ? `${codeChanged.length} file(s) changed; declared not user-visible via a Read-me trailer`
           : `${codeChanged.length} user-facing file(s) changed in ${range} but the Read me (GUIDE in ${GUIDE_FILE}) was not touched`,
     `add an entry to the GUIDE array in ${GUIDE_FILE}, or record why not with a "Read-me: n/a — <reason>" commit trailer`
+  )
+}
+
+// ── 3b. Do the README and the website know about it? ─────────────────────────
+// ⚠️ THE READ ME WAS KEPT, THE PUBLIC FACE WAS NOT. From 2026-09-10 to 09-27
+// forty releases went out; every one updated the in-app Read me, and neither
+// the GitHub README nor the Radiant page on templetongroup.dev heard about any
+// of them — the README still told people to bypass Gatekeeper on an app that
+// had long been notarized. Tony: "keep them updated on changes."
+// A release that adds a Read me entry must also touch README.md and the
+// website's Radiant page (outside its "on the download page" version bumps),
+// or say why not with a `Docs: n/a — <reason>` trailer (a bug fix, a polish).
+// iPhone-only work reaches the page when it reaches the App Store, not TestFlight.
+const SITE = path.join(os.homedir(), 'Projects/templeton-group-dev-website')
+if (range) {
+  const newEntry = tryGit('diff', range, '--', GUIDE_FILE).split('\n').some(l => /^\+\s*\['/.test(l))
+  // Docs written just after the tag still count for that release.
+  const docsRange = thisTag && prevTag ? `${prevTag}..HEAD` : range
+  const readmeTouched = tryGit('diff', '--name-only', docsRange, '--', 'README.md') !== ''
+  const since = tryGit('log', '-1', '--format=%cI', range.split('..')[0])
+  let siteTouched = null   // null = no checkout of the site on this machine
+  if (existsSync(SITE)) {
+    try {
+      const subjects = execFileSync('git', ['log', `--since=${since}`, '--format=%s', '--', 'showcase/radiant/index.html'], { cwd: SITE, encoding: 'utf8' })
+      siteTouched = subjects.split('\n').filter(Boolean).some(l => !/on the download page$/.test(l))
+    } catch { siteTouched = null }
+  }
+  const docsExempt = /^Docs:\s*n\/a\b/im.test(tryGit('log', '--format=%B', docsRange))
+  const missing = [!readmeTouched && 'README.md', siteTouched === false && 'the website page'].filter(Boolean)
+  add(
+    'docs',
+    !newEntry || docsExempt || missing.length === 0,
+    !newEntry
+      ? `no new Read me entry in ${range}`
+      : docsExempt
+        ? 'new Read me entry; README and website declared unaffected via a Docs trailer'
+        : missing.length
+          ? `a new Read me entry, but ${missing.join(' and ')} not updated`
+          : `README${siteTouched === null ? ' updated (no website checkout here to check)' : ' and website page updated'}`,
+    `add the feature to README.md and to ${SITE}/showcase/radiant/index.html (push it and check the live page), or record why not with a "Docs: n/a — <reason>" commit trailer`
   )
 }
 

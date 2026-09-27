@@ -40,6 +40,13 @@ topic file and a line here instead of growing this one.
 3. **Linear** — team **The Templeton Group** (TG), project **Radiant**. Ship
    something → its issue goes to Done, or create one already Done. Spot a
    problem you are not fixing → file it.
+4. **The public face, for features** — `README.md` (Features, and the iPhone
+   section) and the feature cards on the website's Radiant page
+   (`showcase/radiant/index.html`, see below). Standing rule from Tony
+   (2026-09-27): *"keep them updated on changes."* Both had gone forty releases
+   without a word. A bug fix or polish skips this with a `Docs: n/a — <reason>`
+   commit trailer. iPhone features go public when they reach the App Store, not
+   TestFlight — the page says App Store.
 
 **This is automatic, not a question to ask.** Tony has standing authorization:
 run the `ship-sync` agent at the end of any turn that changed behavior.
@@ -50,7 +57,8 @@ Run the objective half and fix whatever it flags:
 node scripts/ship-check.mjs
 ```
 
-It verifies committed / pushed / Read-me-kept-current / tagged — and, fifth,
+It verifies committed / pushed / Read-me-kept-current / README-and-website
+(`docs`) / tagged — and, last,
 **judged**: `scripts/ship-judge.mjs` has Jev (a decision model, see
 `server/decide.js`) read the commit message and any new Read me entries and
 answer whether they say *why* and whether they are written for a person using
