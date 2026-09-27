@@ -51,6 +51,16 @@ ok('list_dir still works through the alias',
 const asRead = await runTool('read_file', { path: dir }, dir)
 ok('reading a directory lists it instead of failing', asRead.includes('a.txt') && asRead.includes('sub/'), asRead.slice(0, 80))
 ok('reading a file still reads it', (await runTool('read_file', { path: join(dir, 'a.txt') }, dir)).includes('hello'))
+{
+  const { writeFileSync } = await import('node:fs')
+  writeFileSync(join(dir, 'long.txt'), Array.from({ length: 25 }, (_, i) => `line ${i + 1}`).join('\n'))
+  const out = (await runTool('read_file', { path: join(dir, 'long.txt') }, dir)).split('\n')
+  ok('the first line of a read is numbered', out[0] === '1\tline 1')
+  ok('then every tenth line', out[9] === '10\tline 10' && out[19] === '20\tline 20')
+  ok('the rest keep a tab and no number (3-5 tokens saved a line)', out[4] === '\tline 5' && out[24] === '\tline 25')
+  const mid = (await runTool('read_file', { path: join(dir, 'long.txt'), offset: 13, limit: 5 }, dir)).split('\n')
+  ok('a read that starts mid-file numbers its first line', mid[0] === '13\tline 13' && mid[1] === '\tline 14')
+}
 
 // ── results are bounded, and the notice is not in the data ──────────────────
 {

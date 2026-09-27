@@ -579,7 +579,8 @@ for (const r of results) console.log(`  ${r.ok ? '✓' : '✗'} ${r.name}${r.det
     // -1 sorts before everything, which passed a deleted guard once already today.
     const push = prov2.indexOf("session.messages.push(assistant)")
     const wrap = prov2.indexOf("if (ev.type === 'notice' && ev.text)")
-    const firstNotice = prov2.indexOf("emit({ type: 'notice'")
+    // from runTurn on: helpers above it emit through the emit they are handed
+    const firstNotice = prov2.indexOf("emit({ type: 'notice'", prov2.indexOf('export async function runTurn'))
     ok(push !== -1 && wrap !== -1 && firstNotice !== -1 && push < wrap && wrap < firstNotice,
        'and the wrapper is in place before the first notice is emitted')
   }

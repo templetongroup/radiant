@@ -117,7 +117,10 @@ const CMD_FAIL_NUDGE = 6       // this many of the last 8 → one reminder first
 function systemPrompt (cwd, useTools, model, computerControl, skills, persona, planMode, planAddendum, memory, readOnly, projectRules) {
   const personaText = persona ? `\n\n${persona}` : ''
   const planText = planMode
-    ? '\n\nPLAN MODE IS ON. Do NOT edit files, create files, or run mutating commands yet. Research the codebase (read/list/grep only), think through the approach, then present a concrete step-by-step plan by calling the exit_plan_mode tool with your plan in markdown. Only after the user approves the plan will you be able to make changes.'
+    // Plain words, not capitals (Cursor's harness audit, 2026-09-27): capable
+    // models follow a description, and emphasis makes literal ones overcautious.
+    // The tools that change things are removed in plan mode anyway (planBlocked).
+    ? '\n\nPlan mode is on: this turn is for research and a plan, not changes. The tools that write files or run changing commands are not available until the user approves. Read and search the codebase, think through the approach, then call exit_plan_mode with a concrete step-by-step plan in markdown.'
     : ''
   const skillText = (skills && skills.length)
     ? `\n\nActive skills (follow these):\n${skills.map(s => `• ${s.name}: ${s.content}${s.dir && resolveSkillDir(s.dir) ? `\n  Skill folder: ${resolveSkillDir(s.dir)}` : ''}`).join('\n')}`
@@ -129,7 +132,7 @@ function systemPrompt (cwd, useTools, model, computerControl, skills, persona, p
   const stable = `You are a coding agent running inside Radiant, a local coding harness on the user's ${os.type() === 'Darwin' ? 'Mac' : os.type()} (${os.platform()} ${os.release()}). Radiant is the app, not you: you are the model "${model}". If asked what model you are, answer with your actual model name and maker.${personaText}
 Workspace directory: ${cwd}
 ${useTools && readOnly ? 'You have tools to read files and to run read-only shell commands (ls, cat, grep, find, git log/show/diff, wc…) in the workspace. You cannot write, edit, delete or install anything, and a command that would is refused. Read what the question needs and no more.' : useTools ? 'You have tools to read, write, and edit files and to run shell commands in the workspace. Use them to investigate before answering and to make changes when asked. Prefer edit_file for small changes and write_file for new files. After making changes, verify them when practical (run the code, run tests) — and when you already know the command you will run right after an edit, pass it as that edit\'s `then` so both come back at once. A trimmed earlier result can be read back exactly with recall.' : 'Tools are disabled for this conversation; answer from knowledge and the conversation only.'}${computerControl ? `
-You can also control the computer. browser_* tools drive an automated browser; screen_* tools control the whole desktop. ALWAYS take a screenshot first (browser_screenshot / screen_screenshot) and look at it before clicking or typing — click coordinates are pixel positions read from the most recent screenshot. Work in small steps: screenshot, act, screenshot again to confirm. Prefer browser_* for web tasks.` : ''}
+You can also control the computer. browser_* tools drive an automated browser; screen_* tools control the whole desktop. Click coordinates are pixel positions in the most recent screenshot, so take one (browser_screenshot / screen_screenshot) before clicking or typing, and another after acting to confirm what happened. Prefer browser_* for web tasks.` : ''}
 Be direct and concise. Use markdown; fence code blocks with a language tag. When you finish a task, summarize what changed in a sentence or two.${planText}${rulesText}${skillText}`
 
   const planAddendumText = planAddendum ? `\n\n${planAddendum}` : ''
@@ -1047,7 +1050,7 @@ const ASK_USER_TOOL = {
 
 const SHOW_WIDGET_TOOL = {
   name: 'show_widget',
-  description: 'Render a rich inline widget in the chat instead of (or alongside) plain prose, when structured data would land better than a paragraph. Use it for: a comparison table, a set of key stats/metrics, a before/after code diff, or a decision card offering the user a few choices. Keep it focused — one widget per call, and still write a short sentence of prose around it. Do NOT use it for ordinary explanations that read fine as text.',
+  description: 'Render a rich inline widget in the chat instead of (or alongside) plain prose, when structured data would land better than a paragraph. Use it for: a comparison table, a set of key stats/metrics, a before/after code diff, or a decision card offering the user a few choices. Keep it focused — one widget per call, and still write a short sentence of prose around it. Ordinary explanations that read fine as text stay as text.',
   input_schema: {
     type: 'object',
     properties: {
@@ -1178,9 +1181,11 @@ export async function runTurn ({ provider, model, routed, verifyClaims, apiKey, 
   const { dir: cwd, missing: strayCwd } = usableCwd(session.cwd)
   const system = systemPrompt(cwd, useTools, model, computerControl, skills, persona, planMode, planAddendum, memory, readOnly, projectRules)
   // proactive compaction before a very long turn
+  const earlyNotices = []
   if (estimateTokens(session.messages) > PROACTIVE_TOKENS) {
     // Set aside unrelated earlier exchanges first; summarize only if that was not enough.
-    if (judgeRelevance) await setAsideTurns({ session, assistant: null, judgeRelevance, emit })
+    // Its notice is held until the reply exists below, so it is saved with it.
+    if (judgeRelevance) await setAsideTurns({ session, assistant: null, judgeRelevance, emit: ev => earlyNotices.push(ev) })
     if (autoCompact && summarize && estimateTokens(session.messages) > PROACTIVE_TOKENS) await compactSession(session, 4, summarize, emit)
   }
   const assistant = { role: 'assistant', model, parts: [], ...(routed ? { routed } : {}) }
@@ -1212,6 +1217,9 @@ export async function runTurn ({ provider, model, routed, verifyClaims, apiKey, 
     if (ev.type === 'halt') assistant.parts.push({ type: 'halt', reason: ev.reason, text: ev.text })
     emitRaw(ev)
   }
+  // the set-aside note from before the reply existed, saved with it now
+  for (const ev of earlyNotices) emit(ev)
+
   // After the wrapper, so it is written into the transcript and not just
   // streamed: this is the sentence that explains every odd path in the turn
   // below, and it has to still be there when the turn is read back.

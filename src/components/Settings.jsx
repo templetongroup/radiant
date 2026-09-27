@@ -2043,6 +2043,18 @@ function AgentPane ({ config, onSettings }) {
           <strong>Auto</strong> runs safe commands (ls, grep, tests, git status…) silently and only asks before risky ones — deletes, sudo, network fetches, pushes, chmod. With an OpenRouter key, a quick decision model also reads each “safe” command in context and pauses it if it could destroy data, send private data out, or change the machine — the card says why. MCP tools and computer-control actions always ask in Auto, no matter how safe — only <strong>Never ask</strong> skips those too.
         </div>
       </div>
+      <div style={{ margin: '14px 0 4px' }}>
+        <div style={{ fontSize: 13, fontWeight: 500 }}>Sandbox commands</div>
+        <div style={{ fontSize: 12, color: 'var(--text-muted)', margin: '2px 0 8px' }}>A fence macOS enforces around every command the agent runs, and everything those commands start.</div>
+        <div className='seg-control'>
+          {[['off', 'Off'], ['workspace', 'Project folder only'], ['offline', 'Project folder, no internet']].map(([id, label]) => (
+            <button key={id} className={'seg-btn' + ((s.sandbox || 'off') === id ? ' on' : '')} onClick={() => onSettings({ sandbox: id })}>{label}</button>
+          ))}
+        </div>
+        <div style={{ fontSize: 11.5, color: 'var(--text-faint)', marginTop: 6 }}>
+          <strong>Project folder only</strong> lets commands write inside the chat's project folder, temporary files and package caches, and nowhere else — not your other projects, not your settings files. <strong>No internet</strong> also blocks the web, while local servers keep working. A blocked command says so, and the agent is told to ask you rather than try again. Installing things globally (Homebrew, <code>npm -g</code>) needs it off.
+        </div>
+      </div>
       <label className='check-row'>
         <input
           type='checkbox'

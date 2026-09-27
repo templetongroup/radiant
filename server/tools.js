@@ -1,10 +1,64 @@
 import fs from 'fs'
 import path from 'path'
 import crypto from 'crypto'
+import os from 'os'
 import { execFile, spawn } from 'child_process'
 import { SPAWN_ENV, scrubbedEnv } from './ollama.js'
-import { searchSessions, usableCwd, RADIANT_DIR } from './config.js'
+import { searchSessions, usableCwd, RADIANT_DIR, loadConfig } from './config.js'
 
+
+// ── the sandbox (Settings → Agent → Sandbox commands) ────────────────────────
+// ⚠️ A FENCE, NOT A PROMPT. The agent's shell runs with the user's own
+// permissions: it can write anywhere they can and reach any site. Approval
+// prompts were the only gate, and people approve nearly all of them (93% in
+// the study Tony brought, 2026-09-27). macOS's own sandbox (sandbox-exec, the
+// same one Codex CLI uses) enforces the line at the OS level, so it also covers
+// every process a command starts: writes only inside the project folder, temp
+// folders and package-manager caches; with "offline", no internet either
+// (localhost still works, for dev servers and tests). A domain allow-list is not
+// something Seatbelt can express — that would need a proxy.
+// Read fresh for every command, so a chat, a graph step and a loop all get the
+// setting as it is now. setSandbox overrides it (tests).
+let sandboxOverride = null
+export function setSandbox (mode) { sandboxOverride = mode }
+function sandboxModeNow () {
+  const m = sandboxOverride ?? (() => { try { return loadConfig().settings?.sandbox } catch { return null } })()
+  return ['workspace', 'offline'].includes(m) ? m : 'off'
+}
+export function sandboxActive () { return sandboxModeNow() !== 'off' && process.platform === 'darwin' && fs.existsSync('/usr/bin/sandbox-exec') }
+const CACHES = ['Library/Caches', '.npm', '.cache', '.pnpm-store', '.yarn', '.bun/install', '.cargo/registry', '.cargo/git', 'go/pkg/mod', '.gradle/caches', '.m2/repository']
+function sandboxProfile (offline) {
+  const file = path.join(os.tmpdir(), `radiant-sandbox-${offline ? 'offline' : 'workspace'}-v1.sb`)
+  if (!fs.existsSync(file)) {
+    const home = p => `(subpath (string-append (param "HOME") "/${p}"))`
+    fs.writeFileSync(file, [
+      '(version 1)',
+      '(allow default)',
+      '(deny file-write*)',
+      '(allow file-write*',
+      '  (subpath (param "WORKSPACE"))',
+      '  (subpath "/private/tmp") (subpath "/private/var/folders")',
+      ...CACHES.map(c => '  ' + home(c)),
+      '  (literal "/dev/null") (literal "/dev/zero") (regex #"^/dev/tty") (regex #"^/dev/fd/"))',
+      ...(offline ? ['(deny network-outbound)', '(allow network-outbound (remote ip "localhost:*"))', '(allow network-outbound (remote unix-socket))'] : [])
+    ].join('\n'))
+  }
+  return file
+}
+/** [program, args] for one shell command, inside the sandbox when it is on. */
+export function shellCommand (command, cwd) {
+  if (!sandboxActive()) return ['bash', ['-lc', command]]
+  let ws = cwd
+  try { ws = fs.realpathSync(cwd) } catch {}
+  return ['/usr/bin/sandbox-exec', ['-f', sandboxProfile(sandboxModeNow() === 'offline'), '-D', `WORKSPACE=${ws}`, '-D', `HOME=${os.homedir()}`, 'bash', '-lc', command]]
+}
+/** When the sandbox is why a command failed, say so — once, plainly — so the agent asks instead of retrying. */
+function sandboxNote (out) {
+  if (!sandboxActive()) return out
+  if (/Operation not permitted/.test(out)) return `${out}\n[Radiant's sandbox allows writes only inside the project folder. Do not retry: work inside the project, or tell the user this needs the sandbox off (Settings → Agent).]`
+  if (sandboxModeNow() === 'offline' && /Could not resolve host|Failed to connect|getaddrinfo|ENOTFOUND|Network is unreachable|nodename nor servname/i.test(out)) return `${out}\n[Radiant's sandbox has the internet off for this project. Do not retry: tell the user this needs internet access (Settings → Agent).]`
+  return out
+}
 
 // background jobs (run_command with run_in_background:true). id -> job
 const jobs = new Map()
@@ -14,7 +68,8 @@ function newJob (command, cwd) {
   // PATH=/usr/bin:/bin:/usr/sbin:/sbin, so anything in Homebrew or ~/.local/bin
   // is "command not found" — while working perfectly when the server is started
   // from a terminal, which is how this kept getting tested.
-  const proc = spawn('bash', ['-lc', command], { cwd, detached: false, env: scrubbedEnv() })
+  const [bin, argv] = shellCommand(command, cwd)
+  const proc = spawn(bin, argv, { cwd, detached: false, env: scrubbedEnv() })
   const job = { id, command, output: '', done: false, exitCode: null, startedAt: Date.now(), proc }
   const cap = d => { job.output = (job.output + d.toString()).slice(-200_000) }
   proc.stdout.on('data', cap)
@@ -29,7 +84,7 @@ function newJob (command, cwd) {
 export const TOOL_DEFS = [
   {
     name: 'read_file',
-    description: 'Read a text file. Returns the content with 1-indexed line numbers.',
+    description: 'Read a text file. Line numbers appear on the first and every 10th line.',
     input_schema: {
       type: 'object',
       properties: {
@@ -369,7 +424,8 @@ function runShell (command, cwd, signal) {
     // ⚠️ `signal` KILLS THE CHILD. Without it Stop was a suggestion: the
     // command ran to completion, or to the 120s timeout, whichever came
     // first, and the turn could not end until it did.
-    execFile('bash', ['-lc', command], { cwd, timeout: 120_000, maxBuffer: 10 * 1024 * 1024, env: scrubbedEnv(), signal }, (err, stdout, stderr) => {
+    const [bin, argv] = shellCommand(command, cwd)
+    execFile(bin, argv, { cwd, timeout: 120_000, maxBuffer: 10 * 1024 * 1024, env: scrubbedEnv(), signal }, (err, stdout, stderr) => {
       let out = ''
       if (stdout) out += stdout
       if (stderr) out += (out ? '\n--- stderr ---\n' : '') + stderr
@@ -379,7 +435,7 @@ function runShell (command, cwd, signal) {
       // never ran, and the message is the only thing that says why.
       else if (err && typeof err.code === 'string') out += `\n[could not run it: ${err.message}]`
       else if (err && err.code) out += `\n[exit code ${err.code}]`
-      resolve(out || '(no output)')
+      resolve(sandboxNote(out || '(no output)'))
     })
   })
 }
@@ -418,7 +474,13 @@ export async function runTool (rawName, rawInput, cwd, signal) {
         const start = Math.max(1, input.offset || 1)
         const limit = Math.min(input.limit || 2000, 5000)
         const slice = lines.slice(start - 1, start - 1 + limit)
-        const numbered = slice.map((l, i) => `${start + i}\t${l}`).join('\n')
+        // ⚠️ EVERY TENTH LINE IS NUMBERED, NOT EVERY LINE. A number costs 3–5
+        // tokens and agents read tens of thousands of lines in a session, all of
+        // it re-sent on every later step; Cursor cut cache-read tokens 1.6% this
+        // way with no loss in citation accuracy (Tony, 2026-09-27). The first
+        // line of the slice is always numbered, so any line is ten or fewer
+        // from a number, and the tab keeps every line's text aligned.
+        const numbered = slice.map((l, i) => { const n = start + i; return (i === 0 || n % 10 === 0) ? `${n}\t${l}` : `\t${l}` }).join('\n')
         const note = start - 1 + limit < lines.length ? `\n… [${lines.length} lines total]` : ''
         return numbered + note
       }
