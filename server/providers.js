@@ -825,6 +825,28 @@ function askAgentToolDef (peers) {
 // along in every later round of the turn, at flagship prices. A subagent reads
 // them in its own context on the cheap model and hands back a paragraph and a
 // list of paths; only that comes home. Cline's idea, approved for TG-514.
+// The task board, from inside a chat — the agent-side half of the kanban
+// (Hermes gives its workers the same powers as fourteen kanban_* tools). ONE
+// tool with an action, because every schema rides on every model call.
+const BOARD_TOOL = {
+  name: 'task_board',
+  description: "Radiant's task board (kanban). Actions: list — every task with its id, title, column, priority and what it waits on. show — one task's description, comments and links. create — add a task (title, detail, priority, labels, blockedBy); use it to split work into subtasks or record follow-ups; a new task waits in Queued for the user to start it. comment — add a comment to a task (defaults to the task this chat belongs to): report progress, a decision, or what you need. link — make a task wait on others (blockedBy). The run sets Working / Needs you / Review by itself; only the user can mark a task Done.",
+  input_schema: {
+    type: 'object',
+    properties: {
+      action: { type: 'string', enum: ['list', 'show', 'create', 'comment', 'link'] },
+      id: { type: 'string', description: 'Task id (show, comment, link). Omit to mean this chat\'s own task.' },
+      title: { type: 'string' },
+      detail: { type: 'string', description: 'Markdown description (create).' },
+      priority: { type: 'string', enum: ['none', 'low', 'medium', 'high', 'urgent'] },
+      labels: { type: 'array', items: { type: 'string' } },
+      blockedBy: { type: 'array', items: { type: 'string' }, description: 'Ids of tasks that must be Done first (create, link).' },
+      text: { type: 'string', description: 'The comment (comment).' }
+    },
+    required: ['action']
+  }
+}
+
 const RESEARCH_TOOL = {
   name: 'research',
   description: 'Hand one or more focused questions about the codebase to parallel read-only research subagents. Each runs in its own context on a fast model, reads files and runs read-only commands (grep, git log, ls…), and returns an answer plus the files that matter and why. Use it when answering would mean reading many files you do not need to keep — "where is X handled", "how does Y flow from A to B", "which files touch Z" — and ask several independent questions in one call so they run at once. Subagents cannot change anything and cannot see this conversation, so put the context they need in the question.',
@@ -977,7 +999,7 @@ function readOnlyRefusal (call, cwd) {
 }
 
 // ---------- the agent loop ----------
-export async function runTurn ({ provider, model, routed, verifyClaims, apiKey, getAccessToken, getAccountId, session, useTools, computerControl, skills, persona, planAddendum, memory, agentId, groupSpeakerId, groupNames, mcpTools, callMcp, askAgent, peerAgents, research, readOnly, maxRounds, turnTokenBudget, projectRules, planMode, onPlanExit, effort, summarize, autoCompact, localContext, autoApproveComputer, cachingEnabled, cacheTtl, emit, requestApproval, requestUserChoice, signal }) {
+export async function runTurn ({ provider, model, routed, verifyClaims, apiKey, getAccessToken, getAccountId, session, useTools, computerControl, skills, persona, planAddendum, memory, agentId, groupSpeakerId, groupNames, mcpTools, callMcp, askAgent, peerAgents, research, board, readOnly, maxRounds, turnTokenBudget, projectRules, planMode, onPlanExit, effort, summarize, autoCompact, localContext, autoApproveComputer, cachingEnabled, cacheTtl, emit, requestApproval, requestUserChoice, signal }) {
   // ⚠️ NOT `session.cwd || os.homedir()`. A folder that is set and not here is
   // the case that broke every tool call in the chat — see usableCwd.
   const { dir: cwd, missing: strayCwd } = usableCwd(session.cwd)
@@ -1067,6 +1089,7 @@ export async function runTurn ({ provider, model, routed, verifyClaims, apiKey, 
     ...(mcpTools || []),
     ...(canAskAgents ? [askAgentToolDef(peerAgents)] : []),
     ...(research ? [RESEARCH_TOOL] : []),
+    ...(board ? [BOARD_TOOL] : []),
     SHOW_WIDGET_TOOL,
     ...(requestUserChoice ? [ASK_USER_TOOL] : []),
     ...(planMode ? [EXIT_PLAN_TOOL] : [])
@@ -1411,6 +1434,8 @@ export async function runTurn ({ provider, model, routed, verifyClaims, apiKey, 
             if (call.name === 'ask_agent') {
               emit({ type: 'notice', text: `Consulting ${call.args?.agent || 'another agent'}…` })
               part.result = await askAgent(call.args?.agent, call.args?.question)
+            } else if (call.name === 'task_board' && board) {
+              part.result = board(call.args || {})
             } else if (call.name === 'research' && research) {
               const r = await research(call.args?.questions)
               part.result = r.text

@@ -12,7 +12,7 @@ import { fileURLToPath } from 'url'
 import { WebSocketServer } from 'ws'
 import pty from 'node-pty'
 import { execSync, spawn } from 'child_process'
-import { RADIANT_DIR, DIR_POINTER, CONFIG_PATH, defaultDataDir, dataDirStatus, loadConfig, saveConfig as writeConfig, publicConfig, listSessions, loadSession, saveSession, deleteSession, searchSessions, upsertCredential, activateAccount, removeAccount, SESSIONS_DIR, listProjects, getProject, saveProject, deleteProject, migrateProjects, agentsStore, skillsStore, recipesStore, cloudStatus, MACHINE_KEYS, saveMachineSettings, skillLibrary, inspectSkillFolder, resolveSkillDir, USER_SKILLS_ROOT, repairCloudFolder, builtinAgent, listTasks, loadTask, saveTask, deleteTask, TASK_STATES, listLoops, loadLoop, saveLoop, deleteLoop, LOOP_STATES, listGraphs, loadGraph, saveGraph, deleteGraph, saveTurnSession , loadProjectRules } from './config.js'
+import { RADIANT_DIR, DIR_POINTER, CONFIG_PATH, defaultDataDir, dataDirStatus, loadConfig, saveConfig as writeConfig, publicConfig, listSessions, loadSession, saveSession, deleteSession, searchSessions, upsertCredential, activateAccount, removeAccount, SESSIONS_DIR, listProjects, getProject, saveProject, deleteProject, migrateProjects, agentsStore, skillsStore, recipesStore, cloudStatus, MACHINE_KEYS, saveMachineSettings, skillLibrary, inspectSkillFolder, resolveSkillDir, USER_SKILLS_ROOT, repairCloudFolder, builtinAgent, listTasks, loadTask, saveTask, deleteTask, TASK_STATES, TASK_PRIORITIES, taskActivity, taskComment, listLoops, loadLoop, saveLoop, deleteLoop, LOOP_STATES, listGraphs, loadGraph, saveGraph, deleteGraph, saveTurnSession , loadProjectRules } from './config.js'
 import { runTurn, listModels, JEV_ROUTER } from './providers.js'
 import { checkVoiceRequest, liveSessionBody, createLiveSession, voiceKey, VOICE_ADDENDUM } from './voice.js'
 import { geminiVoiceKey, checkGeminiVoiceRequest, geminiSetupFrame, mintEphemeralToken, geminiLiveModel, GEMINI_WS_URL, GEMINI_LIVE_MODELS, GEMINI_LIVE_VOICES, GEMINI_RATE_IN_PER_MINUTE, GEMINI_RATE_OUT_PER_MINUTE } from './voice-gemini.js'
@@ -2241,6 +2241,9 @@ const TASK_ID = () => 'task-' + Math.random().toString(36).slice(2, 10)
 // loop, because every path out of a run — success, approval, error, abort —
 // goes through emit exactly once per event, and a state machine with five
 // hand-placed call sites is a state machine with a missing one.
+const RUN_PROGRESS = new Set(['round_start', 'text_delta', 'thinking_delta', 'tool_start', 'tool_result'])
+const STATE_WORDS = { queued: 'Queued', working: 'Working', blocked: 'Needs you', review: 'Review', done: 'Done' }
+
 function reflectTaskState (sessionId, ev) {
   if (!sessionId || !ev) return
   let task
@@ -2261,11 +2264,83 @@ function reflectTaskState (sessionId, ev) {
     task.finishedAt = new Date().toISOString()
   }
   else if (ev.type === 'error') { task.state = 'blocked'; task.lastError = String(ev.message || 'The run stopped.') }
-  else if (task.state === 'blocked' && !['approval_request', 'question_request'].includes(ev.type)) task.state = 'working'
+  // ⚠️ A STOPPED RUN IS NOT STILL WORKING. Stop (or a closed window) ends the
+  // turn with `stopped`, which this ignored — the card sat in Working forever
+  // with nothing running. Half-done work needs a person to decide what next.
+  else if (ev.type === 'stopped') { task.state = 'blocked'; task.lastError = 'Stopped before it finished.' }
+  // Back to Working only on real progress — the agent writing or using a tool
+  // after you answered it. Housekeeping events (stats, usage, the title) used to
+  // count too, so a stopped or failed run bounced straight back to Working.
+  else if (task.state === 'blocked' && RUN_PROGRESS.has(ev.type)) task.state = 'working'
   else return
   if (task.state === was) return
   if (task.state === 'working') task.lastError = null
+  // The run's own record: how it is going, and when it stopped.
+  const run = task.runs[task.runs.length - 1]
+  if (run) {
+    run.outcome = task.state === 'review' ? 'finished' : task.state === 'blocked' ? (ev.type === 'error' ? 'error' : ev.type === 'stopped' ? 'stopped' : 'waiting') : 'running'
+    if (task.state === 'review' || ev.type === 'error' || ev.type === 'stopped') run.endedAt = new Date().toISOString()
+    if (ev.type === 'error') run.note = task.lastError
+  }
+  taskActivity(task, ev.type === 'error'
+    ? `The run stopped: ${task.lastError}`
+    : ev.type === 'stopped' ? 'The run was stopped before it finished'
+    : ev.type === 'question_request' ? 'The agent asked you a question'
+      : ev.type === 'approval_request' ? 'The agent is waiting for your approval'
+        : `Moved to ${STATE_WORDS[task.state]}`, 'run')
   try { saveTask(task) } catch { /* a board that cannot save must not kill the run */ }
+}
+
+// ⚠️ DEPENDENCIES ARE A GATE, NOT A SUGGESTION. A card that waits on others
+// cannot start until every one of them is Done — the same rule a person would
+// follow reading the board, enforced so a click cannot skip it.
+function unmetDeps (task, all = listTasks()) {
+  return task.blockedBy.map(id => all.find(t => t.id === id)).filter(t => t && t.state !== 'done')
+}
+/** Would `task` waiting on `ids` make a loop (A waits on B waits on A)? */
+function depCycle (taskId, ids, all) {
+  const byId = new Map(all.map(t => [t.id, t]))
+  const seen = new Set()
+  const walk = id => {
+    if (id === taskId) return true
+    if (seen.has(id)) return false
+    seen.add(id)
+    return (byId.get(id)?.blockedBy || []).some(walk)
+  }
+  return ids.some(walk)
+}
+function cleanDeps (task, ids, all) {
+  if (!Array.isArray(ids)) return { error: 'blockedBy must be a list of task ids.' }
+  const list = [...new Set(ids.map(String))].filter(id => id !== task.id)
+  const missing = list.filter(id => !all.some(t => t.id === id))
+  if (missing.length) return { error: `No such task: ${missing.join(', ')}` }
+  if (depCycle(task.id, list, all)) return { error: 'That would make the tasks wait on each other forever.' }
+  return { list }
+}
+/** A card reached Done: say so on every card that was waiting on it. */
+function announceDone (task, all = listTasks()) {
+  for (const t of all) {
+    if (!t.blockedBy.includes(task.id) || t.state !== 'queued') continue
+    const left = unmetDeps(t, all).filter(d => d.id !== task.id)
+    taskActivity(t, left.length ? `“${task.title}” is done — still waiting on ${left.length} more` : `“${task.title}” is done — this task is ready to start`, 'run')
+    saveTask(t)
+  }
+}
+
+function cleanProps (b, task) {
+  if (b.priority !== undefined) {
+    if (!TASK_PRIORITIES.includes(b.priority)) return `Unknown priority: ${b.priority}`
+    task.priority = b.priority
+  }
+  if (b.labels !== undefined) {
+    if (!Array.isArray(b.labels)) return 'labels must be a list.'
+    task.labels = [...new Set(b.labels.map(l => String(l).trim()).filter(Boolean))].slice(0, 12)
+  }
+  if (b.due !== undefined) {
+    if (b.due !== null && Number.isNaN(Date.parse(b.due))) return 'due must be a date.'
+    task.due = b.due || null
+  }
+  return null
 }
 
 app.get('/api/tasks', (req, res) => res.json(listTasks()))
@@ -2274,7 +2349,7 @@ app.post('/api/tasks', (req, res) => {
   const b = req.body || {}
   const title = String(b.title || '').trim()
   if (!title) return res.status(400).json({ error: 'A task needs a title.' })
-  const task = saveTask({
+  const task = {
     id: TASK_ID(),
     title,
     detail: String(b.detail || ''),
@@ -2291,16 +2366,26 @@ app.post('/api/tasks', (req, res) => {
     createdAt: new Date().toISOString(),
     startedAt: null,
     finishedAt: null,
-    lastError: null
-  })
-  res.json(task)
+    lastError: null,
+    priority: 'none', labels: [], due: null, blockedBy: [], comments: [], activity: [], runs: []
+  }
+  const bad = cleanProps(b, task)
+  if (bad) return res.status(400).json({ error: bad })
+  if (b.blockedBy !== undefined) {
+    const d = cleanDeps(task, b.blockedBy, listTasks())
+    if (d.error) return res.status(400).json({ error: d.error })
+    task.blockedBy = d.list
+  }
+  taskActivity(task, b.by === 'agent' ? 'Created by an agent' : 'Created', b.by === 'agent' ? 'agent' : 'you')
+  res.json(saveTask(task))
 })
 
 app.patch('/api/tasks/:id', (req, res) => {
   const task = loadTask(req.params.id)
   if (!task) return res.status(404).json({ error: 'No such task.' })
   const b = req.body || {}
-  if (b.state !== undefined) {
+  const by = b.byUser ? 'you' : b.by === 'agent' ? 'agent' : 'you'
+  if (b.state !== undefined && b.state !== task.state) {
     if (!TASK_STATES.includes(b.state)) return res.status(400).json({ error: `Unknown state: ${b.state}` })
     // Dragging cannot fake progress. A person may park a card back in Queued or
     // accept it into Done; the run owns everything between.
@@ -2309,27 +2394,212 @@ app.patch('/api/tasks/:id', (req, res) => {
     }
     task.state = b.state
     if (b.state === 'done') task.finishedAt = new Date().toISOString()
+    taskActivity(task, `Moved to ${STATE_WORDS[b.state]}`, by)
+  }
+  const before = { title: task.title, detail: task.detail, priority: task.priority, labels: task.labels.join(', '), due: task.due }
+  const bad = cleanProps(b, task)
+  if (bad) return res.status(400).json({ error: bad })
+  if (b.blockedBy !== undefined) {
+    const all = listTasks()
+    const d = cleanDeps(task, b.blockedBy, all)
+    if (d.error) return res.status(400).json({ error: d.error })
+    const added = d.list.filter(id => !task.blockedBy.includes(id))
+    const removed = task.blockedBy.filter(id => !d.list.includes(id))
+    const name = id => `“${all.find(t => t.id === id)?.title || id}”`
+    if (added.length) taskActivity(task, `Now waits on ${added.map(name).join(', ')}`, by)
+    if (removed.length) taskActivity(task, `No longer waits on ${removed.map(name).join(', ')}`, by)
+    task.blockedBy = d.list
   }
   for (const k of ['title', 'detail', 'agentId', 'model', 'provider', 'cwd', 'projectId', 'order', 'sessionId']) {
     if (b[k] !== undefined) task[k] = b[k]
   }
-  res.json(saveTask(task))
+  if (task.title !== before.title) taskActivity(task, `Renamed from “${before.title}”`, by)
+  if (task.detail !== before.detail) taskActivity(task, 'Edited the description', by)
+  if (task.priority !== before.priority) taskActivity(task, task.priority === 'none' ? 'Cleared the priority' : `Priority set to ${task.priority}`, by)
+  if (task.labels.join(', ') !== before.labels) taskActivity(task, task.labels.length ? `Labels: ${task.labels.join(', ')}` : 'Removed the labels', by)
+  if (task.due !== before.due) taskActivity(task, task.due ? `Due ${task.due.slice(0, 10)}` : 'Removed the due date', by)
+  const saved = saveTask(task)
+  if (b.state === 'done') announceDone(task)
+  res.json(saved)
 })
 
-app.delete('/api/tasks/:id', (req, res) => { deleteTask(req.params.id); res.json({ ok: true }) })
+app.delete('/api/tasks/:id', (req, res) => {
+  // A deleted card cannot hold anything up: take it off every waiting list.
+  for (const t of listTasks()) {
+    if (!t.blockedBy.includes(req.params.id)) continue
+    t.blockedBy = t.blockedBy.filter(id => id !== req.params.id)
+    saveTask(t)
+  }
+  deleteTask(req.params.id)
+  res.json({ ok: true })
+})
+
+app.post('/api/tasks/:id/comments', (req, res) => {
+  const task = loadTask(req.params.id)
+  if (!task) return res.status(404).json({ error: 'No such task.' })
+  const text = String(req.body?.text || '').trim()
+  if (!text) return res.status(400).json({ error: 'A comment needs some text.' })
+  const c = taskComment(task, text, req.body?.author === 'agent' ? 'agent' : 'you')
+  saveTask(task)
+  res.json(c)
+})
+
+/**
+ * Everything that happened to a card, in time order, in one list: comments,
+ * activity, and each run with the tools it used (its worker log). The log is
+ * read from the run's own transcript, not copied — the chat and the card
+ * cannot disagree about what the agent did.
+ */
+app.get('/api/tasks/:id/feed', (req, res) => {
+  const task = loadTask(req.params.id)
+  if (!task) return res.status(404).json({ error: 'No such task.' })
+  const session = task.sessionId ? loadSession(task.sessionId) : null
+  const msgs = session?.messages || []
+  const items = []
+  for (const c of task.comments) items.push({ kind: 'comment', at: c.at, id: c.id, author: c.author, text: c.text })
+  for (const a of task.activity) items.push({ kind: 'activity', at: a.at, by: a.by, text: a.text })
+  task.runs.forEach((r, i) => {
+    const to = task.runs[i + 1]?.fromIndex ?? msgs.length
+    const log = []
+    let reply = ''
+    for (const m of msgs.slice(r.fromIndex || 0, to)) {
+      if (m.role !== 'assistant') continue
+      for (const p of m.parts || []) {
+        if (p.type === 'tool') log.push({ tool: p.name, args: summarizeArgs(p.args), result: String(p.result ?? '').slice(0, 400), error: Boolean(p.error) })
+        if (p.type === 'text' && p.text) reply = p.text
+      }
+    }
+    items.push({ kind: 'run', at: r.startedAt, id: r.id, n: i + 1, sessionId: r.sessionId, endedAt: r.endedAt || null, outcome: r.outcome, note: r.note || null, model: r.model || null, log, reply: reply.slice(0, 1200) })
+  })
+  items.sort((a, b) => (a.at || '').localeCompare(b.at || ''))
+  const all = listTasks()
+  const link = id => { const t = all.find(x => x.id === id); return t ? { id: t.id, title: t.title, state: t.state } : { id, title: 'Deleted task', state: null } }
+  res.json({
+    task,
+    items,
+    blockedBy: task.blockedBy.map(link),
+    blocks: all.filter(t => t.blockedBy.includes(task.id)).map(t => link(t.id)),
+    waitingOn: unmetDeps(task, all).map(t => t.id)
+  })
+})
+
+function summarizeArgs (args) {
+  if (!args || typeof args !== 'object') return ''
+  const v = args.command || args.path || args.file_path || args.url || args.query || args.pattern || Object.values(args).find(x => typeof x === 'string') || ''
+  return String(v).slice(0, 160)
+}
+
+/**
+ * The task_board tool (providers.js BOARD_TOOL), run against the same store the
+ * board reads. Returns text for the model. Never throws: a bad call is an
+ * answer the agent can correct, not a dead turn.
+ */
+function boardTool (args, session) {
+  try {
+    const all = listTasks()
+    const own = session?.taskId || all.find(t => t.sessionId === session?.id)?.id || null
+    const id = args.id || own
+    const line = t => `${t.id} · ${STATE_WORDS[t.state]}${t.priority !== 'none' ? ` · ${t.priority}` : ''} · ${t.title}${t.blockedBy.length ? ` · waits on ${t.blockedBy.join(', ')}` : ''}${t.id === own ? ' · (this chat\'s task)' : ''}`
+    switch (args.action) {
+      case 'list':
+        return all.length ? all.map(line).join('\n') : 'The board is empty.'
+      case 'show': {
+        const t = id && loadTask(id)
+        if (!t) return id ? `No task ${id}.` : 'This chat is not attached to a task; pass an id.'
+        const comments = t.comments.slice(-15).map(c => `- ${c.author === 'agent' ? 'Agent' : 'User'}: ${c.text}`).join('\n')
+        return `${line(t)}\n\n${t.detail || '(no description)'}${t.labels.length ? `\n\nLabels: ${t.labels.join(', ')}` : ''}${t.due ? `\nDue: ${t.due}` : ''}${comments ? `\n\nComments:\n${comments}` : ''}`
+      }
+      case 'create': {
+        const title = String(args.title || '').trim()
+        if (!title) return 'create needs a title.'
+        const parent = own ? loadTask(own) : null
+        const task = {
+          id: TASK_ID(), title, detail: String(args.detail || ''),
+          // A subtask inherits who and where from the task that made it.
+          agentId: parent?.agentId || null, model: parent?.model || null, provider: parent?.provider || null,
+          cwd: parent?.cwd || session?.cwd || null, projectId: parent?.projectId || session?.projectId || null,
+          state: 'queued', sessionId: null, order: Date.now(), createdAt: new Date().toISOString(),
+          startedAt: null, finishedAt: null, lastError: null,
+          priority: 'none', labels: [], due: null, blockedBy: [], comments: [], activity: [], runs: []
+        }
+        const bad = cleanProps({ priority: args.priority, labels: args.labels }, task)
+        if (bad) return bad
+        if (args.blockedBy) {
+          const d = cleanDeps(task, args.blockedBy, all)
+          if (d.error) return d.error
+          task.blockedBy = d.list
+        }
+        taskActivity(task, parent ? `Created by an agent while working on “${parent.title}”` : 'Created by an agent', 'agent')
+        saveTask(task)
+        return `Created ${line(task)}`
+      }
+      case 'comment': {
+        const t = id && loadTask(id)
+        if (!t) return id ? `No task ${id}.` : 'This chat is not attached to a task; pass an id.'
+        const text = String(args.text || '').trim()
+        if (!text) return 'comment needs text.'
+        taskComment(t, text, 'agent')
+        saveTask(t)
+        return `Commented on ${t.id}.`
+      }
+      case 'link': {
+        const t = id && loadTask(id)
+        if (!t) return id ? `No task ${id}.` : 'This chat is not attached to a task; pass an id.'
+        const d = cleanDeps(t, [...t.blockedBy, ...(args.blockedBy || [])], all)
+        if (d.error) return d.error
+        const added = d.list.filter(x => !t.blockedBy.includes(x))
+        t.blockedBy = d.list
+        if (added.length) taskActivity(t, `An agent made it wait on ${added.map(x => `“${all.find(a => a.id === x)?.title || x}”`).join(', ')}`, 'agent')
+        saveTask(t)
+        return `${line(t)}`
+      }
+      default:
+        return 'Unknown action. Use list, show, create, comment or link.'
+    }
+  } catch (e) {
+    return `The board could not do that: ${e.message}`
+  }
+}
+
+/** The comments a run has not seen yet, as the words the agent reads. */
+function unseenComments (task, since) {
+  const fresh = task.comments.filter(c => c.author === 'you' && (!since || c.at > since))
+  return fresh.length ? `Comments on this task since you last worked on it:\n${fresh.map(c => `- ${c.text}`).join('\n')}` : ''
+}
+
 // Starting a task creates the session it will live in, and hands the id back so
 // the client streams the turn exactly as it does for a chat. No second run
 // engine: a task IS a conversation, opened with the goal as its first message.
 app.post('/api/tasks/:id/start', (req, res) => {
   const task = loadTask(req.params.id)
   if (!task) return res.status(404).json({ error: 'No such task.' })
-  if (task.sessionId && loadSession(task.sessionId)) {
-    // Resuming: the conversation already exists, so continue it rather than
-    // starting a second one and orphaning the first.
-    task.state = 'working'
-    task.lastError = null
-    saveTask(task)
-    return res.json({ task, sessionId: task.sessionId, resumed: true })
+  const all = listTasks()
+  const waiting = unmetDeps(task, all)
+  if (waiting.length && task.state === 'queued') {
+    return res.status(409).json({ error: `This task waits on ${waiting.map(t => `“${t.title}”`).join(', ')} — finish ${waiting.length === 1 ? 'that' : 'those'} first.` })
+  }
+  const lastRun = task.runs[task.runs.length - 1]
+  const newRun = (sessionId, fromIndex, model) => {
+    task.runs.push({ id: 'r-' + Math.random().toString(36).slice(2, 10), sessionId, fromIndex, model, startedAt: new Date().toISOString(), endedAt: null, outcome: 'running' })
+    if (task.runs.length > 50) task.runs.splice(0, task.runs.length - 50)
+  }
+  if (task.sessionId) {
+    const existing = loadSession(task.sessionId)
+    if (existing) {
+      // Resuming: the conversation already exists, so continue it rather than
+      // starting a second one and orphaning the first. Anything you commented
+      // since the last run goes in as the next message.
+      const prompt = unseenComments(task, lastRun?.startedAt) || null
+      // Only a new message or a card pulled back out of Queued is work starting;
+      // opening a finished task's conversation must not claim it is running.
+      if (prompt || task.state === 'queued') { task.state = 'working'; task.lastError = null }
+      if (prompt) {
+        newRun(existing.id, existing.messages.length, existing.model)
+        taskActivity(task, `Run ${task.runs.length} started with your new comments`, 'you')
+      } else taskActivity(task, 'Opened the conversation again', 'you')
+      saveTask(task)
+      return res.json({ task, sessionId: task.sessionId, prompt, resumed: true })
+    }
   }
   const config = loadConfig()
   const project = task.projectId ? getProject(task.projectId) : null
@@ -2354,9 +2624,15 @@ app.post('/api/tasks/:id/start', (req, res) => {
   task.state = 'working'
   task.startedAt = task.startedAt || new Date().toISOString()
   task.lastError = null
+  newRun(session.id, 0, session.model)
+  taskActivity(task, `Run ${task.runs.length} started${agent ? ` by ${agent.name}` : session.model ? ` on ${session.model}` : ''}`, 'you')
   saveTask(task)
-  // The opening message: the goal, plus any detail the person wrote.
-  const prompt = task.detail ? `${task.title}\n\n${task.detail}` : task.title
+  // The opening message: the goal, any detail the person wrote, what the tasks
+  // it waited on produced, and any comments.
+  const done = task.blockedBy.map(id => all.find(t => t.id === id)).filter(Boolean)
+  const upstream = done.length ? `This task follows: ${done.map(t => `“${t.title}”`).join(', ')} (done).` : ''
+  const notes = unseenComments(task, null)
+  const prompt = [task.detail ? `${task.title}\n\n${task.detail}` : task.title, upstream, notes].filter(Boolean).join('\n\n')
   res.json({ task, sessionId: session.id, prompt, resumed: false })
 })
 
@@ -3206,6 +3482,9 @@ async function utilityTurn ({ provider, apiKey, session, tmp, signal }) {
 // response is already gone — it is written into the transcript, which is the
 // only place that survives.
 function recordTurnStopped (session, { byUser }) {
+  // The board hears about it too — a task whose run was stopped or dropped is
+  // not still Working. (Nothing else is emitted on this path; see above.)
+  reflectTaskState(session.id, { type: 'stopped' })
   const assistant = session.messages[session.messages.length - 1]
   if (!assistant || assistant.role !== 'assistant') return
   if (!Array.isArray(assistant.parts)) assistant.parts = []
@@ -3812,6 +4091,7 @@ ${r.error ? `(no answer: ${r.error})` : (r.answer || '(the subagent returned not
         askAgent,
         peerAgents,
         research,
+        board: args => boardTool(args, session),
         planMode: Boolean(session.planMode),
         effort: session.effort || 'auto',
         onPlanExit: () => { session.planMode = false; emit({ type: 'plan_mode', on: false }) }
@@ -3963,6 +4243,7 @@ ${r.error ? `(no answer: ${r.error})` : (r.answer || '(the subagent returned not
           skills: mergedSkills,
           askAgent,
           research,
+          board: args => boardTool(args, session),
           peerAgents,
           planMode: Boolean(session.planMode),
           effort: session.effort || 'auto',

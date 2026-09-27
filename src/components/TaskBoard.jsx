@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../api.js'
 import { ModelPicker } from './Chat.jsx'
+import TaskDetail from './TaskDetail.jsx'
 
 /**
  * The board.
@@ -54,7 +55,7 @@ function assigneeOf (task, agents) {
   return { name: task.model || 'Default model', missing: false }
 }
 
-function Card ({ task, agents, live, onOpen, onStart, onSteer, onDelete, onDragStart }) {
+function Card ({ task, agents, live, waitingOn = 0, onOpen, onOpenChat, onStart, onSteer, onDelete, onDragStart }) {
   // Steering only means something once something is running. A queued card has
   // nothing to redirect; a finished one has nothing left to say.
   const canSteer = task.state === 'working' || task.state === 'blocked'
@@ -87,7 +88,10 @@ function Card ({ task, agents, live, onOpen, onStart, onSteer, onDelete, onDragS
       onKeyDown={e => { if (e.key === 'Enter') onOpen(task) }}
       aria-label={`${task.title}, ${who.name}, ${COLUMNS.find(c => c.id === task.state)?.label}`}
     >
-      <h4 className='tb-card-title'>{task.title}</h4>
+      <h4 className='tb-card-title'>
+        {task.priority && task.priority !== 'none' && <span className={'tb-prio is-' + task.priority} title={`${task.priority} priority`}>{task.priority === 'urgent' ? '!!' : task.priority === 'high' ? '!' : ''}</span>}
+        {task.title}
+      </h4>
       <div className='tb-card-who'>
         {who.missing
           // An agent can be deleted while a card still names it. Say so rather
@@ -96,6 +100,16 @@ function Card ({ task, agents, live, onOpen, onStart, onSteer, onDelete, onDragS
           : who.name}
       </div>
 
+      {(task.labels?.length > 0 || task.due || task.blockedBy?.length > 0 || task.comments?.length > 0) && (
+        <div className='tb-card-meta'>
+          {task.labels?.slice(0, 3).map(l => <span key={l} className='tb-tag'>{l}</span>)}
+          {task.due && <span className={'tb-due' + (task.state !== 'done' && new Date(task.due) < new Date(new Date().toDateString()) ? ' is-overdue' : '')}>Due {new Date(task.due + 'T00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>}
+          {task.state === 'queued' && task.blockedBy?.length > 0 && (waitingOn > 0
+            ? <span className='tb-wait'>Waits on {waitingOn}</span>
+            : <span className='tb-ready'>Ready</span>)}
+          {task.comments?.length > 0 && <span className='tb-count' aria-label={`${task.comments.length} comments`}>💬 {task.comments.length}</span>}
+        </div>
+      )}
       {task.state === 'working' && steps.length > 0 && (
         <div className='tb-steps'>
           <div className='tb-steps-bar'><i style={{ width: `${(doneCount / steps.length) * 100}%` }} /></div>
@@ -130,7 +144,7 @@ function Card ({ task, agents, live, onOpen, onStart, onSteer, onDelete, onDragS
       <footer className='tb-card-foot'>
         <span className='tb-card-time'>{timeAgo(task.updatedAt || task.createdAt)}</span>
         {task.state === 'queued' && (
-          <button className='tb-mini' onClick={e => { e.stopPropagation(); onStart(task) }}>Start</button>
+          <button className='tb-mini' disabled={waitingOn > 0} title={waitingOn ? 'Finish the tasks it waits on first' : undefined} onClick={e => { e.stopPropagation(); onStart(task) }}>Start</button>
         )}
         {canSteer && (
           <button
@@ -139,7 +153,7 @@ function Card ({ task, agents, live, onOpen, onStart, onSteer, onDelete, onDragS
           >{steering ? 'Cancel' : 'Steer'}</button>
         )}
         {(task.state === 'blocked' || task.state === 'review') && (
-          <button className='tb-mini' onClick={e => { e.stopPropagation(); onOpen(task) }}>Open</button>
+          <button className='tb-mini' onClick={e => { e.stopPropagation(); onOpenChat(task) }}>Chat</button>
         )}
         <button
           className='tb-mini tb-mini-quiet'
@@ -163,6 +177,8 @@ export default function TaskBoard ({ agents = [], models = [], liveByTask = {}, 
   // than the models were.
   const [who, setWho] = useState({ model: null, provider: null })
   const [dragOver, setDragOver] = useState(null)
+  // The card opened in the two-column view, if any.
+  const [openId, setOpenId] = useState(null)
   const dragged = useRef(null)
   const titleRef = useRef(null)
 
@@ -181,6 +197,11 @@ export default function TaskBoard ({ agents = [], models = [], liveByTask = {}, 
 
   useEffect(() => { if (composing) titleRef.current?.focus() }, [composing])
 
+  // Dependencies not yet Done, per card — the same rule the server enforces on Start.
+  const waitingOn = useMemo(() => {
+    const byId = new Map(tasks.map(t => [t.id, t]))
+    return Object.fromEntries(tasks.map(t => [t.id, (t.blockedBy || []).filter(id => byId.get(id) && byId.get(id).state !== 'done').length]))
+  }, [tasks])
   const byColumn = useMemo(() => {
     const map = Object.fromEntries(COLUMNS.map(c => [c.id, []]))
     for (const t of tasks) (map[t.state] || map.queued).push(t)
@@ -308,7 +329,9 @@ export default function TaskBoard ({ agents = [], models = [], liveByTask = {}, 
                   task={t}
                   agents={agents}
                   live={liveByTask[t.id]}
-                  onOpen={onOpenTask}
+                  waitingOn={waitingOn[t.id]}
+                  onOpen={task => setOpenId(task.id)}
+                  onOpenChat={task => onOpenTask?.(task)}
                   onStart={start}
                   onSteer={onSteer}
                   onDelete={remove}
@@ -326,6 +349,19 @@ export default function TaskBoard ({ agents = [], models = [], liveByTask = {}, 
           </div>
         ))}
       </div>
+      {openId && (
+        <TaskDetail
+          key={openId}
+          taskId={openId}
+          agents={agents}
+          onClose={() => setOpenId(null)}
+          onOpenTask={id => setOpenId(id)}
+          onOpenChat={task => { setOpenId(null); onOpenTask?.(task) }}
+          onStart={task => { setOpenId(null); start(task) }}
+          onChanged={refresh}
+          onError={onError}
+        />
+      )}
     </section>
   )
 }

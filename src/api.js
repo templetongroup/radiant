@@ -313,6 +313,8 @@ export const api = {
   patchTask: (id, patch) => json('PATCH', `/api/tasks/${id}`, { ...patch, byUser: true }),
   deleteTask: id => json('DELETE', `/api/tasks/${id}`),
   startTask: id => json('POST', `/api/tasks/${id}/start`),
+  taskFeed: id => json('GET', `/api/tasks/${id}/feed`),
+  commentTask: (id, text) => json('POST', `/api/tasks/${id}/comments`, { text }),
 
   // ---- loops ----
   // ⚠️ `advance` IS THE WHOLE RUNNER. It answers with the next turn to run, and

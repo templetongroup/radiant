@@ -1098,25 +1098,54 @@ export function saveSession (session) {
 // `review` are set by the run itself, from events the server already emits, so
 // a card cannot claim progress that did not happen.
 export const TASK_STATES = ['queued', 'working', 'blocked', 'review', 'done']
+export const TASK_PRIORITIES = ['none', 'low', 'medium', 'high', 'urgent']
+const FEED_CAP = 300   // comments and activity each; a card is not an archive
+
+// A task written before the board grew properties, comments and runs reads as
+// if it had always had them empty — no migration pass, no second format.
+function normalizeTask (t) {
+  if (!t) return t
+  if (!TASK_PRIORITIES.includes(t.priority)) t.priority = 'none'
+  if (!Array.isArray(t.labels)) t.labels = []
+  if (t.due === undefined) t.due = null
+  if (!Array.isArray(t.blockedBy)) t.blockedBy = []
+  if (!Array.isArray(t.comments)) t.comments = []
+  if (!Array.isArray(t.activity)) t.activity = []
+  if (!Array.isArray(t.runs)) t.runs = []
+  return t
+}
+
+/** One line in the task's history: who did what, when. */
+export function taskActivity (task, text, by = 'you') {
+  task.activity.push({ at: new Date().toISOString(), by, text })
+  if (task.activity.length > FEED_CAP) task.activity.splice(0, task.activity.length - FEED_CAP)
+}
+export function taskComment (task, text, author = 'you') {
+  const c = { id: 'c-' + Math.random().toString(36).slice(2, 10), author, text, at: new Date().toISOString() }
+  task.comments.push(c)
+  if (task.comments.length > FEED_CAP) task.comments.splice(0, task.comments.length - FEED_CAP)
+  return c
+}
 
 export function listTasks () {
   ensureDirs()
   return fs.readdirSync(TASKS_DIR)
     .filter(f => f.endsWith('.json'))
-    .map(f => { try { return JSON.parse(fs.readFileSync(path.join(TASKS_DIR, f), 'utf8')) } catch { return null } })
+    .map(f => { try { return normalizeTask(JSON.parse(fs.readFileSync(path.join(TASKS_DIR, f), 'utf8'))) } catch { return null } })
     .filter(Boolean)
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || (b.createdAt || '').localeCompare(a.createdAt || ''))
 }
 
 export function loadTask (id) {
   if (!/^[a-z0-9-]+$/.test(id)) return null
-  try { return JSON.parse(fs.readFileSync(path.join(TASKS_DIR, id + '.json'), 'utf8')) } catch { return null }
+  try { return normalizeTask(JSON.parse(fs.readFileSync(path.join(TASKS_DIR, id + '.json'), 'utf8'))) } catch { return null }
 }
 
 export function saveTask (task) {
   ensureDirs()
   if (!/^[a-z0-9-]+$/.test(task.id)) throw new Error('bad task id')
   if (!TASK_STATES.includes(task.state)) throw new Error(`unknown task state: ${task.state}`)
+  normalizeTask(task)
   task.updatedAt = new Date().toISOString()
   writeJsonAtomic(path.join(TASKS_DIR, task.id + '.json'), task)
   return task

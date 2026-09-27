@@ -347,6 +347,69 @@ ok('it can be deleted', !gone.body.some(t => t.id === id))
   ok('desktop tools still run server-side', /from '\.\/computer\.js'/.test(ct))
 }
 
+// ---- the kanban work tool: properties, dependencies, comments, runs, feed ----
+{
+  const a = (await j('POST', '/api/tasks', { title: 'Design the schema', priority: 'high', labels: ['db', 'db', ' '], due: '2026-10-01' })).body
+  ok('a task takes a priority', a.priority === 'high')
+  ok('labels are de-duplicated and blanks dropped', JSON.stringify(a.labels) === '["db"]')
+  ok('a due date is kept', a.due === '2026-10-01')
+  ok('creation is in the activity', a.activity?.[0]?.text === 'Created')
+  ok('a bad priority is refused', (await j('POST', '/api/tasks', { title: 'x', priority: 'asap' })).status === 400)
+
+  const b = (await j('POST', '/api/tasks', { title: 'Write the migration', blockedBy: [a.id] })).body
+  ok('a task can wait on another', JSON.stringify(b.blockedBy) === JSON.stringify([a.id]))
+  ok('waiting on a task that does not exist is refused', (await j('POST', '/api/tasks', { title: 'y', blockedBy: ['task-nope'] })).status === 400)
+  ok('a loop of waiting is refused', (await j('PATCH', `/api/tasks/${a.id}`, { blockedBy: [b.id] })).status === 400)
+  ok('a task cannot wait on itself', (await j('PATCH', `/api/tasks/${a.id}`, { blockedBy: [a.id] })).body?.blockedBy?.length === 0)
+
+  const gated = await j('POST', `/api/tasks/${b.id}/start`)
+  ok('a task whose dependency is not done cannot start', gated.status === 409 && /Design the schema/.test(gated.body?.error || ''))
+
+  ok('a comment needs text', (await j('POST', `/api/tasks/${b.id}/comments`, { text: '  ' })).status === 400)
+  const c = (await j('POST', `/api/tasks/${b.id}/comments`, { text: 'Use **UUID** keys' })).body
+  ok('a comment is saved with an author', c.author === 'you' && c.text === 'Use **UUID** keys')
+
+  await j('PATCH', `/api/tasks/${a.id}`, { state: 'done', byUser: true })
+  const fb = (await j('GET', `/api/tasks/${b.id}/feed`)).body
+  ok('finishing a dependency tells the waiting task it is ready', fb.items.some(i => i.kind === 'activity' && /is done — this task is ready/.test(i.text)))
+  ok('the feed lists what it waits on, with titles', fb.blockedBy[0]?.title === 'Design the schema' && fb.waitingOn.length === 0)
+  ok('the feed interleaves comments and activity in time order',
+     fb.items.some(i => i.kind === 'comment') && fb.items.every((x, i, arr) => !i || (arr[i - 1].at || '') <= (x.at || '')))
+  const fa = (await j('GET', `/api/tasks/${a.id}/feed`)).body
+  ok('and the other side of the link shows what it blocks', fa.blocks[0]?.id === b.id)
+
+  const started = await j('POST', `/api/tasks/${b.id}/start`)
+  ok('once its dependency is done it starts', started.status === 200)
+  ok('the opening message carries the goal, what it follows, and the comments',
+     /Write the migration/.test(started.body.prompt) && /follows: “Design the schema”/.test(started.body.prompt) && /UUID/.test(started.body.prompt))
+  const run = (await j('GET', `/api/tasks/${b.id}/feed`)).body.items.find(i => i.kind === 'run')
+  ok('starting records run 1, pointing at its conversation', run?.n === 1 && run.sessionId === started.body.sessionId && run.outcome === 'running')
+
+  await j('POST', `/api/tasks/${b.id}/comments`, { text: 'Also add an index' })
+  const again = await j('POST', `/api/tasks/${b.id}/start`)
+  ok('resuming sends only the comments made since the last run', again.body.resumed && /Also add an index/.test(again.body.prompt) && !/UUID/.test(again.body.prompt))
+  ok('and records it as run 2', (await j('GET', `/api/tasks/${b.id}/feed`)).body.items.filter(i => i.kind === 'run').length === 2)
+
+  const edited = (await j('PATCH', `/api/tasks/${b.id}`, { priority: 'urgent', title: 'Write the migrations', byUser: true })).body
+  ok('edits are written into the activity', edited.activity.some(x => x.text === 'Priority set to urgent') && edited.activity.some(x => /Renamed from/.test(x.text)))
+
+  await j('DELETE', `/api/tasks/${a.id}`)
+  ok('deleting a task takes it off every waiting list', (await j('GET', `/api/tasks`)).body.find(t => t.id === b.id).blockedBy.length === 0)
+}
+
+// ---- the three ways the board lied, found building the kanban (2026-09-27) ----
+{
+  const rf = await import('node:fs')
+  const idx = rf.readFileSync('server/index.js', 'utf8')
+  ok('a stopped or dropped turn tells the board', /function recordTurnStopped[\s\S]{0,300}reflectTaskState\(session\.id, \{ type: 'stopped' \}\)/.test(idx))
+  ok('and a stopped run is Needs you, not Working', /ev\.type === 'stopped'\) \{ task\.state = 'blocked'/.test(idx))
+  ok('only real progress moves a blocked card back to Working', /task\.state === 'blocked' && RUN_PROGRESS\.has\(ev\.type\)/.test(idx))
+  const detail = rf.readFileSync('src/components/TaskDetail.jsx', 'utf8')
+  ok('the task view takes focus once, not on every redraw', /panel\.current\?\.focus\(\)\n    return \(\) => document\.removeEventListener\('keydown', esc\)\n  \}, \[\]\)/.test(detail))
+  const prov = rf.readFileSync('server/providers.js', 'utf8')
+  ok('the agent gets the board as one tool', /name: 'task_board'/.test(prov) && /\.\.\.\(board \? \[BOARD_TOOL\] : \[\]\)/.test(prov))
+}
+
 console.log(`\n  ${pass}/${pass + fail} passed`)
 stop()
 process.exit(fail ? 1 : 0)
