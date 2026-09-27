@@ -53,6 +53,19 @@ try {
   // and the claim is released: the next send runs
   const c = await send('third')
   ok(c.status === 200, `after the turn ends, the chat takes a new message (got ${c.status})`)
+  // ---- one message, one reply: the same message named twice runs once ----
+  const sendId = (text, messageId) => fetch(`http://127.0.0.1:${pr}/api/chat`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sessionId: s.id, content: { text }, messageId }) }).then(async r => ({ status: r.status, body: await r.text() }))
+  const [d1, d2] = await Promise.all([sendId('deploy it', 'msg-abc'), sendId('deploy it', 'msg-abc')])
+  const dup = [d1, d2].find(r => r.status === 409)
+  ok([d1.status, d2.status].sort().join() === '200,409' && /"duplicate":true/.test(dup?.body || ''), `the same message sent twice at once runs once, and the second is named a duplicate (got ${d1.status}, ${d2.status})`)
+  const late = await sendId('deploy it', 'msg-abc')
+  ok(late.status === 409 && /"duplicate":true/.test(late.body), `the same message arriving again after its reply is still refused (got ${late.status})`)
+  const after = await (await fetch(`http://127.0.0.1:${pr}/api/sessions/${s.id}`)).json()
+  ok(after.messages.filter(m => m.role === 'user' && m.id === 'msg-abc').length === 1, 'the chat holds it once, with its name')
+  const fresh = await sendId('deploy it', 'msg-def')
+  ok(fresh.status === 200, `the same words with a new name are a new message (got ${fresh.status})`)
+  const junk = await sendId('hi', 'bad id with spaces!')
+  ok(junk.status === 200, `a malformed name is ignored, not refused (got ${junk.status})`)
   // a refused send that never started (no provider) does not leave the chat claimed
   const s2 = await (await fetch(`http://127.0.0.1:${pr}/api/sessions`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ provider: 'nope', model: 'm1', cwd: ws }) })).json()
   const bad = () => fetch(`http://127.0.0.1:${pr}/api/chat`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sessionId: s2.id, content: { text: 'x' } }) }).then(r => r.status)
@@ -62,5 +75,5 @@ try {
   srv.kill(); prov.close(); jev.close(); await sleep(200)
   for (const d of [dir, ws]) fs.rmSync(d, { recursive: true, force: true })
 }
-console.log(`\n${pass}/${pass + fail} passed  ·  one chat runs one turn at a time, even when two sends arrive together`)
+console.log(`\n${pass}/${pass + fail} passed  ·  one chat runs one turn at a time, and one message gets one reply`)
 process.exit(fail ? 1 : 0)

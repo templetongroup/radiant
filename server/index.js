@@ -3503,16 +3503,25 @@ app.post('/api/chat', async (req, res) => {
   // instead, silently, which is why Tony could not tell whether anything had
   // happened. skillIds here is per-turn; session.skillIds still exists for a
   // skill deliberately pinned to a conversation.
-  const { sessionId, content, skillIds: turnSkillIds } = req.body
+  const { sessionId, content, skillIds: turnSkillIds, messageId: rawMessageId } = req.body
   const session = loadSession(sessionId)
   if (!session) return res.status(404).json({ error: 'session not found' })
+  // ⚠️ ONE MESSAGE, ONE REPLY. The client names each message it sends, and a
+  // name already in this chat — saved, or the one running right now — is the
+  // same message arriving twice: a retried request, a voice delegation handed
+  // over again. Answering it would run the whole turn a second time (the same
+  // edits, the same commands). Idea from unreal-agent's inbox (MIT).
+  const messageId = typeof rawMessageId === 'string' && /^[\w:.-]{1,100}$/.test(rawMessageId) ? rawMessageId : null
+  if (messageId && (activeTurns.get(sessionId)?.messageId === messageId || session.messages.some(m => m.role === 'user' && m.id === messageId))) {
+    return res.status(409).json({ error: 'That message was already received.', duplicate: true })
+  }
   if (activeTurns.has(sessionId)) return res.status(409).json({ error: 'a turn is already running' })
   // ⚠️ CLAIM THE CHAT NOW, not after the skill and MCP choices below. Those
   // wait on the network, and a second send in that gap (phone and Mac on one
   // chat, or a retried request) also passed the check above — two turns ran on
   // two copies of the chat and the last save erased the other's whole turn.
   const controller = new AbortController()
-  activeTurns.set(sessionId, { controller })
+  activeTurns.set(sessionId, { controller, messageId })
 
   // agent (persona + its skills) plus globally-enabled skills
   const agent = session.agentId ? agentsStore.get(session.agentId) : null
@@ -3529,7 +3538,7 @@ app.post('/api/chat', async (req, res) => {
     const emit = ev => { reflectTaskState(sessionId, ev); res.write(`data: ${JSON.stringify(ev)}\n\n`) }
     const text = typeof content === 'string' ? content : (content.text || '')
     const attachments = (typeof content === 'object' && content.attachments) || []
-    session.messages.push({ role: 'user', text, attachments })
+    session.messages.push({ role: 'user', text, attachments, ...(messageId ? { id: messageId } : {}) })
     if (session.messages.length === 1 && session.autoTitle !== false) {
       session.title = text.length > 48 ? text.slice(0, 48) + '…' : (text || `${attachments.length} file(s)`)
       session.autoTitle = true
@@ -3649,7 +3658,7 @@ app.post('/api/chat', async (req, res) => {
   const text = typeof content === 'string' ? content : (content.text || '')
   const attachments = (typeof content === 'object' && content.attachments) || []
   const spoken = typeof content === 'object' && Boolean(content.voice)
-  session.messages.push({ role: 'user', text, attachments, ...(spoken ? { voice: true } : {}) })
+  session.messages.push({ role: 'user', text, attachments, ...(spoken ? { voice: true } : {}), ...(messageId ? { id: messageId } : {}) })
   if (session.messages.length === 1 && session.autoTitle !== false) {
     // instant placeholder; upgraded to a nicer title after the turn (see below)
     session.title = text.length > 48 ? text.slice(0, 48) + '…' : (text || `${attachments.length} file(s)`)

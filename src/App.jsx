@@ -527,6 +527,10 @@ function DesktopApp () {
     const skillIds = (typeof content === 'object' && content.skillIds) || []
     const delegationId = (typeof content === 'object' && content.voice) || null
     const vs = delegationId && voiceRef.current && voiceRef.current.sessionId === session.id ? voiceRef.current : null
+    // The message's own name, so the server can tell a second copy of it from
+    // a new message. A voice delegation already has one — the same request
+    // handed over twice keeps it.
+    const messageId = (typeof content === 'object' && content.id) || (delegationId ? `voice-${delegationId}` : (crypto.randomUUID?.() || `m-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`))
     let lastProgressAt = 0
     let target = session
     if (!target.provider || !target.model) {
@@ -557,6 +561,7 @@ function DesktopApp () {
     // i entered is disappearing in the chat itself." So on a never-started
     // send, keep the optimistic message and say why instead of wiping it.
     let started = false
+    let wasDuplicate = false
     let chatTitle = target.title || 'Radiant'
     const endThinking = () => {
       if (liveMsg.thinkingActive) {
@@ -669,9 +674,12 @@ function DesktopApp () {
           default: break
         }
         setLiveFor(sessionId, { ...liveMsg, parts: [...liveMsg.parts] })
-      }, skillIds)
+      }, skillIds, messageId)
     } catch (e) {
-      setError(e.message)
+      // A duplicate is the server saying it already has this message; the
+      // check below brings its reply in instead of calling it a failure.
+      if (e.duplicate) wasDuplicate = true
+      else setError(e.message)
     }
 
     if (streamingRef.current.has(sessionId)) {
@@ -705,8 +713,21 @@ function DesktopApp () {
           const fresh = await api.getSession(sessionId)
           setSession(prev => (prev && prev.id === sessionId ? fresh : prev))
         } catch {}
-      } else if (openSessionRef.current === sessionId) {
-        setError(prev => prev || 'That message did not send — a turn is already running in this chat. Stop it, or wait for it to finish, then try again.')
+      } else {
+        // ⚠️ "DID NOT SEND" MUST BE TRUE. A request whose answer was lost
+        // looks exactly like one that never arrived, and saying it did not send
+        // is how the same message gets typed and run twice. Ask the server.
+        let arrived = false
+        try {
+          const fresh = await api.getSession(sessionId)
+          arrived = fresh.messages.some(m => m.role === 'user' && m.id === messageId)
+          if (arrived) setSession(prev => (prev && prev.id === sessionId ? fresh : prev))
+        } catch {}
+        if (openSessionRef.current === sessionId) {
+          if (arrived && wasDuplicate) { /* the first copy is the one that runs; nothing to report */ }
+          else if (arrived) setError('Your message reached Radiant, but the connection dropped before the reply came back. What happened is saved in the chat — no need to send it again.')
+          else setError(prev => prev || 'That message did not send — a turn is already running in this chat. Stop it, or wait for it to finish, then try again.')
+        }
       }
       refreshSessions()
       // ⚠️ AFTER THE TRANSCRIPT IS SAVED, NOT BEFORE. The server reads the last

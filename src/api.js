@@ -491,16 +491,20 @@ export async function cancelDownload (model) {
 }
 
 // POST /api/chat streams SSE back on the response body.
-export async function streamChat (sessionId, content, onEvent, skillIds) {
+export async function streamChat (sessionId, content, onEvent, skillIds, messageId) {
   const res = await fetch(apiUrl('/api/chat'), {
     method: 'POST',
     headers: authHeaders({ 'content-type': 'application/json' }),
-    body: JSON.stringify({ sessionId, content, ...(skillIds?.length ? { skillIds } : {}) })
+    body: JSON.stringify({ sessionId, content, ...(skillIds?.length ? { skillIds } : {}), ...(messageId ? { messageId } : {}) })
   })
   if (!res.ok) {
     let msg = `${res.status}`
-    try { msg = (await res.json()).error || msg } catch {}
-    throw new Error(msg)
+    let duplicate = false
+    try { const j = await res.json(); msg = j.error || msg; duplicate = Boolean(j.duplicate) } catch {}
+    const err = new Error(msg)
+    // The server already has this very message — not a failure to send.
+    err.duplicate = duplicate
+    throw err
   }
   const reader = res.body.getReader()
   const decoder = new TextDecoder()
