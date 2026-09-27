@@ -113,7 +113,12 @@ if (range) {
       siteTouched = subjects.split('\n').filter(Boolean).some(l => !/on the download page$/.test(l))
     } catch { siteTouched = null }
   }
-  const docsExempt = /^Docs:\s*n\/a\b/im.test(tryGit('log', '--format=%B', docsRange))
+  // ⚠️ A TRAILER EXCUSES ITS OWN COMMIT, NOT THE RELEASE. Read per commit: the
+  // first version read the whole range, so a developer tool's "Docs: n/a" on
+  // one commit let a real feature in the next one through unannounced.
+  const entryCommits = tryGit('log', '--format=%H', docsRange, '--', GUIDE_FILE).split('\n').filter(Boolean)
+    .filter(h => tryGit('show', '--format=', h, '--', GUIDE_FILE).split('\n').some(l => /^\+\s*\['/.test(l)))
+  const docsExempt = entryCommits.length > 0 && entryCommits.every(h => /^Docs:\s*n\/a\b/im.test(tryGit('log', '-1', '--format=%B', h)))
   const missing = [!readmeTouched && 'README.md', siteTouched === false && 'the website page'].filter(Boolean)
   add(
     'docs',
