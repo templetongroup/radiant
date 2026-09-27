@@ -185,7 +185,19 @@ function groupFlatten (messages, speakerId, names) {
   }).filter(Boolean)
 }
 
-function toAnthropic (messages) {
+// ⚠️ REASONING GOES BACK, OR THE MODEL STARTS EVERY STEP OVER. The model's
+// thinking was streamed to the screen and thrown away, so each tool step began
+// without the plan it had just worked out — Cursor measured a reasoning model
+// 30% worse on a coding benchmark that way (Tony, 2026-09-27). Worse on
+// Claude: with a thinking level set, Anthropic REFUSES the next step of a
+// tool-using turn unless the signed thinking block comes back with it, and the
+// "does not take a thinking level" fallback then switched thinking off —
+// silently, after the first tool call. Only the same model's reasoning is
+// sent (a signature is not portable), and only when thinking is on.
+// RADIANT_REASONING_CARRY=off turns the carry-over off — for the benchmark's
+// A/B (bench-harness --tag), never a user setting.
+const CARRY_REASONING = () => process.env.RADIANT_REASONING_CARRY !== 'off'
+function toAnthropic (messages, { model = null, thinking = false } = {}) {
   const out = []
   for (const m of messages) {
     if (m.role === 'user') {
@@ -216,6 +228,7 @@ function toAnthropic (messages) {
     }
     for (const p of m.parts) {
       if (p.type === 'text') { flush(); if (p.text) blocks.push({ type: 'text', text: p.text }) }
+      else if (p.type === 'reasoning') { if (thinking && CARRY_REASONING() && p.provider === 'anthropic' && p.model === model) { flush(); blocks.push(p.block) } }
       else if (p.type === 'tool') { if (!sameRound(pendingTools, p)) flush(); pendingTools.push(p) }
     }
     flush()
@@ -559,16 +572,22 @@ async function anthropicRound ({ baseUrl, apiKey, accessToken, model, messages, 
     else if (ev.type === 'content_block_start') {
       const b = ev.content_block
       if (b.type === 'text') current = { type: 'text', text: '' }
-      else if (b.type === 'thinking') current = { type: 'thinking' }
+      // Kept whole, signature and all: the next step of a tool-using turn must
+      // send it back (see the REASONING note at toAnthropic).
+      else if (b.type === 'thinking') current = { type: 'thinking', thinking: '', signature: '' }
+      else if (b.type === 'redacted_thinking') current = { type: 'redacted', data: b.data }
       else if (b.type === 'tool_use') current = { type: 'tool', id: b.id, name: b.name, json: '' }
       else current = { type: 'skip' }
     } else if (ev.type === 'content_block_delta') {
       const d = ev.delta
       if (d.type === 'text_delta' && current?.type === 'text') { current.text += d.text; emit({ type: 'text_delta', text: d.text }) }
-      else if (d.type === 'thinking_delta') emit({ type: 'thinking_delta', text: d.thinking })
+      else if (d.type === 'thinking_delta') { if (current?.type === 'thinking') current.thinking += d.thinking; emit({ type: 'thinking_delta', text: d.thinking }) }
+      else if (d.type === 'signature_delta' && current?.type === 'thinking') current.signature = d.signature
       else if (d.type === 'input_json_delta' && current?.type === 'tool') current.json += d.partial_json
     } else if (ev.type === 'content_block_stop') {
       if (current?.type === 'text' && current.text) parts.push({ type: 'text', text: current.text })
+      else if (current?.type === 'thinking' && current.signature) parts.push({ type: 'reasoning', provider: 'anthropic', model, block: { type: 'thinking', thinking: current.thinking, signature: current.signature } })
+      else if (current?.type === 'redacted' && current.data) parts.push({ type: 'reasoning', provider: 'anthropic', model, block: { type: 'redacted_thinking', data: current.data } })
       else if (current?.type === 'tool') {
         let args = {}
         try { args = current.json ? JSON.parse(current.json) : {} } catch {}
@@ -857,7 +876,7 @@ async function chatgptModels (accessToken, accountId) {
   } catch { return null }
 }
 
-function toResponsesInput (messages) {
+function toResponsesInput (messages, model = null) {
   const input = []
   for (const m of messages) {
     if (m.role === 'user') {
@@ -867,7 +886,9 @@ function toResponsesInput (messages) {
       continue
     }
     for (const p of m.parts) {
-      if (p.type === 'text' && p.text) input.push({ type: 'message', role: 'assistant', content: [{ type: 'output_text', text: p.text }] })
+      // the same model's encrypted reasoning, in the place it was produced (see toAnthropic)
+      if (p.type === 'reasoning') { if (p.provider === 'codex' && p.model === model && CARRY_REASONING()) input.push(p.item) }
+      else if (p.type === 'text' && p.text) input.push({ type: 'message', role: 'assistant', content: [{ type: 'output_text', text: p.text }] })
       else if (p.type === 'tool') {
         input.push({ type: 'function_call', call_id: p.id, name: p.name, arguments: JSON.stringify(p.args || {}) })
         input.push({ type: 'function_call_output', call_id: p.id, output: String(p.result ?? '') })
@@ -889,7 +910,9 @@ async function chatgptRound ({ accessToken, accountId, model, messages, system, 
   // harness benchmark's first Radiant attempt read 286k input tokens, 0
   // cached, on a 13-round task. Codex CLI sends one id per conversation;
   // so does this now. (The usage log that found it: RADIANT_USAGE_DEBUG=1.)
-  const body = { model: useModel, instructions: system, input: toResponsesInput(messages), store: false, stream: true, ...(cacheKey ? { prompt_cache_key: cacheKey } : {}) }
+  // include: the reasoning comes back encrypted (store is false), so the next
+  // step can send it — what Codex CLI does.
+  const body = { model: useModel, instructions: system, input: toResponsesInput(messages, useModel), store: false, stream: true, include: ['reasoning.encrypted_content'], ...(cacheKey ? { prompt_cache_key: cacheKey } : {}) }
   if (effort && effort !== 'auto') body.reasoning = { effort }
   if (tools) body.tools = (toolDefs || TOOL_DEFS).map(t => ({ type: 'function', name: t.name, description: t.description, parameters: t.input_schema, strict: false }))
   const headers = {
@@ -906,6 +929,7 @@ async function chatgptRound ({ accessToken, accountId, model, messages, system, 
   if (!res.ok) throw await httpErr(res)
 
   let text = ''
+  const reasoning = [] // encrypted reasoning items, in order
   const byItem = {} // output_item id -> { id: call_id, name, args }
   for await (const ev of sseEvents(res)) {
     switch (ev.type) {
@@ -919,6 +943,9 @@ async function chatgptRound ({ accessToken, accountId, model, messages, system, 
         const c = byItem[ev.item_id]; if (c) c.args += ev.delta || ''; break
       }
       case 'response.output_item.done':
+        if (ev.item?.type === 'reasoning' && ev.item.encrypted_content) {
+          reasoning.push({ type: 'reasoning', provider: 'codex', model: useModel, item: { type: 'reasoning', summary: ev.item.summary || [], encrypted_content: ev.item.encrypted_content } })
+        }
         if (ev.item?.type === 'function_call') byItem[ev.item.id] = { id: ev.item.call_id, name: ev.item.name, args: ev.item.arguments || byItem[ev.item.id]?.args || '' }
         break
       case 'response.completed': {
@@ -934,7 +961,7 @@ async function chatgptRound ({ accessToken, accountId, model, messages, system, 
       case 'response.failed': throw new Error(ev.response?.error?.message || 'ChatGPT response failed')
     }
   }
-  const parts = []
+  const parts = [...reasoning]
   if (text) parts.push({ type: 'text', text })
   const calls = Object.values(byItem)
   for (const c of calls) {
@@ -1068,6 +1095,7 @@ function estimateTokens (messages) {
       // a result set aside by relevance (p.stale) is sent as one line, not whole
       if (p.result) chars += p.stale ? 160 : String(p.result).length
       if (p.args) chars += JSON.stringify(p.args).length
+      if (p.type === 'reasoning') chars += JSON.stringify(p.block || p.item || '').length
     }
   }
   return Math.round(chars / 4)
@@ -1081,7 +1109,7 @@ function estimateTokens (messages) {
 function isContextError (msg) {
   return /context length|context window|maximum context|too many tokens|prompt is too long|reduce the length|token.{0,4}limit|exceeds? the maximum|input is too long|maximum.{0,20}tokens|maximum prompt length|prompt length|request contains \d+ tokens|input token count|too long/i.test(String(msg || ''))
 }
-export { isContextError }
+export { isContextError, toAnthropic, toResponsesInput }
 function renderForSummary (messages) {
   return voiceAsText(messages).map(m => {
     if (m.role === 'user') return `User: ${m.text || ''}`
@@ -1398,7 +1426,7 @@ export async function runTurn ({ provider, model, routed, verifyClaims, apiKey, 
       if (round === 0 && (system.stable || '').length <= 65536) sent.systemText = system.stable
       ;(assistant.sent || (assistant.sent = [])).push(sent)
       result = provider.type === 'anthropic'
-        ? await anthropicRound({ ...args, messages: toAnthropic(reqMsgs) })
+        ? await anthropicRound({ ...args, messages: toAnthropic(reqMsgs, { model, thinking: Boolean(THINK_BUDGET[args.effort]) }) })
         : useChatgpt
           ? await chatgptRound({ ...args, system: nudge ? `${system.full}\n\n${nudge}` : system.full, accountId, messages: reqMsgs, cacheKey: session.id })
           : await openaiRound({ ...args, messages: toOpenAI(reqMsgs, nudge ? `${system.full}\n\n${nudge}` : system.full) })
@@ -1460,6 +1488,7 @@ export async function runTurn ({ provider, model, routed, verifyClaims, apiKey, 
     const toolParts = result.parts.filter(p => p.type === 'tool')
     for (const p of result.parts) {
       if (p.type === 'text') assistant.parts.push(p)
+      else if (p.type === 'reasoning') assistant.parts.push({ ...p, round })
     }
     // ⚠️ SAY WHO ANSWERED. Jev Router hands the message to a model of its
     // choosing; the reply is labeled with that model, not only "jev-router".
@@ -1720,7 +1749,7 @@ export async function runTurn ({ provider, model, routed, verifyClaims, apiKey, 
       }
       const wrapStart = Date.now()
       const said = provider.type === 'anthropic'
-        ? await anthropicRound({ ...args, messages: toAnthropic(msgs) })
+        ? await anthropicRound({ ...args, messages: toAnthropic(msgs, { model, thinking: Boolean(THINK_BUDGET[args.effort]) }) })
         : useChatgpt
           ? await chatgptRound({ ...args, accountId, messages: msgs })
           : await openaiRound({ ...args, messages: toOpenAI(msgs, system) })
