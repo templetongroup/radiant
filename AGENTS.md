@@ -13,8 +13,6 @@ Releases. Work on `master`.
   crash, the download-math test, and the App Store status.
   Standing rule: every iOS build goes to every device
   (`scripts/ios-install-all.sh`).
-- **The phone's web screens** (`src/mobile`): `src/mobile/AGENTS.md`, plus the
-  iPhone file above.
 - **Mac app** (`server/`, `src/`, Electron): this file.
 - **Ratings and the bar for each area:** `ratings.md` (Gold Standards).
 

@@ -50,7 +50,11 @@ enum Fold {
         var out = "", thinking = false
         while !s.isEmpty {
             if !thinking {
-                guard let o = s.range(of: "<think>") else { out += s; break }
+                guard let o = s.range(of: "<think>") else {
+                    // hold back a possible partial "<think" at the very end: a tag split across two chunks (thinking.js)
+                    if let m = s.range(of: "<(?:t(?:h(?:i(?:n(?:k>?)?)?)?)?)?$", options: .regularExpression) { out += s[..<m.lowerBound] } else { out += s }
+                    break
+                }
                 out += s[..<o.lowerBound]; s = String(s[o.upperBound...]); thinking = true
             } else {
                 guard let c = s.range(of: "</think>") else { s = ""; break }

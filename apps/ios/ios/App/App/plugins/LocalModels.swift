@@ -1090,6 +1090,30 @@ public class LocalModels: CAPPlugin, CAPBridgedPlugin {
         }
     }
 
+    /// Is this id in the list at all? startDownload does nothing for one that is not.
+    func knows(_ id: String) -> Bool { effectiveCatalog.contains { $0.id == id } }
+
+    /// diagnose(), for the native Models screen: after downloadDone, is it really there?
+    func downloadCheck(_ id: String) -> (onDisk: Bool, hasReceipt: Bool, bytes: Int64, expected: Int64, folder: String)? {
+        guard let entry = effectiveCatalog.first(where: { $0.id == id }) else { return nil }
+        let repo = entry.config.name
+        return (isOnDisk(entry), downloadedIds().contains(id), bytesInCache(for: repo),
+                Int64(entry.gb * 1_000_000_000), DownloadMath.cacheFolderName(for: repo))
+    }
+
+    /// deviceInfo(), for the native Models screen's specs panel.
+    static func deviceSummary() -> (name: String, cores: Int, os: String, ramTotal: Double, ramAvailable: Double) {
+        var sys = utsname()
+        uname(&sys)
+        let machine = withUnsafePointer(to: &sys.machine) {
+            $0.withMemoryRebound(to: CChar.self, capacity: 1) { String(validatingUTF8: $0) ?? "" }
+        }
+        let p = ProcessInfo.processInfo
+        let pad = UIDevice.current.userInterfaceIdiom == .pad
+        return (marketingNames[machine] ?? (pad ? "iPad" : "iPhone"), p.activeProcessorCount,
+                UIDevice.current.systemVersion, Double(p.physicalMemory), Double(rxMemoryLimit()))
+    }
+
     func stopDownload(_ id: String) { job(id)?.cancel() }
     func isDownloading(_ id: String) -> Bool { job(id) != nil }
 

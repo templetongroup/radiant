@@ -7,33 +7,48 @@ import UIKit
 final class AppModel: ObservableObject {
     let kv: KV
     let engine: LocalModels
-    /// Asks the web layer to show a screen that is not native yet ("models",
-    /// "settings", …) — so the app is whole at every step of the rebuild.
-    var openWeb: (String) -> Void = { _ in }
-    var close: () -> Void = {}
 
     @Published private(set) var chats: [Chat] = []
     @Published private(set) var localModels: [LocalModels.OnDevice] = []
     @Published var streaming: String? = nil      // chat id with a reply in flight
     @Published var live = ""                     // raw text of that reply
-    @Published var failure: [String: String] = [:]
     @Published var tokensPerSecond: Int? = nil
     @Published var pendingConsent: Provider? = nil
+    /// A chat whose held message went out when consent was given, so its screen clears the composer.
+    @Published var sentFromHold: String? = nil
 
     private var appleTask: Task<Void, Never>?
     private var cloudTask: Task<Void, Never>?
     private var session: (chatId: String, modelId: String, skill: String, count: Int)?
     private var stopped = false
-    private var started = Date(), chunks = 0
+    private var firstAt: Date?, chunks = 0
+    /// The message a consent sheet is holding back (MobileChat.jsx consentAsk).
+    private var held: (provider: String, chatId: String, raw: String, photo: Data?)?
 
     init(kv: KV, engine: LocalModels) {
         self.kv = kv
         self.engine = engine
+        Self.migrateLegacy(kv)
         reload()
     }
 
+    /// The one transcript the old build kept, `rx.chat.transcript`, brought across once (ChatScreen.jsx).
+    private static func migrateLegacy(_ kv: KV) {
+        let legacy = "rx.chat.transcript"
+        guard kv.string(legacy) != nil else { return }
+        let msgs = (kv.json(legacy) as? [[String: Any]] ?? []).enumerated().compactMap { Msg($1, index: $0) }
+        if !msgs.isEmpty {
+            ChatStore.save(kv, Chat(id: ChatStore.newId(), title: ChatStore.title(msgs), modelId: nil, modelName: nil, skillId: nil,
+                                    archived: false, updatedAt: Date().timeIntervalSince1970 * 1000, messages: msgs))
+        }
+        kv.set(legacy, string: nil)
+    }
+
     func reload() {
-        chats = ChatStore.all(kv)
+        // a new chat lives only here until its first message; a reload must not drop the one on screen
+        let unsaved = chats.filter { $0.messages.isEmpty }
+        let saved = ChatStore.all(kv)
+        chats = saved + unsaved.filter { u in !saved.contains { $0.id == u.id } }
         localModels = engine.downloadedOnDevice()
     }
 
@@ -78,12 +93,25 @@ final class AppModel: ObservableObject {
 
     func chat(_ id: String) -> Chat? { chats.first { $0.id == id } }
 
+    /// A conversation with no messages is never saved (chats.js) and Home never
+    /// lists it; older empty ones are dropped so they do not pile up in memory.
     func newChat() -> String {
         let id = ChatStore.newId()
         let m = option(currentModelId)
+        chats.removeAll { $0.messages.isEmpty && $0.id != streaming }
         chats.insert(Chat(id: id, title: "New chat", modelId: m?.id, modelName: m?.name, skillId: nil,
                           archived: false, updatedAt: Date().timeIntervalSince1970 * 1000, messages: []), at: 0)
         return id
+    }
+
+    /// Opening a model from Models reopens the most recent conversation with it,
+    /// or starts one if there is none (MobileShell.jsx openChat, ChatScreen.jsx).
+    func openChat(forModel modelId: String) -> String {
+        localModels = engine.downloadedOnDevice()   // it may have just finished downloading
+        choose(modelId)
+        guard let c = chats.first(where: { !$0.archived && !$0.messages.isEmpty }) else { return newChat() }
+        setModel(c.id, modelId)
+        return c.id
     }
 
     func delete(_ id: String) { ChatStore.delete(kv, id); chats.removeAll { $0.id == id } }
@@ -118,6 +146,7 @@ final class AppModel: ObservableObject {
         guard !body.isEmpty, let m = option(chats[i].modelId) ?? option(currentModelId) else { return false }
         // a cloud provider sees your words only after you have said it may
         if case .cloud(let p, _) = ModelRef(id: m.id), !Providers.hasConsent(kv, p) {
+            held = (p, chatId, raw, photo)
             pendingConsent = Providers.byId(p)
             return false
         }
@@ -131,9 +160,9 @@ final class AppModel: ObservableObject {
         chats[i].updatedAt = Double(stamp)
         ChatStore.save(kv, chats[i])
         Drafts.save(kv, chatId, "")
-        streaming = chatId; live = ""; stopped = false; failure[chatId] = nil
-        started = Date(); chunks = 0; tokensPerSecond = nil
-        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        streaming = chatId; live = ""; stopped = false
+        firstAt = nil; chunks = 0; tokensPerSecond = nil
+        Haptic.tap()
 
         let onToken: (String) -> Void = { chunk in Task { @MainActor in self.token(chatId, chunk) } }
         let onEnd: (Error?) -> Void = { e in Task { @MainActor in self.finish(chatId, m, instructions: instructions, error: e) } }
@@ -148,7 +177,7 @@ final class AppModel: ObservableObject {
             let prompt = Prompt.build(history, next: body, instructions: instructions, inline: false)
             appleTask = Task {
                 do { try await AppleLM.stream(prompt, instructions: instructions) { snap in
-                        Task { @MainActor in if self.streaming == chatId { self.live = snap; self.chunks += 1 } } }
+                        Task { @MainActor in if self.streaming == chatId { self.live = snap; self.chunks += 1; if self.firstAt == nil { self.firstAt = Date() } } } }
                      onEnd(nil)
                 } catch { onEnd(error) }
             }
@@ -164,11 +193,22 @@ final class AppModel: ObservableObject {
         return true
     }
 
+    /// "Allow" on the consent sheet: finish sending what it held back (MobileChat.jsx onAllow).
+    // TODO(wire): NativePreview ConsentSheet Allow must call app.consentGranted
+    func consentGranted(_ providerId: String) {
+        Providers.grantConsent(kv, providerId)
+        guard let h = held, h.provider == providerId else { return }
+        held = nil
+        if send(h.chatId, h.raw, photo: h.photo) { sentFromHold = h.chatId }
+    }
+
     private func token(_ chatId: String, _ chunk: String) {
         guard streaming == chatId else { return }
         live += chunk
         chunks += 1
-        let secs = Date().timeIntervalSince(started)
+        // timed from the first token, not the tap: loading and reading the prompt are not generation
+        if firstAt == nil { firstAt = Date() }
+        let secs = Date().timeIntervalSince(firstAt ?? Date())
         // tok/s only if a chunk really is a token, as MobileChat decides
         if chunks >= 8, secs > 0.5, Double(live.count) / Double(chunks) <= 12 { tokensPerSecond = Int(Double(chunks) / secs) }
     }
@@ -181,13 +221,17 @@ final class AppModel: ObservableObject {
     private func finish(_ chatId: String, _ m: ModelOption, instructions: String, error: Error?) {
         guard streaming == chatId, let i = chats.firstIndex(where: { $0.id == chatId }) else { return }
         let text = Fold.visible(live, opened: m.thinks, final: true).text.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !text.isEmpty {
-            chats[i].messages.append(Msg(id: "a\(Int(Date().timeIntervalSince1970 * 1000))", role: "assistant", text: text))
-        }
-        if let error, !stopped, text.isEmpty {
-            failure[chatId] = m.id == AppleLM.id
-                ? "Apple Intelligence couldn't answer. It may still be getting ready on this iPhone. Try again in a minute, or pick another model."
-                : "\(m.name) couldn't answer: \(error.localizedDescription)"
+        // a stop is the user's choice and never an error; a real failure is saved
+        // on the reply, with whatever it had written (MobileChat.jsx finish)
+        let failed = error != nil && !stopped
+        if !text.isEmpty || failed {
+            var reply = Msg(id: "a\(Int(Date().timeIntervalSince1970 * 1000))", role: "assistant", text: text)
+            if failed, let error {
+                reply.extra["error"] = m.id == AppleLM.id
+                    ? "Apple Intelligence couldn't answer. It may still be getting ready on this \(Device.word). Try again in a minute, or pick another model."
+                    : "\(m.name) couldn't answer: \(error.localizedDescription)"
+            }
+            chats[i].messages.append(reply)
         }
         // the engine's session holds the conversation only after a clean reply
         if case .local(let id) = ModelRef(id: m.id), error == nil, !stopped, !text.isEmpty {
@@ -197,6 +241,6 @@ final class AppModel: ObservableObject {
         chats[i].updatedAt = Date().timeIntervalSince1970 * 1000
         ChatStore.save(kv, chats[i])
         chats.sort { $0.updatedAt > $1.updatedAt }
-        if error == nil { UINotificationFeedbackGenerator().notificationOccurred(.success) }
+        if failed { Haptic.error() } else if error == nil, !stopped { Haptic.success() }
     }
 }

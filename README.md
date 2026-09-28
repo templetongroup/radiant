@@ -155,8 +155,7 @@
 directly on the device with Apple's MLX — search Hugging Face, see whether a
 model fits your device before you download it, and chat with nothing leaving
 the phone. It also talks to Apple Intelligence and to cloud models with your
-own key, which stays in the Keychain. The source is in `apps/ios` (the app) and
-`src/mobile` (its screens).
+own key, which stays in the Keychain. The app is native SwiftUI; the source is in `apps/ios`.
 
 ## Install the Mac app
 

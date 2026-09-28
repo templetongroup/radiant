@@ -1,22 +1,18 @@
 import SwiftUI
 import UIKit
+import StoreKit
 
 // The native app's foundation: the shared store, the theme, and small helpers.
 //
-// ⚠️ ONE STORE, TWO FRONTS, DURING THE REBUILD. The web screens keep their data
-// in localStorage under `radiant.phone.*` and `rx.*`. Until every screen is
-// native, the native screens read and write THOSE SAME KEYS, in THOSE SAME
-// SHAPES, through this mirror: the web hands over a snapshot when the native
-// app opens, and every write goes straight back (NativeApp.swift's "kv" event).
-// So either design can be used at any moment and neither loses the other's
-// work. When the web screens are gone, KV's backing changes to a file and
-// nothing above it moves.
+// The store: the same `radiant.phone.*` / `rx.*` keys and JSON shapes the web
+// design kept in localStorage, now backed by a file (Launch.swift's DiskStore),
+// with the old localStorage copied in once on the first native-only launch.
 
-/// The mirror of the web store's keys. Values are the raw strings localStorage holds.
+/// The app's key-value store. Values are raw strings, as localStorage held them.
 @MainActor
 final class KV: ObservableObject {
     @Published private(set) var raw: [String: String]
-    /// Sends a write back to the web store (nil value = remove).
+    /// Called after every write (nil value = remove); Launch saves the store to disk.
     var onWrite: (String, String?) -> Void = { _, _ in }
 
     init(_ snapshot: [String: String]) { raw = snapshot }
@@ -316,5 +312,57 @@ struct Swirl: View {
                                 anchor: UnitPoint(x: 0.499, y: 0.4868))
         }
         .accessibilityHidden(true)
+    }
+}
+
+// MARK: - small shared helpers
+
+enum Device {
+    /// "iPhone" or "iPad", for any sentence that names the device (device.js deviceWord).
+    static let word = UIDevice.current.userInterfaceIdiom == .pad ? "iPad" : "iPhone"
+    /// Catalogue text is written for a phone; on an iPad say iPad (device.js deviceText).
+    static func text(_ s: String) -> String { word == "iPad" ? s.replacingOccurrences(of: "iPhone", with: "iPad") : s }
+    /// The iPad reading column (MobileShell.jsx: 700pt from 768pt wide).
+    static let readingWidth: CGFloat = 700
+}
+
+enum Haptic {
+    static func tap(_ s: UIImpactFeedbackGenerator.FeedbackStyle = .light) { UIImpactFeedbackGenerator(style: s).impactOccurred() }
+    static func success() { UINotificationFeedbackGenerator().notificationOccurred(.success) }
+    static func warning() { UINotificationFeedbackGenerator().notificationOccurred(.warning) }
+    static func error() { UINotificationFeedbackGenerator().notificationOccurred(.error) }
+    static func tick() { UISelectionFeedbackGenerator().selectionChanged() }
+}
+
+extension View {
+    /// Cap a screen at the iPad reading width; no effect on a phone.
+    func readingWidth() -> some View { frame(maxWidth: Device.readingWidth).frame(maxWidth: .infinity) }
+}
+
+/// Ask for an App Store rating once ever, only after something worked: a
+/// finished download, with at least six messages sent across chats (rating.js).
+enum Rating {
+    static let key = "radiant.phone.ratingAsked"
+    @MainActor static func maybeAsk(_ kv: KV, turns: Int) {
+        guard kv.string(key) != "1", turns >= 6 else { return }
+        kv.set(key, string: "1")   // before asking: asking twice is worse than not asking
+        if let scene = UIApplication.shared.connectedScenes.first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene {
+            AppStore.requestReview(in: scene)
+        }
+    }
+}
+
+/// The filled button: the theme's color with its own text color. The system
+/// .borderedProminent takes its label color from the surroundings, so under a
+/// tinted header its text vanished into the fill (green on green).
+struct Prominent: ButtonStyle {
+    @Environment(\.rx) private var rx
+    @Environment(\.isEnabled) private var enabled
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.headline)
+            .foregroundStyle(rx.onTint)
+            .padding(.vertical, 12).padding(.horizontal, 18)
+            .background(rx.tint.opacity(enabled ? (configuration.isPressed ? 0.8 : 1) : 0.4), in: Capsule())
     }
 }

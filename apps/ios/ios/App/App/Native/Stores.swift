@@ -118,14 +118,46 @@ enum ChatStore {
 
 // MARK: - drafts (drafts.js)
 
+/// `{[chatId]: {text, at}}`, newest 40 kept. A plain string (what this side
+/// wrote before build 42) still reads.
 @MainActor
 enum Drafts {
     static let key = "radiant.phone.drafts"
-    static func load(_ kv: KV, _ id: String) -> String { (kv.json(key) as? [String: Any])?[id] as? String ?? "" }
-    static func save(_ kv: KV, _ id: String, _ text: String) {
-        var d = kv.json(key) as? [String: Any] ?? [:]
-        if text.isEmpty { d.removeValue(forKey: id) } else { d[id] = text }
-        kv.set(key, json: d)
+    static let maxKept = 40   // MAX in drafts.js
+
+    private static func text(_ v: Any?) -> String { (v as? [String: Any])?["text"] as? String ?? v as? String ?? "" }
+    private static func at(_ v: Any?) -> Double { (v as? [String: Any])?["at"] as? Double ?? 0 }
+    private static func read(_ kv: KV) -> [String: Any] { kv.json(key) as? [String: Any] ?? [:] }
+
+    /// Newest first, then capped: the ones worth keeping are the ones touched last.
+    private static func write(_ kv: KV, _ map: [String: Any]) {
+        let rows = map.filter { !text($0.value).isEmpty }
+            .map { ($0.key, ["text": text($0.value), "at": at($0.value)] as [String: Any]) }
+            .sorted { at($0.1) > at($1.1) }.prefix(maxKept)
+        kv.set(key, json: Dictionary(uniqueKeysWithValues: Array(rows)))
+    }
+
+    static func load(_ kv: KV, _ id: String) -> String { text(read(kv)[id]) }
+
+    static func save(_ kv: KV, _ id: String, _ t: String) {
+        var d = read(kv)
+        guard !t.isEmpty || d[id] != nil else { return }
+        if t.isEmpty { d.removeValue(forKey: id) } else { d[id] = ["text": t, "at": Date().timeIntervalSince1970 * 1000] }
+        write(kv, d)
+    }
+
+    /// A new chat that was typed in and left before its first message has an id
+    /// nothing will ask for again; its words move to the next new chat (adoptDraft).
+    static func adopt(_ kv: KV, _ id: String, known: [String]) -> String {
+        var d = read(kv)
+        if d[id] != nil { return text(d[id]) }
+        let keep = Set(known + [id])
+        let orphans = d.filter { !keep.contains($0.key) && !text($0.value).isEmpty }.sorted { at($0.value) > at($1.value) }
+        guard let best = orphans.first else { return "" }
+        for (k, _) in orphans { d.removeValue(forKey: k) }
+        d[id] = ["text": text(best.value), "at": at(best.value) > 0 ? at(best.value) : Date().timeIntervalSince1970 * 1000]
+        write(kv, d)
+        return text(best.value)
     }
 }
 

@@ -9,12 +9,15 @@ struct HomeView: View {
     var go: (Route) -> Void = { _ in }
     @State private var query = ""
     @State private var showArchived = false
+    @State private var firstRun = false
 
     private func matches(_ c: Chat) -> Bool {
         query.isEmpty || c.title.localizedCaseInsensitiveContains(query) || c.preview.localizedCaseInsensitiveContains(query)
     }
-    private var live: [Chat] { app.chats.filter { !$0.archived && matches($0) } }
-    private var archived: [Chat] { app.chats.filter { $0.archived && matches($0) } }
+    /// A chat with no messages is never listed (chats.js): it is only a new chat not yet started.
+    private var started: [Chat] { app.chats.filter { !$0.messages.isEmpty } }
+    private var live: [Chat] { started.filter { !$0.archived && matches($0) } }
+    private var archived: [Chat] { started.filter { $0.archived && matches($0) } }
 
     var body: some View {
         List {
@@ -24,9 +27,11 @@ struct HomeView: View {
             ForEach(live) { chat in
                 row(chat)
                     .listRowSeparator(chat.id == live.first?.id ? .hidden : .visible, edges: .top)
-                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                    // a full swipe commits the first action — Archive, the safe one, as
+                    // Mail does; Delete stays a deliberate tap (SwipeRow.jsx)
+                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                        Button { Haptic.success(); app.setArchived(chat.id, true) } label: { Label("Archive", systemImage: "archivebox") }.tint(.indigo)
                         Button(role: .destructive) { app.delete(chat.id) } label: { Label("Delete", systemImage: "trash") }
-                        Button { app.setArchived(chat.id, true) } label: { Label("Archive", systemImage: "archivebox") }.tint(.indigo)
                     }
             }
             if !archived.isEmpty {
@@ -34,9 +39,9 @@ struct HomeView: View {
                     DisclosureGroup(isExpanded: $showArchived) {
                         ForEach(archived) { chat in
                             row(chat)
-                                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                    Button { Haptic.success(); app.setArchived(chat.id, false) } label: { Label("Restore", systemImage: "tray.and.arrow.up") }.tint(rx.tint)
                                     Button(role: .destructive) { app.delete(chat.id) } label: { Label("Delete", systemImage: "trash") }
-                                    Button { app.setArchived(chat.id, false) } label: { Label("Restore", systemImage: "tray.and.arrow.up") }.tint(rx.tint)
                                 }
                         }
                     } label: {
@@ -50,6 +55,7 @@ struct HomeView: View {
                 .listRowSeparator(.hidden)
         }
         .listStyle(.plain)
+        .readingWidth()
         .scrollContentBackground(.hidden)
         .background(rx.bg)
         .searchable(text: $query, prompt: "Search conversations")
@@ -64,9 +70,7 @@ struct HomeView: View {
                     Button("Models", systemImage: "square.stack.3d.up") { go(.models) }
                     Button("Skills", systemImage: "wand.and.stars") { go(.skills) }
                     Button("Cloud models", systemImage: "cloud") { go(.cloud) }
-                    Button("Read me", systemImage: "book") { app.openWeb("readme") }
-                    Divider()
-                    Button("Use the current design", systemImage: "arrow.uturn.backward") { app.close() }
+                    Button("Read me", systemImage: "book") { go(.readme) }
                 } label: {
                     Image(systemName: "gearshape").accessibilityLabel("Settings and more")
                 }
@@ -85,6 +89,20 @@ struct HomeView: View {
             }
         }
         .refreshable { app.reload() }
+        // First launch with nothing to talk to: the welcome, once (MobileShell.jsx showFirstRun)
+        .onAppear {
+            if app.kv.string(FirstRun.key) != "1", app.localModels.isEmpty, Providers.chosen(app.kv) == nil { firstRun = true }
+        }
+        .fullScreenCover(isPresented: $firstRun) {
+            FirstRun(start: { finishFirstRun(); open(app.newChat()) },
+                     choose: { finishFirstRun(); go(.models) })
+                .modifier(Themed(appearance: app.appearance))
+        }
+    }
+
+    private func finishFirstRun() {
+        app.kv.set(FirstRun.key, string: "1")
+        firstRun = false
     }
 
     private func row(_ chat: Chat) -> some View {
@@ -129,14 +147,14 @@ struct HomeView: View {
                 .accessibilityLabel("Radiant").accessibilityAddTraits(.isHeader)
             Text(Self.greeting()).font(.subheadline).foregroundStyle(rx.label2).padding(.top, 14)
             if app.options.isEmpty {
-                Text("No model on this iPhone yet.\nChoose one and it runs here, offline.")
+                Text("No model on this \(Device.word) yet.\nChoose one and it runs here, offline.")
                     .font(.subheadline).foregroundStyle(rx.label2).padding(.top, 10)
-                Button("Choose a model") { go(.models) }.buttonStyle(.borderedProminent).padding(.top, 14)
+                Button("Choose a model") { go(.models) }.buttonStyle(Prominent()).padding(.top, 14)
             } else if let name = app.option(app.currentModelId)?.name {
                 (Text("Current model: ").foregroundStyle(rx.label2) + Text(name).fontWeight(.semibold).foregroundStyle(rx.label))
                     .font(.footnote).padding(.top, 12)
             }
-            if app.chats.isEmpty, !app.options.isEmpty {
+            if started.isEmpty, !app.options.isEmpty {
                 Text("Start a conversation with the button below.").font(.footnote).foregroundStyle(rx.label2).padding(.top, 28)
             }
         }
@@ -178,5 +196,58 @@ struct HomeView: View {
         let h = key.unicodeScalars.reduce(5381) { ($0 &* 33 &+ Int($1.value)) & 0x7fffffff }
         let hues: [Double] = [258, 200, 150, 55, 310, 25, 180, 90]
         return Color(oklch: rx.dark ? 0.62 : 0.55, 0.13, hues[h % hues.count])
+    }
+}
+
+/// The first five seconds (FirstRun.jsx): what Radiant is, and the one action
+/// that can actually be completed — Start chat only when something can answer.
+struct FirstRun: View {
+    static let key = "rx.firstRunDone"   // FIRSTRUN_KEY in MobileShell.jsx
+    @EnvironmentObject var app: AppModel
+    @Environment(\.rx) private var rx
+    let start: () -> Void
+    let choose: () -> Void
+
+    var body: some View {
+        let apple = AppleLM.option != nil
+        let canStart = !app.localModels.isEmpty || apple
+        VStack(spacing: 0) {
+            Spacer()
+            Image("LogoMark").renderingMode(.template).resizable().scaledToFit()
+                .frame(width: 132, height: 132).accessibilityHidden(true)
+            Image("Wordmark").renderingMode(.template).resizable().scaledToFit()
+                .frame(width: 180).padding(.top, 18)
+                .accessibilityLabel("Radiant").accessibilityAddTraits(.isHeader)
+            Text("Open AI models, running on your \(Device.word).")
+                .font(.title3.weight(.semibold)).foregroundStyle(rx.label).padding(.top, 24)
+            Text(apple
+                 ? "Start now with Apple Intelligence, already on this \(Device.word). Download a model when you want one of your own — it keeps working with no signal, and nothing you send it leaves this device."
+                 : "Download one and talk to it anywhere. It keeps working with no signal, and nothing you send it leaves this device.")
+                .font(.subheadline).foregroundStyle(rx.label2).padding(.top, 10)
+            Spacer()
+            VStack(spacing: 12) {
+                if canStart {
+                    Button(action: start) { Text("Start chat").font(.headline).frame(maxWidth: .infinity).padding(.vertical, 6) }
+                        .buttonStyle(Prominent())
+                    Button(action: choose) { Text("Choose model").font(.headline).frame(maxWidth: .infinity).padding(.vertical, 6) }
+                        .buttonStyle(.bordered)
+                } else {
+                    Button(action: choose) { Text("Choose model").font(.headline).frame(maxWidth: .infinity).padding(.vertical, 6) }
+                        .buttonStyle(Prominent())
+                }
+            }
+            // no Templeton Technologies mark in the asset catalog yet: the byline carries the name
+            Link(destination: URL(string: "https://templetontech.com")!) {
+                (Text("Radiant is a ").foregroundStyle(rx.label2) + Text("Templeton Technologies").foregroundStyle(rx.tintText) + Text(" product.").foregroundStyle(rx.label2))
+                    .font(.caption2)
+            }
+            .padding(.top, 24).padding(.bottom, 8)
+            .accessibilityLabel("Radiant is a Templeton Technologies product. Opens templetontech.com.")
+        }
+        .foregroundStyle(rx.tintText)
+        .multilineTextAlignment(.center)
+        .padding(.horizontal, 28)
+        .readingWidth()
+        .background(rx.bg.ignoresSafeArea())
     }
 }

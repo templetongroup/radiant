@@ -50,7 +50,7 @@ const git = (...a) => execFileSync(GIT, a, { encoding: 'utf8', maxBuffer: 64 * 1
 // ── what changed ─────────────────────────────────────────────────────────
 const messages = git('log', '--format=%H%n%B%n----END----', spec).split('----END----').map(s => s.trim()).filter(Boolean)
   .map(s => { const [sha, ...rest] = s.split('\n'); return { sha: sha.slice(0, 7), text: rest.join('\n').replace(/\n*Co-Authored-By:.*$/s, '').trim() } })
-const diff = git('diff', spec, '--', 'src/components/Settings.jsx', 'src/mobile/ReadMeScreen.jsx')
+const diff = git('diff', spec, '--', 'src/components/Settings.jsx', 'apps/ios/ios/App/App/Native/ReadMeView.swift')
 // new Read me lines: added lines that look like a GUIDE entry or a phone section paragraph
 const readme = []
 for (const line of diff.split('\n')) {

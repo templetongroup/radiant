@@ -1,5 +1,8 @@
 import SwiftUI
 import UIKit
+#if canImport(FoundationModels)
+import FoundationModels
+#endif
 
 // Models: what is on this phone, what else there is (by maker, A to Z), whether
 // each one will run here, downloads with real progress, and Hugging Face search.
@@ -31,8 +34,13 @@ enum Fit: String {
 
 struct Progress: Equatable { var pct: Double?; var done: Double }
 
+private func gbText(_ gb: Double) -> String { String(format: "%.1f GB", gb) }
+
 @MainActor
 final class ModelsModel: ObservableObject {
+    /// The one model the empty hero and the sheet recommend (RECOMMENDED_ID in ModelsScreen.jsx).
+    static let recommendedId = "qwen3-1.7b"
+
     let engine: LocalModels
     @Published var rows: [LocalModels.CatalogRow] = []
     @Published var progress: [String: Progress] = [:]
@@ -43,10 +51,17 @@ final class ModelsModel: ObservableObject {
     @Published var refused: [String: (label: String, why: String)] = [:]
     private var checked: Set<String> = []
     @Published var disk: (free: Int64, total: Int64) = (0, 0)
+    /// Measured bytes of each downloaded model, for the storage line.
+    @Published var sizes: [String: Int64] = [:]
+    /// A download that finished AND is really on disk — the sheet that started it opens the chat.
+    @Published var justDone: String?
     let budget: Double
-    let device = UIDevice.current.userInterfaceIdiom == .pad ? "iPad" : "iPhone"
+    let spec = LocalModels.deviceSummary()
     private var token: UUID?
+    private var spoken: [String: Int] = [:]   // the last 25% step announced, per download
     var onChange: () -> Void = {}
+    /// After a verified download: the view asks for a rating here.
+    var onDownloaded: () -> Void = {}
 
     init(engine: LocalModels) {
         self.engine = engine
@@ -59,6 +74,7 @@ final class ModelsModel: ObservableObject {
     func refresh() {
         rows = engine.catalogRows()
         disk = engine.disk()
+        sizes = Dictionary(uniqueKeysWithValues: rows.filter(\.downloaded).map { ($0.id, engine.bytesOnDisk($0.id)) })
         // a download that started before this screen opened is still running
         for r in rows where engine.isDownloading(r.id) && progress[r.id] == nil { progress[r.id] = Progress(pct: nil, done: 0) }
         for r in rows where r.custom && !r.downloaded && !checked.contains(r.id) {
@@ -71,22 +87,67 @@ final class ModelsModel: ObservableObject {
         }
     }
 
+    func name(_ id: String) -> String { rows.first { $0.id == id }?.name ?? "Another model" }
+
+    private func announce(_ s: String) { AccessibilityNotification.Announcement(s).post() }
+
     private func handle(_ event: String, _ d: [String: Any]) {
         guard let id = d["id"] as? String else { return }
         switch event {
-        case "downloadStarted": progress[id] = Progress(pct: nil, done: 0); failed[id] = nil
+        case "downloadStarted":
+            progress[id] = Progress(pct: nil, done: 0); failed[id] = nil; spoken[id] = 0
+            announce("Downloading \(name(id))")
         case "downloadProgress":
+            // a stop clears the row at once; a late progress event must not bring it back
+            guard progress[id] != nil else { return }
             let p = d["progress"] as? Double ?? -1
             progress[id] = Progress(pct: p >= 0 ? p : nil, done: (d["completedBytes"] as? Double) ?? Double(d["completedBytes"] as? Int64 ?? 0))
+            // every 25%, not every 1% (the Announcer in ModelsScreen.jsx)
+            if p >= 0 { let step = Int(p * 100) / 25 * 25
+                if step > (spoken[id] ?? 0), step < 100 { spoken[id] = step; announce("Downloading \(name(id)), \(step) percent") } }
         case "downloadPreparing": preparing.insert(id)
-        case "downloadDone": progress[id] = nil; preparing.remove(id); refresh(); onChange()
-        case "downloadCancelled": progress[id] = nil; preparing.remove(id)
-        case "downloadFailed": progress[id] = nil; preparing.remove(id); failed[id] = d["message"] as? String ?? "Download failed."
+        case "downloadDone":
+            progress[id] = nil; preparing.remove(id); refresh(); onChange()
+            verify(id)
+        case "downloadCancelled": progress[id] = nil; preparing.remove(id); failed[id] = nil; disk = engine.disk()
+        case "downloadFailed":
+            progress[id] = nil; preparing.remove(id)
+            let why = d["message"] as? String ?? "The download did not finish."
+            failed[id] = why
+            Haptic.error()
+            announce("\(name(id)) failed. \(why)")
         default: break
         }
     }
 
+    /// A finished download the app then does not recognise must say so (useLocalModels.js).
+    private func verify(_ id: String) {
+        if let c = engine.downloadCheck(id), !c.onDisk {
+            let why = c.hasReceipt
+                ? String(format: "The download finished but Radiant found only %.2f GB of the %.2f GB expected in %@. The files may be incomplete, or the repo may store them elsewhere.",
+                         Double(c.bytes) / 1e9, Double(c.expected) / 1e9, c.folder)
+                : "The download finished but was not recorded. Try again."
+            failed[id] = why
+            Haptic.error()
+            announce("\(name(id)) failed. \(why)")
+            return
+        }
+        Haptic.success()
+        announce("\(name(id)) downloaded.")
+        justDone = id
+        onDownloaded()
+    }
+
     func fit(_ r: LocalModels.CatalogRow) -> Fit? { Fit.of(r.gb, budgetBytes: budget) }
+
+    /// Bytes short of room for this model; 0 when it fits, or when the disk is unknown (no claim without data).
+    func shortBy(_ r: LocalModels.CatalogRow) -> Double {
+        guard disk.total > 0, !r.downloaded else { return 0 }
+        return max(0, r.gb * 1e9 - Double(disk.free))
+    }
+
+    /// Some OTHER model is downloading (preparing does not count — its bytes are in).
+    func busyElsewhere(_ id: String) -> Bool { progress.keys.contains { $0 != id && !preparing.contains($0) } }
 
     /// "42%", or the megabytes when the total is not known; nil = say Downloading…
     static func text(_ p: Progress?) -> String? {
@@ -96,20 +157,67 @@ final class ModelsModel: ObservableObject {
         return nil
     }
 
-    func download(_ id: String) { failed[id] = nil; progress[id] = Progress(pct: nil, done: 0); engine.startDownload(id) }
-    func stop(_ id: String) { engine.stopDownload(id) }
+    func download(_ id: String) {
+        // One at a time, but say so — a guard that refuses without a word is a silent failure.
+        if let busy = progress.keys.first(where: { $0 != id && !preparing.contains($0) }) {
+            failed[id] = "\(name(busy)) is downloading. Wait for it to finish, or stop it first."
+            Haptic.warning()
+            return
+        }
+        failed[id] = nil
+        guard engine.knows(id) else {
+            progress[id] = nil
+            failed[id] = "The download did not start."
+            Haptic.error()
+            return
+        }
+        Haptic.tap(.medium)
+        progress[id] = Progress(pct: nil, done: 0)
+        engine.startDownload(id)
+    }
+
+    /// Clears the row at once; downloadCancelled confirms it. Preparing cannot be stopped — the bytes are in.
+    func stop(_ id: String) {
+        guard !preparing.contains(id) else { return }
+        Haptic.tap(.medium)
+        progress[id] = nil
+        engine.stopDownload(id)
+    }
+
     func remove(_ r: LocalModels.CatalogRow) {
         if r.custom { engine.removeCustomModel(r.id) } else { engine.removeModel(r.id) }
+        failed[r.id] = nil
         refresh(); onChange()
     }
 
-    var usedBytes: Int64 { rows.filter(\.downloaded).reduce(0) { $0 + engine.bytesOnDisk($1.id) } }
+    var usedBytes: Int64 { sizes.values.reduce(0, +) }
 
     /// Makers A to Z, models A to Z inside each, numbers as numbers (makers.js).
+    /// Downloaded models stay on their shelf, with a tick.
     var shelves: [(maker: String, models: [LocalModels.CatalogRow])] {
-        let groups = Dictionary(grouping: rows.filter { !$0.downloaded }, by: \.maker)
+        let groups = Dictionary(grouping: rows, by: \.maker)
         return groups.keys.sorted { $0.localizedStandardCompare($1) == .orderedAscending }
             .map { ($0, groups[$0]!.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }) }
+    }
+}
+
+extension AppleLM {
+    /// Why Apple's model cannot answer, in words a person can act on (AppleModel.swift availability).
+    static var reason: String {
+        #if canImport(FoundationModels)
+        if #available(iOS 26.0, *) {
+            if case .unavailable(let why) = SystemLanguageModel.default.availability {
+                switch why {
+                case .deviceNotEligible: return "This \(Device.word) does not support Apple Intelligence."
+                case .appleIntelligenceNotEnabled: return "Turn on Apple Intelligence in Settings to use Apple's model."
+                case .modelNotReady: return "Apple's model is still downloading in the background. Try again shortly."
+                @unknown default: break
+                }
+            }
+            return "Apple's model is not available on this \(Device.word) right now."
+        }
+        #endif
+        return "Apple's model needs iOS 26 or later."
     }
 }
 
@@ -117,6 +225,7 @@ struct ModelsView: View {
     @EnvironmentObject var app: AppModel
     @StateObject private var models: ModelsModel
     @Environment(\.rx) private var rx
+    @Environment(\.scenePhase) private var scenePhase
     @State private var open: Set<String> = []
     @State private var detail: LocalModels.CatalogRow?
     let startChat: (String) -> Void
@@ -126,39 +235,60 @@ struct ModelsView: View {
         self.startChat = startChat
     }
 
+    /// The model a new chat would use, if it is Apple's or one on this device (not a cloud one).
+    private var heroModel: (id: String, name: String, gb: Double?)? {
+        var here: [(id: String, name: String, gb: Double?)] = AppleLM.available ? [(AppleLM.id, "Apple Intelligence", nil)] : []
+        here += models.rows.filter(\.downloaded).map { ($0.id, $0.name, $0.gb) }
+        return here.first { $0.id == app.currentModelId } ?? here.first
+    }
+
+    /// Opens the empty hero: the recommendation, falling back to the smallest.
+    private var pick: LocalModels.CatalogRow? {
+        models.rows.first { $0.id == ModelsModel.recommendedId } ?? models.rows.min { $0.gb < $1.gb }
+    }
+
     var body: some View {
+        let installed = models.rows.filter(\.downloaded)
         List {
-            Section { storage }.listRowBackground(rx.cell)
-            let installed = models.rows.filter(\.downloaded)
+            Section { hero }.listRowBackground(Color.clear)
+
             Section {
-                if AppleLM.available {
-                    Button { app.choose(AppleLM.id); startChat(AppleLM.id) } label: {
-                        rowLabel(title: "Apple Intelligence", subtitle: "Built into iOS · nothing to download", current: app.currentModelId == AppleLM.id)
-                    }.buttonStyle(.plain)
-                }
-                if let c = Providers.chosen(app.kv) {
-                    let id = "cloud:\(c.providerId):\(c.model)"
+                appleRow
+            } header: { Text("Already on this \(Device.word)").foregroundStyle(rx.label2) } footer: {
+                Text(AppleLM.available
+                     ? "Apple’s own model, already on this \(Device.word). Free, works offline, and nothing is downloaded. The models below are yours to keep and are usually better at longer work."
+                     : "Radiant can use Apple’s built-in model when it is available. The models below run on this \(Device.word) regardless.")
+                    .foregroundStyle(rx.label2)
+            }
+            .listRowBackground(rx.cell)
+
+            if let c = Providers.chosen(app.kv) {
+                let id = "cloud:\(c.providerId):\(c.model)"
+                Section {
                     Button { startChat(id) } label: {
                         rowLabel(title: Providers.shortName(c.model), subtitle: "Cloud · \(Providers.byId(c.providerId)?.name ?? c.providerId)", current: app.currentModelId == id)
                     }.buttonStyle(.plain)
+                } header: { Text("Cloud").foregroundStyle(rx.label2) }
+                .listRowBackground(rx.cell)
+            }
+
+            if !installed.isEmpty {
+                Section {
+                    ForEach(installed) { r in installedRow(r) }
+                } header: { Text("On this \(Device.word)").foregroundStyle(rx.label2) } footer: {
+                    Text("Tap one to start a conversation with it. Tap Manage to remove it.").foregroundStyle(rx.label2)
                 }
-                ForEach(installed) { r in
-                    Button { app.choose(r.id); startChat(r.id) } label: {
-                        rowLabel(title: r.name, subtitle: String(format: "%.1f GB", r.gb) + " · " + r.maker, current: app.currentModelId == r.id)
-                    }
-                    .buttonStyle(.plain)
-                    .swipeActions { Button("Remove", role: .destructive) { models.remove(r) } }
-                    .contextMenu { Button("Details", systemImage: "info.circle") { detail = r } }
-                }
-            } header: { Text("On this \(models.device)").foregroundStyle(rx.label2) }
-            .listRowBackground(rx.cell)
+                .listRowBackground(rx.cell)
+            }
 
             Section {
-                NavigationLink { HFSearchView(models: models) } label: {
+                NavigationLink { HFSearchView(models: models, startChat: startChat) } label: {
                     Label("Search Hugging Face", systemImage: "magnifyingglass").foregroundStyle(rx.label)
                 }
             }
             .listRowBackground(rx.cell)
+
+            Section { specs }.listRowBackground(rx.cell)
 
             ForEach(models.shelves, id: \.maker) { shelf in
                 Section {
@@ -168,24 +298,114 @@ struct ModelsView: View {
                         HStack {
                             Text(shelf.maker).font(.headline).foregroundStyle(rx.label)
                             Spacer()
-                            let runs = shelf.models.filter { models.fit($0) != .no }.count
-                            Text("\(shelf.models.count) model\(shelf.models.count == 1 ? "" : "s") · \(runs) run here")
-                                .font(.caption).foregroundStyle(rx.label2)
+                            Text(shelfMeta(shelf.models)).font(.caption).foregroundStyle(rx.label2)
                         }
                     }
                 }
                 .listRowBackground(rx.cell)
             }
+            if models.rows.isEmpty {
+                Section { Text("No models are available on this device.").font(.subheadline).foregroundStyle(rx.label2) }
+                    .listRowBackground(rx.cell)
+            }
+            // the privacy claim, in the quietest text on the screen
+            Section {} footer: {
+                Text("A model you download runs on this \(Device.word), and nothing you send it leaves the device. A provider you add in Settings is a network service, and what you send there goes to them.")
+                    .foregroundStyle(rx.label2)
+            }
         }
         .scrollContentBackground(.hidden)
+        .readingWidth()
         .background(rx.grouped)
+        .safeAreaInset(edge: .bottom) { if models.disk.total > 0 { storage } }
         .navigationTitle("Models")
-        .sheet(item: $detail) { r in ModelDetail(row: r, models: models, startChat: { detail = nil; startChat($0) }).presentationDetents([.medium]) }
-        .onAppear { models.onChange = { app.reload() }; models.refresh() }
+        .sheet(item: $detail) { r in
+            ModelDetail(row: r, models: models, startChat: { detail = nil; startChat($0) })
+                .presentationDetents(r.downloaded ? [.medium] : [.large])
+        }
+        .onAppear {
+            models.onChange = { app.reload() }
+            models.onDownloaded = { Rating.maybeAsk(app.kv, turns: app.chats.reduce(0) { $0 + $1.messages.filter { $0.role == "user" }.count }) }
+            models.refresh()
+        }
+        .onChange(of: scenePhase) { _, p in if p == .active { models.refresh() } }
         .refreshable { models.refresh() }
     }
 
-    private func rowLabel(title: String, subtitle: String, current: Bool) -> some View {
+    // MARK: hero
+
+    private var hero: some View {
+        let m = heroModel
+        let state = m.map { $0.gb.map { "Ready on this \(Device.word) · " + gbText($0) } ?? "Built into iOS · nothing to download" }
+            ?? "Choose a model to run on this \(Device.word)"
+        let spoken = m.map { m in m.gb.map { "\(m.name), ready on this \(Device.word), \(gbText($0)). Opens the conversation." }
+            ?? "\(m.name), built into iOS, nothing to download. Opens the conversation." } ?? "No model yet. Choose a model to download."
+        return Button {
+            if let m { startChat(m.id) } else if let pick { detail = pick }
+        } label: {
+            HStack(spacing: 16) {
+                Image("LogoMark").renderingMode(.template).resizable().scaledToFit()
+                    .frame(width: 72, height: 72).foregroundStyle(m == nil ? rx.label3 : rx.tintText)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(m?.name ?? "No model yet").font(.title2.weight(.bold)).foregroundStyle(rx.label)
+                    HStack(spacing: 4) {
+                        Text(state).font(.footnote).monospacedDigit().foregroundStyle(rx.label2)
+                        Image(systemName: "chevron.right").font(.caption2.weight(.semibold)).foregroundStyle(rx.label3)
+                    }
+                }
+                Spacer(minLength: 0)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(m == nil && pick == nil)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(spoken)
+        .accessibilityAddTraits(.isButton)
+    }
+
+    // MARK: rows
+
+    private var appleRow: some View {
+        let ok = AppleLM.available
+        return Button { startChat(AppleLM.id) } label: {
+            rowLabel(title: "Apple Intelligence", subtitle: ok ? "Built into iOS · nothing to download" : AppleLM.reason,
+                     current: ok && app.currentModelId == AppleLM.id, chevron: ok)
+        }
+        .buttonStyle(.plain)
+        .disabled(!ok)
+        .opacity(ok ? 1 : 0.55)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(ok ? "Chat with Apple Intelligence\(app.currentModelId == AppleLM.id ? ", current model" : ""), built into iOS"
+                               : "Apple Intelligence unavailable. \(AppleLM.reason)")
+    }
+
+    private func installedRow(_ r: LocalModels.CatalogRow) -> some View {
+        let current = app.currentModelId == r.id
+        return Button { startChat(r.id) } label: {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        Text(r.name).foregroundStyle(rx.label)
+                        if current { Text("Current").font(.caption.weight(.semibold)).foregroundStyle(rx.tintText) }
+                    }
+                    Text(gbText(r.gb) + " on this \(Device.word)").font(.caption).foregroundStyle(rx.label2)
+                }
+                Spacer()
+                Button("Manage") { detail = r }
+                    .buttonStyle(.plain).font(.subheadline).foregroundStyle(rx.tintText)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .swipeActions { Button("Remove", role: .destructive) { models.remove(r) } }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Chat with \(r.name)\(current ? ", current model" : "")")
+        .accessibilityAddTraits(.isButton)
+        .accessibilityAction(named: "Manage \(r.name)") { detail = r }
+    }
+
+    private func rowLabel(title: String, subtitle: String, current: Bool, chevron: Bool = true) -> some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).foregroundStyle(rx.label)
@@ -193,15 +413,42 @@ struct ModelsView: View {
             }
             Spacer()
             if current { Text("Current").font(.caption.weight(.semibold)).foregroundStyle(rx.tintText) }
-            Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(rx.label3)
+            if chevron { Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(rx.label3) }
         }
         .contentShape(Rectangle())
         .listRowBackground(rx.cell)
     }
 
+    /// "3 models · 2 run here", nothing about running before the budget is known (MakerSection.jsx).
+    private func shelfMeta(_ rows: [LocalModels.CatalogRow]) -> String {
+        let count = "\(rows.count) model\(rows.count == 1 ? "" : "s")"
+        guard models.budget > 0 else { return count }
+        let runs = rows.filter { models.fit($0) != .no }.count
+        return count + (runs == 0 ? " · none run here" : " · \(runs) run\(runs == 1 ? "s" : "") here")
+    }
+
     private func catalogRow(_ r: LocalModels.CatalogRow) -> some View {
         let fit = models.fit(r)
         let p = models.progress[r.id]
+        let preparing = models.preparing.contains(r.id)
+        let failure = p == nil ? models.failed[r.id] : nil
+        let short = p == nil ? models.shortBy(r) : 0
+        let tooBig = fit == .no && !r.downloaded
+        let busy = models.busyElsewhere(r.id)
+        let pct = p?.pct.map { Int(($0 * 100).rounded()) }
+        let shown = ModelsModel.text(p)
+        let spoken = "\(r.name), \(gbText(r.gb))" + (
+            r.downloaded ? ", on this \(Device.word)"
+            : preparing ? ", downloaded, preparing the model"
+            : p != nil ? ", downloading" + (pct.map { ", \($0) percent" } ?? "")
+            : short > 0 ? ", not enough room"
+            : fit.map { ", \($0.label.lowercased()) on this \(Device.word)" } ?? "")
+        let accessory: (name: String, run: () -> Void)? =
+            r.downloaded ? ("Chat with \(r.name)", { startChat(r.id) })
+            : preparing ? nil
+            : p != nil ? ("Stop downloading \(r.name)" + (shown.map { ", \($0) done" } ?? ""), { models.stop(r.id) })
+            : short > 0 || busy ? nil
+            : ("Download \(r.name)", { models.download(r.id) })
         return Button { detail = r } label: {
             HStack(alignment: .top) {
                 // While it downloads, the logo turns beside the name and the
@@ -210,93 +457,236 @@ struct ModelsView: View {
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 6) {
                         Text(r.name).foregroundStyle(rx.label)
-                        if let no = models.refused[r.id] { Text(no.label).font(.caption.weight(.semibold)).foregroundStyle(.red) }
-                        else if let fit { Text(fit.label).font(.caption.weight(.semibold)).foregroundStyle(fit.color) }
+                        if !r.downloaded && p == nil && failure == nil {
+                            if let no = models.refused[r.id] { Text(no.label).font(.caption.weight(.semibold)).foregroundStyle(.red) }
+                            else if let fit { Text(fit.label).font(.caption.weight(.semibold)).foregroundStyle(fit.color) }
+                        }
                     }
-                    if p != nil {
-                        Text(models.preparing.contains(r.id) ? "Preparing…" : "Downloading… " + (ModelsModel.text(p) ?? ""))
-                            .font(.caption).monospacedDigit().foregroundStyle(rx.label2)
-                    } else {
-                        Text(String(format: "%.1f GB", r.gb) + " · " + r.blurb).font(.caption).foregroundStyle(rx.label2).lineLimit(2)
+                    Group {
+                        if p != nil {
+                            Text(preparing ? "Preparing the model…" : "Downloading…" + (shown.map { " " + $0 } ?? "")).monospacedDigit().foregroundStyle(rx.label2)
+                        } else if let failure {
+                            Text((failure.hasSuffix(".") ? String(failure.dropLast()) : failure) + ". Tap to try again.").foregroundStyle(.red)
+                        } else if short > 0 {
+                            Text("Needs \(gbText(short / 1e9)) more room").foregroundStyle(.orange)
+                        } else if tooBig {
+                            Text(String(format: "Needs about %.1f GB of memory", Fit.need(r.gb))).foregroundStyle(rx.label2)
+                        } else {
+                            Text(gbText(r.gb) + " · " + Device.text(r.blurb)).foregroundStyle(rx.label2).lineLimit(2)
+                        }
                     }
-                    if let why = models.failed[r.id] ?? models.refused[r.id]?.why { Text(why).font(.caption).foregroundStyle(.red).lineLimit(3) }
+                    .font(.caption).lineLimit(4)
+                    if p == nil, failure == nil, let why = models.refused[r.id]?.why { Text(why).font(.caption).foregroundStyle(.red).lineLimit(3) }
                 }
                 Spacer()
-                if p != nil {
+                if r.downloaded {
+                    Button { startChat(r.id) } label: { Image(systemName: "checkmark").font(.body.weight(.semibold)).frame(width: 29, height: 29) }
+                        .buttonStyle(.plain).foregroundStyle(rx.tintText)
+                } else if p != nil {
                     Button { models.stop(r.id) } label: {
-                        RoundedRectangle(cornerRadius: 3).fill(rx.tint).frame(width: 15, height: 15)
+                        RoundedRectangle(cornerRadius: 3).fill(preparing ? rx.label3 : rx.tint).frame(width: 15, height: 15)
                             .frame(width: 29, height: 29).contentShape(Rectangle())
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Stop downloading \(r.name)")
+                    .buttonStyle(.plain).disabled(preparing)
                 } else {
                     Button { models.download(r.id) } label: {
                         Image(systemName: "arrow.down.circle").font(.title3)
                     }
-                    .buttonStyle(.plain).foregroundStyle(fit == .no ? rx.label3 : rx.tint)
-                    .accessibilityLabel("Download \(r.name), \(String(format: "%.1f", r.gb)) gigabytes")
+                    .buttonStyle(.plain)
+                    .foregroundStyle(failure != nil ? .red : (fit == .no || short > 0 || busy) ? rx.label3 : rx.tint)
+                    .disabled(short > 0 || busy)
                 }
             }
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .disabled(short > 0)
+        .opacity(short > 0 || (tooBig && p == nil) ? 0.55 : 1)
+        .swipeActions { if r.custom && p == nil && !r.downloaded { Button("Remove", role: .destructive) { models.remove(r) } } }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(spoken)
+        .accessibilityAddTraits(.isButton)
+        .accessibilityActions {
+            if let accessory { Button(accessory.name, action: accessory.run) }
+            if r.custom && p == nil && !r.downloaded { Button("Remove \(r.name)") { models.remove(r) } }
+        }
         .listRowBackground(rx.cell)
     }
 
-    private var storage: some View {
-        let used = Double(models.usedBytes), free = Double(models.disk.free), total = Double(max(models.disk.total, 1))
-        return VStack(alignment: .leading, spacing: 8) {
-            GeometryReader { g in
-                HStack(spacing: 0) {
-                    Rectangle().fill(rx.tint).frame(width: g.size.width * min(used / total, 1))
-                    Rectangle().fill(rx.label3.opacity(0.5)).frame(width: g.size.width * max(0, min((total - free - used) / total, 1)))
-                    Rectangle().fill(rx.cell2)
-                }
-                .clipShape(Capsule())
+    // MARK: device and storage
+
+    /// What this device is, so the verdicts below make sense (DeviceSpecs.jsx).
+    private var specs: some View {
+        let s = models.spec
+        let gb = { (n: Double) in String(format: n < 10e9 ? "%.1f GB" : "%.0f GB", n / 1e9) }
+        let comfortable = s.ramAvailable > 0 ? (s.ramAvailable * 0.75 / 1e9 - 0.45) / 1.15 : 0
+        let line = "\(gb(s.ramTotal)) memory · \(s.cores) cores · iOS \(s.os)" + (models.disk.total > 0 ? " · \(gb(Double(models.disk.free))) free" : "")
+        return VStack(alignment: .leading, spacing: 4) {
+            Text(s.name).font(.headline).foregroundStyle(rx.label)
+            Text(line).font(.footnote).monospacedDigit().foregroundStyle(rx.label2)
+            // only when credible: never promise models "up to roughly -0.4 GB"
+            if s.ramAvailable > 0.5e9 && comfortable > 0.1 {
+                Text("iOS gives one app about \(Text(gb(s.ramAvailable)).bold()) of that. Models up to roughly \(Text(String(format: "%.1f GB", comfortable)).bold()) \(Text("run well").foregroundStyle(Fit.well.color)) here; bigger ones \(Text("run tight").foregroundStyle(Fit.tight.color)), then \(Text("won't run").foregroundStyle(Fit.no.color)).")
+                    .font(.footnote).foregroundStyle(rx.label2).padding(.top, 2)
             }
-            .frame(height: 8)
-            Text(String(format: "%.1f GB used by models · %.0f GB free", used / 1e9, free / 1e9))
-                .font(.caption).foregroundStyle(rx.label2).monospacedDigit()
         }
-        .padding(.vertical, 4)
-        .listRowBackground(rx.cell)
+        .padding(.vertical, 2)
         .accessibilityElement(children: .combine)
+    }
+
+    /// One segment per stored model against the whole disk; no rail when nothing is stored (StorageLine.jsx).
+    private var storage: some View {
+        let total = Double(models.disk.total)
+        let stored = models.rows.filter(\.downloaded)
+        let fmt = { (b: Double) -> String in b <= 0 ? "0 GB" : b >= 10e9 ? "\(Int((b / 1e9).rounded())) GB" : String(format: "%.1f GB", b / 1e9) }
+        return VStack(alignment: .leading, spacing: 6) {
+            if !stored.isEmpty {
+                GeometryReader { g in
+                    HStack(spacing: 1) {
+                        ForEach(stored) { r in
+                            Rectangle().fill(rx.tint).frame(width: g.size.width * max(0.006, min(1, Double(models.sizes[r.id] ?? 0) / total)))
+                        }
+                        Spacer(minLength: 0)
+                    }
+                    .background(rx.cell2)
+                    .clipShape(Capsule())
+                }
+                .frame(height: 4)
+                .accessibilityHidden(true)
+            }
+            Text(stored.isEmpty ? "No models stored · \(fmt(Double(models.disk.free))) free of \(fmt(total))."
+                                : "\(fmt(Double(models.usedBytes))) of \(fmt(total)) used by models.")
+                .font(.caption).monospacedDigit().foregroundStyle(rx.label2)
+        }
+        .padding(.horizontal, 20).padding(.vertical, 10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.bar)
     }
 }
 
 struct ModelDetail: View {
     @Environment(\.rx) private var rx
+    @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var app: AppModel
     let row: LocalModels.CatalogRow
     @ObservedObject var models: ModelsModel
     let startChat: (String) -> Void
     @State private var confirmRemove = false
+    /// The download this sheet started, and whether the person has since left:
+    /// only then does a finished download open the chat by itself.
+    @State private var pending = false
+    @State private var left = false
 
     var body: some View {
         let r = models.rows.first { $0.id == row.id } ?? row
-        let fit = models.fit(r)
-        VStack(alignment: .leading, spacing: 14) {
-            Text(r.name).font(.title2.weight(.bold)).foregroundStyle(rx.label)
-            Text(r.maker + " · " + String(format: "%.1f GB", r.gb) + (r.vision ? " · sees pictures" : "")).font(.subheadline).foregroundStyle(rx.label2)
-            Text(r.blurb).foregroundStyle(rx.label)
-            if let fit { Label(fit.why(models.device), systemImage: "memorychip").font(.subheadline).foregroundStyle(fit.color) }
-            Spacer()
-            if r.downloaded {
-                Button { app.choose(r.id); startChat(r.id) } label: { Text("Start chatting").frame(maxWidth: .infinity) }
-                    .buttonStyle(.borderedProminent).controlSize(.large)
-                Button("Remove from this \(models.device)", role: .destructive) { confirmRemove = true }.frame(maxWidth: .infinity)
-            } else if models.progress[r.id] != nil {
-                Button("Stop downloading", role: .destructive) { models.stop(r.id) }.frame(maxWidth: .infinity)
-            } else {
-                Button { models.download(r.id) } label: { Text("Download · " + String(format: "%.1f GB", r.gb)).frame(maxWidth: .infinity) }
-                    .buttonStyle(.borderedProminent).controlSize(.large)
-            }
+        Group {
+            if r.downloaded { have(r) } else { get(r) }
         }
-        .padding(24)
         .background(rx.bg)
         .confirmationDialog("Remove \(r.name)?", isPresented: $confirmRemove, titleVisibility: .visible) {
             Button("Remove", role: .destructive) { models.remove(r) }
         } message: { Text(String(format: "Frees %.1f GB. You can download it again later.", r.gb)) }
+        .onChange(of: scenePhase) { _, p in if p != .active { left = true } }
+        .task(id: models.justDone) {
+            guard pending, models.justDone == row.id else { return }
+            try? await Task.sleep(for: .milliseconds(700))
+            guard !Task.isCancelled, !left, models.justDone == row.id else { return }
+            models.justDone = nil
+            startChat(row.id)
+        }
+    }
+
+    private func have(_ r: LocalModels.CatalogRow) -> some View {
+        let fit = models.fit(r)
+        return VStack(alignment: .leading, spacing: 14) {
+            Text(r.name).font(.title2.weight(.bold)).foregroundStyle(rx.label)
+            Text(r.maker + " · " + gbText(r.gb) + (r.vision ? " · sees pictures" : "")).font(.subheadline).foregroundStyle(rx.label2)
+            Text(Device.text(r.blurb)).foregroundStyle(rx.label)
+            if let fit { Label(fit.why(Device.word), systemImage: "memorychip").font(.subheadline).foregroundStyle(fit.color) }
+            Spacer()
+            Button { app.choose(r.id); startChat(r.id) } label: { Text("Start chatting").frame(maxWidth: .infinity) }
+                .buttonStyle(Prominent())
+            Button("Remove from this \(Device.word)", role: .destructive) { confirmRemove = true }.frame(maxWidth: .infinity)
+        }
+        .padding(24)
+    }
+
+    /// Getting a model (ModelPicker.jsx Hero): the one it is about, one button, and what is happening.
+    private func get(_ r: LocalModels.CatalogRow) -> some View {
+        let fit = models.fit(r)
+        let p = models.progress[r.id]
+        let preparing = models.preparing.contains(r.id)
+        let downloading = p != nil && !preparing
+        let failure = p == nil ? models.failed[r.id] : nil
+        let short = models.shortBy(r)
+        let blocked = short > 0 && p == nil
+        let busy = p == nil && models.busyElsewhere(r.id)
+        let shown = ModelsModel.text(p)
+        let label = preparing ? "Preparing the model…"
+            : downloading ? (shown.map { "Stop · \($0)" } ?? "Stop")
+            : blocked ? "Not enough room"
+            : failure != nil ? "Try again"
+            : "Download · " + gbText(r.gb)
+        let spoken = preparing ? "\(r.name) is preparing"
+            : downloading ? "Downloading \(r.name)"
+            : blocked ? "\(r.name), not enough room"
+            : failure != nil ? "Try downloading \(r.name) again"
+            : "Download \(r.name), \(gbText(r.gb))"
+        return ScrollView {
+            VStack(spacing: 14) {
+                Text(r.id == ModelsModel.recommendedId ? "Recommended" : "Selected")
+                    .font(.footnote.weight(.semibold)).textCase(.uppercase).foregroundStyle(rx.label2)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Text("It runs on this \(Device.word) — no account, and no network once it’s here.")
+                    .font(.subheadline).foregroundStyle(rx.label2).frame(maxWidth: .infinity, alignment: .leading)
+                // a status object, not a logo: shown only while something is happening
+                if p != nil {
+                    ZStack {
+                        if let pct = p?.pct {
+                            Circle().stroke(rx.cell2, lineWidth: 4)
+                            Circle().trim(from: 0, to: min(max(pct, 0), 1)).stroke(rx.tint, style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                                .rotationEffect(.degrees(-90))
+                        }
+                        Swirl(size: 120)
+                    }
+                    .frame(width: 148, height: 148).padding(.top, 8)
+                    .accessibilityHidden(true)
+                } else if failure != nil {
+                    Image("LogoMark").renderingMode(.template).resizable().scaledToFit()
+                        .frame(width: 120, height: 120).foregroundStyle(rx.label3).padding(.top, 8).accessibilityHidden(true)
+                }
+                Text(r.name).font(.title2.weight(.bold)).foregroundStyle(rx.label).multilineTextAlignment(.center)
+                Text(Device.text(r.blurb)).foregroundStyle(rx.label2).multilineTextAlignment(.center)
+                if let no = models.refused[r.id] { Label(no.why, systemImage: "memorychip").font(.subheadline).foregroundStyle(.red) }
+                else if let fit { Label(fit.why(Device.word), systemImage: "memorychip").font(.subheadline).foregroundStyle(fit.color) }
+
+                Button {
+                    if downloading { models.stop(r.id); pending = false }
+                    else { pending = true; left = false; models.download(r.id) }
+                } label: { Text(label).monospacedDigit().frame(maxWidth: .infinity) }
+                .buttonStyle(Prominent())
+                .tint(downloading ? .red : rx.tint)
+                .disabled(preparing || blocked || busy)
+                .accessibilityLabel(spoken)
+                .padding(.top, 8)
+
+                if downloading {
+                    Text("Keep Radiant open while this downloads.").font(.footnote).foregroundStyle(.orange)
+                } else if let failure {
+                    Text(failure).font(.footnote).foregroundStyle(.red).multilineTextAlignment(.center)
+                } else if blocked {
+                    Text("Needs \(gbText(short / 1e9)) more room on this \(Device.word).").font(.footnote).foregroundStyle(.orange)
+                } else if busy, let other = models.progress.keys.first(where: { $0 != r.id }) {
+                    Text("\(models.name(other)) is downloading. Wait for it to finish, or stop it first.")
+                        .font(.footnote).foregroundStyle(rx.label2).multilineTextAlignment(.center)
+                }
+                if r.custom && p == nil {
+                    Button("Remove from the list", role: .destructive) { models.remove(r); dismiss() }.padding(.top, 4)
+                }
+            }
+            .padding(24)
+        }
     }
 }
 
@@ -307,6 +697,8 @@ struct HFResult: Identifiable {
     var id: String { repo }
     let downloads: Int
     var info: HFInfo?
+    /// The check itself failed — said instead of an endless "Checking…".
+    var error: String?
 }
 
 struct HFInfo {
@@ -385,22 +777,29 @@ enum HF {
 struct HFSearchView: View {
     @Environment(\.rx) private var rx
     @ObservedObject var models: ModelsModel
+    let startChat: (String) -> Void
     @State private var query = ""
     @State private var results: [HFResult] = []
     @State private var busy = false
     @State private var error: String?
+    @State private var searched = ""   // the query the results belong to
 
     var body: some View {
         List {
             Section {
-                Text("Anything in MLX format that Radiant can load. Each result is checked before you download it: whether the engine has a loader for it, whether its weights are what its config says, and whether it fits this \(models.device).")
+                Text("Anything in MLX format that Radiant can load. Each result is checked before you download it: whether the engine has a loader for it, whether its weights are what its config says, and whether it fits this \(Device.word).")
                     .font(.footnote).foregroundStyle(rx.label2)
                     .listRowBackground(rx.grouped)
             }
             if let error { Text(error).foregroundStyle(.red).listRowBackground(rx.cell) }
             ForEach(results) { r in resultRow(r) }
+            if !busy && results.isEmpty && !searched.isEmpty && error == nil {
+                Text("Nothing found — try another word, or the model’s family name.").font(.subheadline).foregroundStyle(rx.label2)
+                    .listRowBackground(rx.cell)
+            }
         }
         .scrollContentBackground(.hidden)
+        .readingWidth()
         .background(rx.grouped)
         .overlay { if busy { ProgressView() } }
         .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search Hugging Face")
@@ -412,40 +811,74 @@ struct HFSearchView: View {
     private func run() async {
         let q = query.trimmingCharacters(in: .whitespaces)
         guard !q.isEmpty else { return }
-        busy = true; error = nil
+        busy = true; error = nil; results = []; searched = q
         defer { busy = false }
         do {
             results = try await HF.search(q)
             // inspect each in parallel, so verdicts fill in as they arrive
-            await withTaskGroup(of: (String, HFInfo?).self) { g in
-                for r in results { g.addTask { (r.repo, try? await HF.inspect(r.repo)) } }
-                for await (repo, info) in g { if let i = results.firstIndex(where: { $0.repo == repo }) { results[i].info = info } }
+            await withTaskGroup(of: (String, Result<HFInfo, Error>).self) { g in
+                for r in results { g.addTask { do { return (r.repo, .success(try await HF.inspect(r.repo))) } catch { return (r.repo, .failure(error)) } } }
+                for await (repo, res) in g {
+                    guard let i = results.firstIndex(where: { $0.repo == repo }) else { continue }
+                    switch res {
+                    case .success(let info): results[i].info = info
+                    case .failure(let e): results[i].error = e.localizedDescription
+                    }
+                }
             }
         } catch { self.error = error.localizedDescription }
     }
 
     private func resultRow(_ r: HFResult) -> some View {
+        let name = r.repo.components(separatedBy: "/").last ?? r.repo
         let row = r.info.map { HF.row(r.repo, $0) }
-        let existing = row.flatMap { rr in models.rows.first { $0.repo == rr.repo || $0.id == rr.id } }
+        let existing = models.rows.first { $0.repo == r.repo } ?? row.flatMap { rr in models.rows.first { $0.id == rr.id } }
         let q = r.info.map { HF.qualify($0, fit: Fit.of($0.gb, budgetBytes: models.budget)) }
+        let p = existing.flatMap { models.progress[$0.id] }
+        let preparing = existing.map { models.preparing.contains($0.id) } ?? false
+        let downloading = p != nil && !preparing
+        let failure = existing.flatMap { p == nil ? models.failed[$0.id] : nil }
         return HStack(alignment: .top) {
+            if p != nil { Swirl().padding(.top, 1) }
             VStack(alignment: .leading, spacing: 3) {
-                Text(r.repo.components(separatedBy: "/").last ?? r.repo).foregroundStyle(rx.label)
+                Text(name).foregroundStyle(rx.label)
                 Text("\(r.repo.components(separatedBy: "/")[0]) · \(r.downloads.formatted()) downloads" + (r.info.map { String(format: " · %.1f GB", $0.gb) } ?? ""))
                     .font(.caption).foregroundStyle(rx.label2)
-                if let q { Text(q.label).font(.caption.weight(.semibold)).foregroundStyle(q.color) + Text("  " + q.why).font(.caption).foregroundStyle(rx.label2) }
+                if let q { Text("\(Text(q.label).font(.caption.weight(.semibold)).foregroundStyle(q.color))  \(q.why)").font(.caption).foregroundStyle(rx.label2) }
+                else if let e = r.error { Text(e).font(.caption).foregroundStyle(.red) }
                 else { Text("Checking…").font(.caption).foregroundStyle(rx.label3) }
+                if downloading { Text("Downloading…" + (ModelsModel.text(p).map { " " + $0 } ?? "")).font(.caption).monospacedDigit().foregroundStyle(rx.label2) }
+                if preparing { Text("Preparing…").font(.caption).foregroundStyle(rx.label2) }
+                if let failure { Text(failure).font(.caption).foregroundStyle(.red) }
             }
             Spacer()
-            if let existing {
-                if existing.downloaded { Image(systemName: "checkmark").foregroundStyle(rx.tint) }
-                else if models.progress[existing.id] != nil { HStack(spacing: 6) { Swirl(size: 22); Text(ModelsModel.text(models.progress[existing.id]) ?? "…").font(.caption).monospacedDigit() } }
-                else { Button("Download") { models.download(existing.id) }.buttonStyle(.bordered) }
-            } else if let row, q?.ok == true {
-                Button("Download") {
-                    if let id = models.engine.addCustomModel(row) { models.refresh(); models.download(id) }
+            VStack(alignment: .trailing, spacing: 6) {
+                if let existing, existing.downloaded {
+                    Button("Chat") { startChat(existing.id) }.buttonStyle(.bordered)
+                        .accessibilityLabel("Chat with \(name)")
+                } else if let existing, downloading {
+                    Button("Stop") { models.stop(existing.id) }.buttonStyle(.bordered)
+                        .accessibilityLabel("Stop downloading \(name)")
+                } else if preparing {
+                    Button("…") {}.buttonStyle(.bordered).disabled(true)
+                        .accessibilityLabel("\(name) is preparing")
+                } else if existing != nil || q?.ok == true {
+                    Button("Download") {
+                        if let existing { models.download(existing.id) }
+                        else if let row {
+                            if let id = models.engine.addCustomModel(row) { models.refresh(); models.download(id) }
+                            else { error = "This build cannot add models from Hugging Face." }
+                        }
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(models.busyElsewhere(existing?.id ?? ""))
+                    .accessibilityLabel("Download \(name)")
                 }
-                .buttonStyle(.bordered)
+                // Only a row a search added can be removed here; catalogue models live on their shelf.
+                if let existing, existing.custom, p == nil {
+                    Button("Remove", role: .destructive) { models.remove(existing) }.buttonStyle(.borderless).font(.caption)
+                        .accessibilityLabel("Remove \(name)")
+                }
             }
         }
         .listRowBackground(rx.cell)

@@ -22,23 +22,9 @@ import CommandPalette from './components/CommandPalette.jsx'
 import ComparePanel from './components/ComparePanel.jsx'
 import ConnectGate from './components/ConnectGate.jsx'
 
-// ── the phone ───────────────────────────────────────────────────────────────
-// Radiant on iPhone is a different app: the model lives on the phone, and the
-// UI for that is src/mobile, which shares no styling with the desktop build.
-// The check is a module-level constant, so the desktop render path below is
-// identical to what it was — and because the import is lazy, mobile.css and the
-// whole src/mobile tree stay out of the Mac bundle's entry chunk.
-const NATIVE = typeof window !== 'undefined' && window.Capacitor?.isNativePlatform?.() === true
-const Phone = NATIVE ? React.lazy(() => import('./mobile/Phone.jsx')) : null
-
+// The iPhone app is native SwiftUI (apps/ios/ios/App/App/Native); this web
+// app is the Mac's only.
 export default function App () {
-  if (NATIVE) {
-    return (
-      <React.Suspense fallback={null}>
-        <Phone />
-      </React.Suspense>
-    )
-  }
   return <DesktopApp />
 }
 

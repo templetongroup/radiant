@@ -1,5 +1,6 @@
 import SwiftUI
 import AuthenticationServices
+import UniformTypeIdentifiers
 
 // Settings, Cloud models and Skills, native. Same choices, same stored shapes
 // as SettingsScreen.jsx, ProvidersScreen.jsx and SkillsScreen.jsx.
@@ -11,6 +12,9 @@ struct SettingsView: View {
     let go: (Route) -> Void
     @State private var confirmClear = false
     @State private var confirmRemoveAll = false
+    @State private var downloaded: [LocalModels.CatalogRow] = []
+    @State private var bytes: [String: Int64] = [:]
+    @State private var removing: LocalModels.CatalogRow?
 
     private var a: Appearance { Appearance(kv.json(Appearance.key)) }
     private func update(_ f: (inout Appearance) -> Void) {
@@ -63,43 +67,100 @@ struct SettingsView: View {
             .listRowBackground(rx.cell)
 
             Section {
-                let installed = app.localModels
-                row("Models", value: installed.isEmpty ? "None yet" : "\(installed.count) on this phone", icon: "square.stack.3d.up") { go(.models) }
+                row("Models", value: downloaded.isEmpty ? "None yet" : "\(downloaded.count) on this \(Device.word)", icon: "square.stack.3d.up") { go(.models) }
                 row("Cloud models", value: Providers.chosen(kv).map { Providers.shortName($0.model) } ?? "", icon: "cloud") { go(.cloud) }
                 row("Skills", value: "\(app.skills.count)", icon: "wand.and.stars") { go(.skills) }
-                row("Read me", value: "", icon: "book") { app.openWeb("readme") }
-                if !installed.isEmpty {
+            }
+            .listRowBackground(rx.cell)
+
+            // Each model removes on its own, from a labelled control that asks first (SettingsScreen.jsx).
+            Section {
+                ForEach(downloaded) { m in
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(m.name).foregroundStyle(rx.label)
+                            Text(gb(bytes[m.id] ?? 0)).font(.caption).foregroundStyle(rx.label2).monospacedDigit()
+                        }
+                        Spacer()
+                        Button("Remove", role: .destructive) { removing = m }.buttonStyle(.borderless)
+                            .accessibilityLabel("Remove \(m.name)")
+                    }
+                }
+                if !downloaded.isEmpty {
                     Button("Remove all models", role: .destructive) { confirmRemoveAll = true }
                 }
-            }
+            } header: {
+                head("On this \(Device.word) · \(downloaded.count) · \(gb(bytes.values.reduce(0, +)))")
+            } footer: { if downloaded.isEmpty { foot("Nothing downloaded yet.") } }
             .listRowBackground(rx.cell)
 
             Section {
                 Button("Clear all Radiant data", role: .destructive) { confirmClear = true }
-            } footer: { foot("Deletes every conversation, draft, skill, and preference on this phone. Downloaded models and saved keys stay.") }
+            } footer: { foot("Deletes every conversation, draft, skill, and preference on this \(Device.word). Downloaded models and saved keys stay.") }
             .listRowBackground(rx.cell)
 
             Section {
+                row("Read me", value: "", icon: "book") { go(.readme) }
+                // Apple wants the policy reachable from the app itself. Safari, not a web
+                // view, so the address bar shows whose policy it is. The .html matters:
+                // the site answers unknown paths with its homepage.
+                Link(destination: URL(string: "https://www.templetongroup.dev/showcase/radiant/privacy.html")!) {
+                    HStack {
+                        Label("Privacy policy", systemImage: "hand.raised").foregroundStyle(rx.label)
+                        Spacer()
+                        Image(systemName: "arrow.up.right").font(.caption.weight(.semibold)).foregroundStyle(rx.label3)
+                    }
+                }
                 HStack { Text("Version").foregroundStyle(rx.label); Spacer(); Text(version).foregroundStyle(rx.label2).monospacedDigit() }
-                Link("Radiant is a Templeton Technologies product.", destination: URL(string: "https://templetontech.com")!)
-                    .font(.footnote).tint(rx.tintText)
-                Button("Use the current design") { app.close() }.foregroundStyle(rx.tintText)
-            }
+            } header: { head("About") }
             .listRowBackground(rx.cell)
+
+            Section {
+                VStack(spacing: 10) {
+                    Image("LogoMark").renderingMode(.template).resizable().scaledToFit()
+                        .frame(width: 44, height: 44).foregroundStyle(rx.tintText)
+                        .accessibilityHidden(true)
+                    Link(destination: URL(string: "https://templetontech.com")!) {
+                        (Text("Radiant is a ").foregroundStyle(rx.label2) + Text("Templeton Technologies").foregroundStyle(rx.tintText) + Text(" product.").foregroundStyle(rx.label2))
+                            .font(.caption2)
+                    }
+                    .accessibilityLabel("Radiant is a Templeton Technologies product. Opens templetontech.com.")
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .listRowBackground(Color.clear)
         }
         .scrollContentBackground(.hidden)
+        .readingWidth()
         .background(rx.grouped)
         .navigationTitle("Settings")
+        .onAppear(perform: loadModels)
+        .onChange(of: app.localModels.map(\.id)) { loadModels() }
+        .confirmationDialog("Remove \(removing?.name ?? "")?", isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } }),
+                            titleVisibility: .visible, presenting: removing) { m in
+            Button("Remove", role: .destructive) { remove([m]) }
+        } message: { m in Text("That frees \(gb(bytes[m.id] ?? 0)). You can download it again later.") }
         .confirmationDialog("Clear all Radiant data?", isPresented: $confirmClear, titleVisibility: .visible) {
             Button("Clear everything", role: .destructive) { clearAll() }
         } message: { Text("Conversations, drafts, skills and preferences are deleted. It can't be undone.") }
         .confirmationDialog("Remove all models?", isPresented: $confirmRemoveAll, titleVisibility: .visible) {
-            Button("Remove all", role: .destructive) {
-                for m in app.localModels { app.engine.removeModel(m.id) }
-                app.reload()
-            }
-        } message: { Text("Every downloaded model is deleted from this phone. You can download them again later.") }
+            Button("Remove all", role: .destructive) { remove(downloaded) }
+        } message: { Text("Every downloaded model is deleted from this \(Device.word), freeing \(gb(bytes.values.reduce(0, +))). You can download them again later.") }
     }
+
+    private func loadModels() {
+        downloaded = app.engine.catalogRows().filter(\.downloaded)
+        bytes = Dictionary(uniqueKeysWithValues: downloaded.map { ($0.id, app.engine.bytesOnDisk($0.id)) })
+    }
+
+    /// The same removal the Models screen uses: a Hugging Face find also leaves the list.
+    private func remove(_ rows: [LocalModels.CatalogRow]) {
+        for r in rows { if r.custom { app.engine.removeCustomModel(r.id) } else { app.engine.removeModel(r.id) } }
+        Haptic.success()
+        app.reload(); loadModels()
+    }
+
+    private func gb(_ b: Int64) -> String { String(format: "%.1f GB", Double(b) / 1e9) }
 
     private var version: String {
         let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
@@ -109,7 +170,7 @@ struct SettingsView: View {
 
     private func clearAll() {
         // what the web's "Clear all" removes: everything it keeps in localStorage
-        for k in kv.raw.keys where (k.hasPrefix("radiant.phone.") || k.hasPrefix("rx.")) && k != "radiant.phone.nativeUI" {
+        for k in kv.raw.keys where k.hasPrefix("radiant.phone.") || k.hasPrefix("rx.") {
             kv.set(k, string: nil)
         }
         app.reload()
@@ -138,9 +199,29 @@ struct CloudModelsView: View {
     @EnvironmentObject var kv: KV
     @Environment(\.rx) private var rx
     @State private var connected = Providers.connected()
+    /// Opens a new chat with the chosen cloud model; the banner hides its button without one.
+    var startChat: (() -> Void)? = nil
 
     var body: some View {
         List {
+            // Picking a model used to be a dead end: say what the choice did, and offer the next step.
+            if let c = Providers.chosen(kv) {
+                Section {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(Providers.shortName(c.model)).font(.headline).foregroundStyle(rx.label).lineLimit(1)
+                            Text("Answering your chats, through \(Providers.byId(c.providerId)?.name ?? c.providerId).")
+                                .font(.caption).foregroundStyle(rx.label2)
+                        }
+                        Spacer()
+                        if let startChat {
+                            Button("Start chat") { Haptic.tap(); startChat() }.buttonStyle(Prominent())
+                        }
+                    }
+                }
+                .listRowBackground(rx.cell)
+            }
+
             // Plans people already pay for come first: signing in costs nothing extra.
             Section {
                 ForEach(Subscriptions.specs, id: \.id) { spec in
@@ -178,12 +259,13 @@ struct CloudModelsView: View {
                     }
                 }
             } header: { Text("API keys").foregroundStyle(rx.label2) } footer: {
-                Text("Keys and sign-ins are kept in this phone's Keychain and sent only to that provider. A cloud model answers on the provider's servers, not on this phone.")
+                Text("Keys and sign-ins are kept in this \(Device.word)'s Keychain and sent only to that provider. A cloud model answers on the provider's servers, not on this \(Device.word).")
                     .foregroundStyle(rx.label2)
             }
             .listRowBackground(rx.cell)
         }
         .scrollContentBackground(.hidden)
+        .readingWidth()
         .background(rx.grouped)
         .navigationTitle("Cloud models")
     }
@@ -260,14 +342,20 @@ struct ProviderView: View {
                             }
                         }
                     }
-                    if models.count > shown.count {
-                        Text("\(models.count - shown.count) more — keep typing to narrow it down").font(.caption).foregroundStyle(rx.label2)
+                    let q = query.trimmingCharacters(in: .whitespaces)
+                    let matched = q.isEmpty ? models.count : models.filter { $0.localizedCaseInsensitiveContains(query) }.count
+                    if matched > shown.count {
+                        Text("\(matched - shown.count) more — keep typing to narrow it down").font(.caption).foregroundStyle(rx.label2)
+                    }
+                    if !q.isEmpty, !models.isEmpty, matched == 0 {
+                        Text("Nothing matches “\(q)”.").font(.caption).foregroundStyle(rx.label2)
                     }
                 } header: { Text("Models").foregroundStyle(rx.label2) }
                 .listRowBackground(rx.cell)
             }
         }
         .scrollContentBackground(.hidden)
+        .readingWidth()
         .background(rx.grouped)
         .navigationTitle(provider.name)
         .searchable(text: $query, prompt: "Search \(models.count) models")
@@ -378,10 +466,14 @@ struct SkillsView: View {
     @State private var creating = false
     @State private var pasting = false
     @State private var fromMac = false
+    @State private var importing = false
+    @State private var note: String?
 
     var body: some View {
         List {
+            if let note { Section { Text(note).foregroundStyle(rx.label) }.listRowBackground(rx.cell) }
             Section {
+                if app.skills.isEmpty { Text("No skills yet. Add one above.").foregroundStyle(rx.label2) }
                 ForEach(app.skills) { s in
                     Button { editing = s } label: {
                         VStack(alignment: .leading, spacing: 3) {
@@ -398,12 +490,14 @@ struct SkillsView: View {
             .listRowBackground(rx.cell)
         }
         .scrollContentBackground(.hidden)
+        .readingWidth()
         .background(rx.grouped)
         .navigationTitle("Skills")
         .toolbar {
             Menu {
                 Button("New skill", systemImage: "plus") { creating = true }
                 Button("Paste a SKILL.md", systemImage: "doc.on.clipboard") { pasting = true }
+                Button("Import from a file", systemImage: "doc") { importing = true }
                 Button("From Radiant on your Mac", systemImage: "desktopcomputer") { fromMac = true }
             } label: { Image(systemName: "plus").accessibilityLabel("Add a skill") }
         }
@@ -411,6 +505,27 @@ struct SkillsView: View {
         .sheet(isPresented: $creating) { SkillEditor(skill: nil) }
         .sheet(isPresented: $pasting) { SkillPaste() }
         .sheet(isPresented: $fromMac) { MacSkills() }
+        .fileImporter(isPresented: $importing, allowedContentTypes: Self.types) { importFile($0) }
+    }
+
+    private static let types: [UTType] = [.plainText] + ["md", "markdown", "txt"].compactMap { UTType(filenameExtension: $0) }
+
+    /// A .md from Files or iCloud Drive (SkillsScreen.jsx onFile).
+    private func importFile(_ result: Result<URL, Error>) {
+        guard case .success(let url) = result else { return }
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+        guard let raw = try? String(contentsOf: url, encoding: .utf8) else { note = "That file could not be read."; Haptic.error(); return }
+        let p = SkillPaste.parse(raw, filename: url.lastPathComponent)
+        if p.body.isEmpty { note = "That file had nothing in it."; Haptic.error(); return }
+        if p.body.count > Skills.maxChars {
+            note = "“\(p.name)” is \(p.body.count) characters — \(p.body.count - Skills.maxChars) too many for the \(Device.word). Shorten it and try again."
+            Haptic.error(); return
+        }
+        Skills.upsert(kv, id: nil, name: p.name, body: p.body)
+        note = "Added “\(p.name)”."
+        Haptic.success()
+        app.objectWillChange.send()
     }
 }
 
@@ -421,6 +536,7 @@ struct SkillEditor: View {
     let skill: Skill?
     @State private var name = ""
     @State private var text = ""
+    @State private var confirmDelete = false
 
     var body: some View {
         NavigationStack {
@@ -433,6 +549,15 @@ struct SkillEditor: View {
                     let left = Skills.maxChars - text.count
                     Text(left < 200 ? "\(left) characters left — shorter instructions work better here" : "\(text.count) characters")
                         .foregroundStyle(left < 200 ? .orange : .secondary)
+                }
+                if skill != nil {
+                    Section { Button("Delete skill", role: .destructive) { confirmDelete = true } }
+                }
+            }
+            .confirmationDialog("Delete “\(skill?.name ?? "")”?", isPresented: $confirmDelete, titleVisibility: .visible) {
+                Button("Delete", role: .destructive) {
+                    if let skill { Skills.delete(kv, skill.id) }
+                    app.objectWillChange.send(); dismiss()
                 }
             }
             .navigationTitle(skill == nil ? "New skill" : "Edit skill")
@@ -456,7 +581,8 @@ struct SkillPaste: View {
     @Environment(\.dismiss) private var dismiss
     @State private var raw = ""
 
-    static func parse(_ raw: String) -> (name: String, body: String) {
+    /// Name: front matter, else the first # heading, else the file name (parseSkillMarkdown).
+    static func parse(_ raw: String, filename: String = "") -> (name: String, body: String) {
         var body = raw, name = ""
         if let fm = raw.range(of: "^---\\s*\\n([\\s\\S]*?)\\n---\\s*\\n?", options: .regularExpression) {
             let meta = String(raw[fm])
@@ -470,7 +596,11 @@ struct SkillPaste: View {
             if name.isEmpty { name = String(body[h1]).replacingOccurrences(of: "#", with: "").trimmingCharacters(in: .whitespacesAndNewlines) }
             body = String(body[h1.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
         }
-        return (String(name.prefix(60)), body)
+        if name.isEmpty {
+            name = filename.replacingOccurrences(of: "\\.(md|markdown|txt)$", with: "", options: [.regularExpression, .caseInsensitive])
+                .replacingOccurrences(of: "[-_]", with: " ", options: .regularExpression)
+        }
+        return (String(name.prefix(60)).trimmingCharacters(in: .whitespaces), body)
     }
 
     var body: some View {
@@ -496,7 +626,8 @@ struct SkillPaste: View {
 }
 
 /// Take skills from Radiant on the Mac (fetchMacSkills). The address and token
-/// stay in the Keychain as `radiant.phone.mac`.
+/// stay in the Keychain as `radiant.phone.mac` — never in kv: that token drives
+/// the whole Mac, so a failed Keychain write is an error, not a fallback.
 struct MacSkills: View {
     @EnvironmentObject var app: AppModel
     @EnvironmentObject var kv: KV
@@ -534,10 +665,28 @@ struct MacSkills: View {
             .navigationTitle("Skills from your Mac").navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
             .onAppear {
-                if let s = Keychain.get("radiant.phone.mac"), let d = s.data(using: .utf8),
-                   let j = try? JSONSerialization.jsonObject(with: d) as? [String: String] { base = j["base"] ?? ""; token = j["token"] ?? "" }
+                if let j = Self.readMac(kv) { base = j["base"] ?? ""; token = j["token"] ?? "" }
             }
         }
+    }
+
+    static let key = "radiant.phone.mac"
+    private static func decode(_ s: String?) -> [String: String]? {
+        guard let d = s?.data(using: .utf8) else { return nil }
+        return try? JSONSerialization.jsonObject(with: d) as? [String: String]
+    }
+
+    /// The Keychain copy; else a pairing the old design left in its store, moved
+    /// into the Keychain once and then removed (readMac). A copy that will not
+    /// parse is dropped rather than read as "nothing stored" forever.
+    static func readMac(_ kv: KV) -> [String: String]? {
+        if let stored = Keychain.get(key) {
+            if let j = decode(stored) { return j }
+            Keychain.remove(key)
+        }
+        guard let legacy = kv.string(key), let j = decode(legacy) else { return nil }
+        if Keychain.set(key, legacy) { kv.set(key, string: nil) }   // refused: the old copy stays the live one
+        return j
     }
 
     private func origin() -> URL? {
@@ -549,26 +698,31 @@ struct MacSkills: View {
 
     private func fetch() async {
         error = nil
-        guard let o = origin() else { error = "That address does not look right."; return }
+        let unreachable = "Could not reach that Mac. Check both are on Tailscale and Radiant is open on the Mac."
+        guard let o = origin() else { error = "That does not look like an address. Try 100.x.y.z:5834."; return }
         var req = URLRequest(url: o.appendingPathComponent("api/config"))
         if !token.isEmpty { req.setValue(token, forHTTPHeaderField: "x-radiant-token") }
         req.cachePolicy = .reloadIgnoringLocalCacheData
         do {
             let (data, resp) = try await URLSession.shared.data(for: req)
             let status = (resp as? HTTPURLResponse)?.statusCode ?? 0
-            if status == 401 || status == 403 { error = "The Mac refused that token."; return }
-            guard status == 200 else { error = "The Mac answered \(status)."; return }
+            if status == 401 || status == 403 { error = "The Mac refused that token. Copy it again from Settings → Devices on the Mac."; return }
+            guard status == 200 else { error = unreachable; return }
             let cfg = (try JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:]
-            rows = (cfg["skills"] as? [[String: Any]] ?? []).map { sk in
+            let list: [(id: String, name: String, body: String, reason: String?)] = (cfg["skills"] as? [[String: Any]] ?? []).map { sk in
                 let body = (sk["content"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
                 let reason: String? = sk["dir"] != nil && !(sk["dir"] is NSNull) ? "needs a folder — Mac only"
                     : body.isEmpty ? "empty" : body.count > Skills.maxChars ? "too long for the phone (\(body.count) characters)" : nil
                 return (sk["id"] as? String ?? UUID().uuidString, sk["name"] as? String ?? "Untitled", body, reason)
             }
-            if rows.isEmpty { error = "That Mac has no skills yet." }
-            if let d = try? JSONSerialization.data(withJSONObject: ["base": base, "token": token]), let s = String(data: d, encoding: .utf8) {
-                Keychain.set("radiant.phone.mac", s)
+            guard let d = try? JSONSerialization.data(withJSONObject: ["base": base, "token": token]),
+                  let s = String(data: d, encoding: .utf8), Keychain.set(Self.key, s) else {
+                error = "Connected, but the token could not be stored securely, so it was not kept. Unlock the \(Device.word) and try again."
+                return
             }
-        } catch { self.error = "Could not reach the Mac: \(error.localizedDescription)" }
+            kv.set(Self.key, string: nil)
+            rows = list
+            if rows.isEmpty { error = "That Mac has no skills yet." }
+        } catch { self.error = unreachable }
     }
 }

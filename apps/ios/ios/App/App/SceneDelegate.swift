@@ -1,35 +1,31 @@
 import UIKit
-import Capacitor
+import SwiftUI
 
-// ⚠️ WITHOUT THIS THE APP DIES AT LAUNCH ON iOS 27. Build 23 (2026-09-18) was
-// the first one compiled against the iOS 27 SDK, and on Tony's iPhone it
-// trapped before the first frame: UIKit's
-// __UIApplicationEvaluateRuntimeIssueForNoSceneLifecycleAdoption, SIGTRAP.
-// The iOS 27 SDK refuses the pre-scene app lifecycle that Capacitor's template
-// still ships. The Main storyboard is unchanged; this delegate only owns the
-// window and forwards the two things Capacitor used to get from the app
-// delegate — URL opens and Universal Links.
+// ⚠️ WITHOUT A SCENE DELEGATE THE APP DIES AT LAUNCH ON iOS 27. Build 23
+// (2026-09-18), the first compiled against the iOS 27 SDK, trapped before the
+// first frame in UIKit's __UIApplicationEvaluateRuntimeIssueForNoSceneLifecycleAdoption.
+//
+// Since build 42 the window's root is the native app itself (Launch.swift).
+// There is no storyboard and no web view: the old web design is gone.
 class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     var window: UIWindow?
 
     func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
-        guard scene is UIWindowScene else { return }
-        // the storyboard named in UISceneStoryboardFile has already built the window
-        for context in connectionOptions.urlContexts {
-            _ = ApplicationDelegateProxy.shared.application(UIApplication.shared, open: context.url, options: [:])
+        guard let scene = scene as? UIWindowScene else { return }
+        let window = UIWindow(windowScene: scene)
+        self.window = window
+        if let raw = DiskStore.load(), raw[DiskStore.importedKey] == "1" {
+            window.rootViewController = Launch.root(window: window, raw: raw)
+        } else {
+            // First launch of a native-only build: copy the old store, then open.
+            window.rootViewController = UIHostingController(rootView: LaunchCover())
+            Task { @MainActor in
+                let raw = await Launch.store()
+                window.rootViewController = Launch.root(window: window, raw: raw)
+            }
         }
-        for activity in connectionOptions.userActivities {
-            _ = ApplicationDelegateProxy.shared.application(UIApplication.shared, continue: activity, restorationHandler: { _ in })
-        }
+        window.makeKeyAndVisible()
     }
 
-    func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {
-        for context in URLContexts {
-            _ = ApplicationDelegateProxy.shared.application(UIApplication.shared, open: context.url, options: [:])
-        }
-    }
-
-    func scene(_ scene: UIScene, continue userActivity: NSUserActivity) {
-        _ = ApplicationDelegateProxy.shared.application(UIApplication.shared, continue: userActivity, restorationHandler: { _ in })
-    }
+    func sceneDidEnterBackground(_ scene: UIScene) { DiskStore.flush() }
 }

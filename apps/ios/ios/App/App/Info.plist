@@ -39,12 +39,12 @@
 					<string>Default</string>
 					<key>UISceneDelegateClassName</key>
 					<string>$(PRODUCT_MODULE_NAME).SceneDelegate</string>
-					<key>UISceneStoryboardFile</key>
-					<string>Main</string>
 				</dict>
 			</array>
 		</dict>
 	</dict>
+	<key>NSCameraUsageDescription</key>
+	<string>Radiant uses the camera only when you choose Take Photo, to show a picture to a model that can see. The photo stays on this device unless you send it to a cloud model you chose.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>RadiantLaunch</string>
 	<key>UIRequiredDeviceCapabilities</key>

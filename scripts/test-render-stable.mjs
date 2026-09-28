@@ -17,7 +17,7 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-const roots = ['src', 'src/components', 'src/mobile']
+const roots = ['src', 'src/components']
 const files = []
 for (const r of roots) {
   let names = []

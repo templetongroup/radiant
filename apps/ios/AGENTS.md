@@ -1,9 +1,8 @@
-# Radiant for iPhone — read this before touching `apps/ios` or `src/mobile`
+# Radiant for iPhone — read this before touching `apps/ios`
 
-The repo's root `AGENTS.md` still applies; `src/mobile/AGENTS.md` adds the
-rules for the web screens. Radiant loads this file first and the root one only
+The repo's root `AGENTS.md` still applies. Radiant loads this file first and the root one only
 partly, so the root's shipping rule, in short: **every change is committed and
-pushed, gets a phone Read me entry (`src/mobile/ReadMeScreen.jsx`), and a
+pushed, gets a phone Read me entry (`Native/ReadMeView.swift`), and a
 Linear issue in TG / Radiant — then `node scripts/ship-check.mjs`.** A phone
 change also needs a new build on TestFlight (`scripts/ios-testflight.sh`) and
 on every device (`scripts/ios-install-all.sh`).
@@ -65,11 +64,10 @@ App Store 1.1's), which is what would have stopped Nemotron 3 Nano 4B shipping.
 
 ## The app, the build and the devices
 
-`apps/ios` is a real Capacitor shell around a **separate** UI in `src/mobile`.
-It shares no styling with the desktop build: `App.jsx` lazy-imports
-`mobile/Phone.jsx` only when `window.Capacitor.isNativePlatform()` is true, so
-`mobile.css` and the whole tree stay out of the Mac bundle's entry chunk. Keep
-it that way — check `vite build` still emits a separate `Phone-*.js` chunk.
+`apps/ios` is a native SwiftUI app (`apps/ios/ios/App/App/Native/`). The
+Capacitor project remains only as the Xcode shell and for the `LocalModels`
+engine class; no web view is shown and `src/mobile` is gone (build 42,
+2026-09-28 — Tony: "get rid of the old design").
 
 **Every iOS build goes to every device.** Standing instruction from Tony
 (2026-09-10): *"when you create new builds to the ios version, i want you to
@@ -87,20 +85,18 @@ at the end; run it again when they are. Devices today: iPhone 17 Pro Max,
 iPad Pro 11, iPad mini (A17 Pro). All are on the paid team's profile, which
 lasts a year — not the seven days a free Apple ID gets.
 
-⚠️ **The phone app is being rebuilt natively (SwiftUI), Minis-style — Tony, 2026-09-25.**
-The native screens live in `apps/ios/ios/App/App/Native/` and are what the app
-opens in (build 33+). They do NOT have their own store yet: the web app hands
-them a snapshot of every `radiant.phone.*` / `rx.*` localStorage key at launch
-(`src/mobile/nativePreview.js` → `NativePreview.open`), they read and write
-those keys in the web's exact shapes (`Native/Stores.swift` mirrors chats.js,
-skills.js, drafts.js, providers.js, consent.js), and every write goes back as a
-`kv` event. So both designs share one set of data and either can be used.
-Screens not rebuilt yet open in the web design (`app.openWeb(route)` →
-reload onto that route) and returning to Home reopens native. "Use the current
-design" sets `radiant.phone.nativeUI` = "0". Rules ported, not reinvented:
-themes (NativeKit.swift, same OKLCH values), fit (fit.js), Hugging Face checks
-(hf.js), prompt budget and thinking (ChatLogic.swift). The full list of what
-the web screens do is `docs/ios-native-inventory.md`. New Swift files must be
+⚠️ **The store is a file, and its first launch imports the web's.** `KV`
+(NativeKit.swift) holds the same `radiant.phone.*` / `rx.*` keys and JSON
+shapes the old web design kept in localStorage, backed by
+`Application Support/radiant-store.json` (`Launch.swift`, `DiskStore`). The
+first launch of build 42+ on a phone that ran an older build reads the old
+localStorage through a hidden `WKWebView` on the same origin
+(`radiant://localhost`, default data store) and copies any key the file lacks,
+then sets `radiant.native.imported` = "1"; until that succeeds it retries each
+launch. Nothing is deleted from the old storage. Never rename a key or change a
+shape without a migration: App Store 1.1 users' chats arrive through this.
+`DiskStore.flush()` must never run on its own queue — `sync` onto it trapped
+the app at launch in the first build of this. New Swift files must be
 registered: `python3 scripts/ios-add-swift.py App/Native/Foo.swift`.
 
 ⚠️ **The MLX engine is OUR FORK, pinned to one commit.** `CapApp-SPM/Package.swift`
