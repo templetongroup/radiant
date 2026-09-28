@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "generated": "2026-09-25T12:31:12Z",
+  "generated": "2026-09-28T12:36:56Z",
   "models": [
     {
       "id": "gemma3-270m",
@@ -738,7 +738,7 @@
       "maker": "Uncensored",
       "blurb": "The largest abliterated Qwen that fits a phone.",
       "gb": 5.06,
-      "repo": "huihui-ai/Huihui-Qwen3.5-9B-abliterated-mlx-4bit",
+      "repo": "PewterZz/Qwen3.5-9B-abliterated-MLX-4bit",
       "vision": false,
       "video": false,
       "stop": "<|im_end|>"

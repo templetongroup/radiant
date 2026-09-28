@@ -114,6 +114,12 @@ let package = Package(name: "engine-check", platforms: [.macOS(.v14)],
     (work / 'Sources/main.swift').write_text(Path('scripts/engine-check/main.swift').read_text())
     print(f"  building the engine check against {lm['location'].split('github.com/')[-1]} @ {lm['state']['revision'][:7]}…")
     b = subprocess.run(['swift', 'build'], cwd=work, capture_output=True, text=True)
+    # Xcode's Metal compiler lives on a disk image macOS remounts under a new
+    # random folder; the cached build plan keeps the old path and every .metal
+    # file fails with "unable to spawn process". Drop the plan, build once more.
+    if b.returncode != 0 and 'MetalToolchain' in b.stdout + b.stderr:
+        subprocess.run(['rm', '-rf', str(work / '.build/out/Intermediates.noindex/XCBuildData')])
+        b = subprocess.run(['swift', 'build'], cwd=work, capture_output=True, text=True)
     if b.returncode != 0:
         tail = ' '.join((b.stderr or b.stdout).strip().splitlines()[-3:])[:300]
         return [f"engine check could not be built, so nothing was verified: {tail}"]

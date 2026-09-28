@@ -432,7 +432,7 @@ public class LocalModels: CAPPlugin, CAPBridgedPlugin {
               gb: 4.62, config: rxRepo("mlx-community/Josiefied-Qwen3-8B-abliterated-v1-4bit", stop: "<|im_end|>")),
         Entry(id: "huihui-qwen3.5-9b", name: "Huihui Qwen 3.5 9B", maker: "Uncensored",
               blurb: "The largest abliterated Qwen that fits a phone.",
-              gb: 5.06, config: rxRepo("huihui-ai/Huihui-Qwen3.5-9B-abliterated-mlx-4bit", stop: "<|im_end|>")),
+              gb: 5.06, config: rxRepo("PewterZz/Qwen3.5-9B-abliterated-MLX-4bit", stop: "<|im_end|>")),
         Entry(id: "qwen3.8-9b-heretic", name: "Qwen 3.8 9B Heretic", maker: "Uncensored",
               blurb: "Newest Qwen generation, uncensored.",
               gb: 5.56, config: rxRepo("Foresee/Qwen3.8-9B-heretic-uncensored-4bit-MTPLX", stop: "<|im_end|>")),
@@ -978,9 +978,9 @@ public class LocalModels: CAPPlugin, CAPBridgedPlugin {
                     resolve(["id": id, "cancelled": true])
                 } else {
                     self.notifyListeners("downloadFailed", data: [
-                        "id": id, "message": error.localizedDescription
+                        "id": id, "message": Self.downloadError(error)
                     ])
-                    reject("Download failed: \(error.localizedDescription)")
+                    reject("Download failed: \(Self.downloadError(error))")
                 }
             }
         }
@@ -1077,6 +1077,17 @@ public class LocalModels: CAPPlugin, CAPBridgedPlugin {
         if let dir = cacheDir(for: row.repo) { try? FileManager.default.removeItem(at: dir) }
         forget(id)
         withCustom { list in list.removeAll { $0.id == id }; saveCustom(list) }
+    }
+
+    /// Hugging Face's library describes a refused request as "HTTPClientError
+    /// error 1", which tells a person nothing. Say what the server said.
+    static func downloadError(_ error: Error) -> String {
+        guard case HTTPClientError.responseError(let response, _) = error else { return error.localizedDescription }
+        switch response.statusCode {
+        case 401, 403, 404: return "Hugging Face no longer offers this model (it was removed, made private, or needs a sign-in)."
+        case 429: return "Hugging Face is limiting downloads right now. Try again in a few minutes."
+        default: return "Hugging Face answered \(response.statusCode). Try again later."
+        }
     }
 
     func stopDownload(_ id: String) { job(id)?.cancel() }
