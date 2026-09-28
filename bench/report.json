@@ -77,6 +77,42 @@
    "cachePct": 82.00538488503047
   },
   {
+   "tag": "radiant@cachefix__claude-sonnet-5",
+   "tasks": 30,
+   "attempts": 30,
+   "graded": 0,
+   "gradedTasks": 0,
+   "success": null,
+   "cost": 0.19198993333333333,
+   "turns": 20.066666666666666,
+   "secs": 87.8231,
+   "cachePct": 79.87826455249414
+  },
+  {
+   "tag": "radiant@carry__gpt-5.6-sol",
+   "tasks": 30,
+   "attempts": 30,
+   "graded": 30,
+   "gradedTasks": 30,
+   "success": 100,
+   "cost": 0.2628758133333334,
+   "turns": 17.066666666666666,
+   "secs": 115.32646666666666,
+   "cachePct": 72.57489987819919
+  },
+  {
+   "tag": "radiant@nocarry__gpt-5.6-sol",
+   "tasks": 30,
+   "attempts": 30,
+   "graded": 30,
+   "gradedTasks": 30,
+   "success": 100,
+   "cost": 0.2931473866666667,
+   "turns": 17.233333333333334,
+   "secs": 120.24996666666667,
+   "cachePct": 70.33932246102198
+  },
+  {
    "tag": "radiant__claude-sonnet-5",
    "tasks": 30,
    "attempts": 90,
@@ -101,5 +137,5 @@
    "cachePct": 70.10450483533378
   }
  ],
- "at": "2026-09-18T16:58:26.825Z"
+ "at": "2026-09-28T00:17:20.916Z"
 }
