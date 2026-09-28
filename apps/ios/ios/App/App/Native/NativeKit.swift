@@ -303,17 +303,18 @@ struct Swirl: View {
     var size: CGFloat = 29
     @Environment(\.rx) private var rx
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var turning = false
 
+    // The angle comes from the clock, not from an animation started in
+    // onAppear: a List row that scrolls away or sits under a pushed screen
+    // keeps its @State, reappears with it already "turned", and never spins again.
     var body: some View {
-        Image("LogoMark").renderingMode(.template).resizable().scaledToFit()
-            .frame(width: size, height: size)
-            .foregroundStyle(rx.tintText)
-            .rotationEffect(.degrees(turning ? 360 : 0), anchor: UnitPoint(x: 0.499, y: 0.4868))
-            .onAppear {
-                guard !reduceMotion else { return }
-                withAnimation(.linear(duration: 2.4).repeatForever(autoreverses: false)) { turning = true }
-            }
-            .accessibilityHidden(true)
+        TimelineView(.animation(paused: reduceMotion)) { t in
+            Image("LogoMark").renderingMode(.template).resizable().scaledToFit()
+                .frame(width: size, height: size)
+                .foregroundStyle(rx.tintText)
+                .rotationEffect(.degrees(reduceMotion ? 0 : t.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 2.4) / 2.4 * 360),
+                                anchor: UnitPoint(x: 0.499, y: 0.4868))
+        }
+        .accessibilityHidden(true)
     }
 }
