@@ -38,6 +38,10 @@ final class ModelsModel: ObservableObject {
     @Published var progress: [String: Progress] = [:]
     @Published var preparing: Set<String> = []
     @Published var failed: [String: String] = [:]
+    /// Models added from Hugging Face before a check existed (a draft model,
+    /// say) are checked again here; the verdict replaces the size-only label.
+    @Published var refused: [String: (label: String, why: String)] = [:]
+    private var checked: Set<String> = []
     @Published var disk: (free: Int64, total: Int64) = (0, 0)
     let budget: Double
     let device = UIDevice.current.userInterfaceIdiom == .pad ? "iPad" : "iPhone"
@@ -57,6 +61,14 @@ final class ModelsModel: ObservableObject {
         disk = engine.disk()
         // a download that started before this screen opened is still running
         for r in rows where engine.isDownloading(r.id) && progress[r.id] == nil { progress[r.id] = Progress(pct: nil, done: 0) }
+        for r in rows where r.custom && !r.downloaded && !checked.contains(r.id) {
+            checked.insert(r.id)
+            Task {
+                guard let info = try? await HF.inspect(r.repo) else { return }
+                let v = HF.qualify(info, fit: fit(r))
+                if !v.ok { refused[r.id] = (v.label, v.why) }
+            }
+        }
     }
 
     private func handle(_ event: String, _ d: [String: Any]) {
@@ -198,7 +210,8 @@ struct ModelsView: View {
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 6) {
                         Text(r.name).foregroundStyle(rx.label)
-                        if let fit { Text(fit.label).font(.caption.weight(.semibold)).foregroundStyle(fit.color) }
+                        if let no = models.refused[r.id] { Text(no.label).font(.caption.weight(.semibold)).foregroundStyle(.red) }
+                        else if let fit { Text(fit.label).font(.caption.weight(.semibold)).foregroundStyle(fit.color) }
                     }
                     if p != nil {
                         Text(models.preparing.contains(r.id) ? "Preparing…" : "Downloading… " + (ModelsModel.text(p) ?? ""))
@@ -206,7 +219,7 @@ struct ModelsView: View {
                     } else {
                         Text(String(format: "%.1f GB", r.gb) + " · " + r.blurb).font(.caption).foregroundStyle(rx.label2).lineLimit(2)
                     }
-                    if let why = models.failed[r.id] { Text(why).font(.caption).foregroundStyle(.red).lineLimit(2) }
+                    if let why = models.failed[r.id] ?? models.refused[r.id]?.why { Text(why).font(.caption).foregroundStyle(.red).lineLimit(3) }
                 }
                 Spacer()
                 if p != nil {
