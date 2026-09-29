@@ -186,6 +186,12 @@ function NodeEditor ({ node: raw, index, all, agents, pickable, onChange, onRemo
   )
 }
 
+/** "48k tokens, ≈ $0.12" — the dollars only when there is a list price to show. */
+const spentWords = ({ tokens, cost, priced }) => {
+  const t = tokens >= 1e6 ? `${(tokens / 1e6).toFixed(1)}M` : tokens >= 1000 ? `${Math.round(tokens / 1000)}k` : String(tokens)
+  return `${t} tokens` + (cost > 0 || priced ? `, ≈ $${cost < 0.01 ? cost.toFixed(3) : cost.toFixed(2)}` : '')
+}
+
 export default function GraphBoard ({
   agents = [], models = [], projects = [], defaultCwd = '',
   mode = 'dark', onOpenSession, onError, onRefreshModels
@@ -244,7 +250,7 @@ export default function GraphBoard ({
   ], [agents, models])
 
   const startDraft = () => {
-    setDraft({ title: '', detail: '', cwd: defaultCwd || '', concurrency: 4, autoApprove: false, repeat: false, nodes: DIAMOND() })
+    setDraft({ title: '', detail: '', cwd: defaultCwd || '', concurrency: 4, autoApprove: false, repeat: false, budget: '', nodes: DIAMOND() })
     setEditingId(null); setHow('describe'); setGoal(''); setAssumptions([]); setComposing(true)
   }
 
@@ -272,14 +278,14 @@ export default function GraphBoard ({
     } catch (e) { onError?.(e.message) } finally { setDrafting(false) }
   }
   const editGraph = g => {
-    setDraft({ title: g.title, detail: g.detail || '', cwd: g.cwd || '', concurrency: g.concurrency || 4, autoApprove: Boolean(g.autoApprove), repeat: Boolean(g.repeat), nodes: g.nodes.map(n => ({ ...n })) })
+    setDraft({ title: g.title, detail: g.detail || '', cwd: g.cwd || '', concurrency: g.concurrency || 4, autoApprove: Boolean(g.autoApprove), repeat: Boolean(g.repeat), budget: g.repeat?.budgetTokens ? String(g.repeat.budgetTokens / 1000) : '', nodes: g.nodes.map(n => ({ ...n })) })
     setEditingId(g.id); setHow('build'); setAssumptions([]); setComposing(true)
   }
 
   const save = async () => {
     const nodes = draft.nodes.filter(n => n.title.trim())
     if (!draft.title.trim() || !nodes.length) return
-    const body = { title: draft.title.trim(), detail: draft.detail.trim(), cwd: draft.cwd.trim() || null, concurrency: draft.concurrency, autoApprove: draft.autoApprove, repeat: draft.repeat ? { until: 'dry' } : null, nodes }
+    const body = { title: draft.title.trim(), detail: draft.detail.trim(), cwd: draft.cwd.trim() || null, concurrency: draft.concurrency, autoApprove: draft.autoApprove, repeat: draft.repeat ? { until: 'dry', ...(Number(draft.budget) > 0 ? { budgetTokens: Math.round(Number(draft.budget) * 1000) } : {}) } : null, nodes }
     try {
       const g = editingId ? await api.patchGraph(editingId, body) : await api.createGraph(body)
       setComposing(false); setEditingId(null); setOpenId(g.id); refresh()
@@ -437,6 +443,12 @@ export default function GraphBoard ({
                   five-hour usage window vanished in thirty-five minutes. */}
               <span>Keep going until nothing new turns up <i>— runs the whole graph again, telling every step what earlier rounds already found, and stops after two rounds in a row add nothing. Never more than five rounds.</i></span>
             </label>
+            {draft.repeat && (
+              <label className='gb-auto'>
+                <span>Stop after <input type='number' min='10' step='10' className='gb-budget' value={draft.budget} placeholder='none'
+                  onChange={e => setDraft(d => ({ ...d, budget: e.target.value }))} /> thousand tokens <i>— checked after each round, so the last round can go a little over. Leave empty for no limit.</i></span>
+              </label>
+            )}
             <button className='rx-btn rx-btn-go' onClick={save} disabled={!draft.title.trim() || !draft.nodes.some(n => n.title.trim())}>
               {editingId ? 'Save changes' : 'Create graph'}
             </button>
@@ -506,10 +518,13 @@ export default function GraphBoard ({
                   {r?.rounds && (
                     <p className='gb-rounds'>
                       {r.rounds.length} round{r.rounds.length === 1 ? '' : 's'}
-                      {r.stoppedBecause === 'dry' ? ' — stopped because nothing new turned up' : r.stoppedBecause === 'cap' ? ' — stopped at the five-round limit' : r.stoppedBecause === 'stopped' ? ' — stopped by you' : ''}
-                      {r.rounds.map(x => ` · round ${x.round}: ${x.newCount} new`).join('')}
+                      {r.stoppedBecause === 'dry' ? ' — stopped because nothing new turned up' : r.stoppedBecause === 'cap' ? ' — stopped at the five-round limit' : r.stoppedBecause === 'budget' ? ' — stopped at the token budget' : r.stoppedBecause === 'stopped' ? ' — stopped by you' : ''}
+                      {r.rounds.map(x => ` · round ${x.round}: ${x.newCount} new${x.tokens != null ? `, ${spentWords(x)}` : ''}`).join('')}
                       {r.found?.length ? ` · ${r.found.length} distinct lines found in all` : ''}
                     </p>
+                  )}
+                  {r?.spent?.tokens > 0 && (
+                    <p className='gb-rounds'>Spent {spentWords(r.spent)}{r.spent.priced ? ' at list price' : r.spent.cost > 0 ? ' at list price, for the steps whose model has one' : ''}</p>
                   )}
                   <ol className='gb-nodes'>
                     {g.nodes.map(n => {
@@ -525,6 +540,7 @@ export default function GraphBoard ({
                               {n.gate ? ` · only when “${g.nodes.find(x => x.id === n.gate.node)?.title || '?'}” chooses “${n.gate.choice}”` : ''}
                               {st?.retried ? ' · asked twice for the right shape' : ''}
                               {st?.ms ? ` · ${(st.ms / 1000).toFixed(1)}s` : ''}
+                              {st?.usage && (st.usage.input || st.usage.output) ? ` · ${spentWords({ tokens: st.usage.input + st.usage.output, cost: st.cost ?? 0, priced: st.cost != null })}` : ''}
                             </span>
                             {st?.error && <span className='gb-run-error'>{st.error}</span>}
                             {st?.output && <pre className='gb-run-out'>{st.output.slice(0, 600)}</pre>}

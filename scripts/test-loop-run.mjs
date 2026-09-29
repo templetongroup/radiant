@@ -101,6 +101,21 @@ ok('a step that cannot pass stops', ended?.action === 'failed', ended?.action)
 ok('after exactly the attempts it was allowed', tries === 2, String(tries))
 ok('and the step says why', /still no/.test(ended?.loop.steps[0].lastFail || ''), ended?.loop.steps[0].lastFail)
 
+// ── a check that says it cannot be done stops at once ──────────────────────
+// The a16z trace: the agent saw the wall on try 5 and was sent back 14 times.
+const lb = await j('POST', '/api/loops', { title: 'Unreachable', steps: [{ title: 'Hit 100', check: 'score is 100', maxAttempts: 5 }] })
+await j('POST', `/api/loops/${lb.id}/start`)
+let rb = await j('POST', `/api/loops/${lb.id}/advance`); say(rb.sessionId, 'optimised everything I can reach')
+rb = await j('POST', `/api/loops/${lb.id}/advance`); say(rb.sessionId, 'VERDICT: BLOCKED — the server adds 2 s of latency the code cannot change')
+rb = await j('POST', `/api/loops/${lb.id}/advance`)
+ok('a blocked check ends the run', rb.action === 'failed', rb.action)
+ok('on the first attempt, not the fifth', rb.loop.steps[0].attempts === 1, String(rb.loop.steps[0].attempts))
+ok('the step is marked blocked, with the reason', rb.loop.steps[0].blocked === true && /latency/.test(rb.loop.steps[0].lastFail), rb.loop.steps[0].lastFail)
+ok('the loop carries the reason', /latency/.test(rb.loop.blockedReason || ''))
+await j('POST', `/api/loops/${lb.id}/start`)
+rb = await j('POST', `/api/loops/${lb.id}/advance`)
+ok('running again clears it', !rb.loop.blockedReason && !rb.loop.steps[0].blocked)
+
 // ⚠️ A CHECK THAT ANSWERS NEITHER WORD IS NOT A PASS. This is the failure that
 // would make the whole layer worthless: the one case where the check did not
 // happen is the one where it must not report the step done.

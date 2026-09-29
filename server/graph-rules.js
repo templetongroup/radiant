@@ -95,7 +95,32 @@ export function normalizeRepeat (raw) {
   if (!raw || raw.until !== 'dry') return null
   const maxRounds = Math.max(1, Math.min(MAX_ROUNDS, Number(raw.maxRounds) || MAX_ROUNDS))
   const dryRounds = Math.max(1, Math.min(maxRounds, Number(raw.dryRounds) || DRY_ROUNDS))
-  return { until: 'dry', maxRounds, dryRounds }
+  // Optional. Tokens, not dollars: a token cap works for every model, a dollar
+  // cap only for the ones with a list price.
+  const budget = Math.round(Number(raw.budgetTokens) || 0)
+  return { until: 'dry', maxRounds, dryRounds, ...(budget >= MIN_BUDGET ? { budgetTokens: Math.min(budget, MAX_BUDGET) } : {}) }
+}
+
+export const MIN_BUDGET = 10_000
+export const MAX_BUDGET = 100_000_000
+
+/**
+ * What a set of finished steps spent: tokens always, dollars at list price for
+ * the steps whose model has one. `priced` says whether that covers them all.
+ *
+ * ⚠️ THE COST OF A ROUND HAS TO BE ON SCREEN WHILE IT RUNS. The a16z Lighthouse
+ * trace (2026-08): two thirds of the bill bought zero points, and nobody knew
+ * until the trace was read afterwards. "Round 3: nothing new, $0.41" is the
+ * line that lets a person stop it.
+ */
+export function tally (nodes) {
+  let tokens = 0, cost = 0, priced = true
+  for (const n of Object.values(nodes || {})) {
+    if (!n?.usage) continue
+    tokens += (n.usage.input || 0) + (n.usage.output || 0)
+    if (n.cost == null) { if ((n.usage.input || 0) + (n.usage.output || 0)) priced = false } else cost += n.cost
+  }
+  return { tokens, cost, priced }
 }
 
 /**

@@ -53,6 +53,8 @@ const server = http.createServer(async (req, res) => {
   if (/GROWER/.test(job)) answer = /bug three/.test(asked) ? '- bug one\n- bug three' : /already turned up/.test(asked) ? '- bug one\n- bug three' : '- bug one\n- bug two'
   res.writeHead(200, { 'content-type': 'text/event-stream' })
   res.write('data: ' + JSON.stringify({ choices: [{ index: 0, delta: { content: answer }, finish_reason: 'stop' }] }) + '\n\n')
+  // what a real provider reports at the end: 20k in (5k of it cached), 1k out
+  res.write('data: ' + JSON.stringify({ choices: [], usage: { prompt_tokens: 20000, completion_tokens: 1000, prompt_tokens_details: { cached_tokens: 5000 } } }) + '\n\n')
   res.write('data: [DONE]\n\n')
   res.end()
 })
@@ -198,6 +200,32 @@ const node = o => ({ kind: 'agent', prompt: '', dependsOn: [], fields: [], useTo
   ok('found is every distinct line across rounds', run.found.join('|') === '- bug one|- bug two|- bug three', run.found.join('|'))
   ok('later rounds were told what was already seen', [...sessions.values()].filter(s => s.title.endsWith('GROWER finder')).some(s => /already turned up/.test(s.messages[0].text)))
   ok('the cap is honoured on the way in', (await import('../server/graph-rules.js')).normalizeRepeat({ until: 'dry', maxRounds: 50 }).maxRounds === 5)
+  // ⚠️ WHAT EACH ROUND COST, WHILE IT RUNS — the a16z trace spent two thirds of
+  // its bill on rounds that found nothing, and only the trace said so.
+  ok('every round says what it spent', run.rounds.every(x => x.tokens === 21000), run.rounds.map(x => x.tokens).join(','))
+  ok('and the run adds them up', run.spent.tokens === 21000 * run.roundsRun, JSON.stringify(run.spent))
+  ok('a model with no list price is tokens only, and says so', run.spent.priced === false && run.spent.cost === 0)
+}
+
+// ── a token budget stops a repeating graph ─────────────────────────────────
+{
+  const graph = {
+    id: 'graph-budget', title: 'Sweep on a budget', cwd: dir, concurrency: 2, repeat: { until: 'dry', maxRounds: 5, dryRounds: 2, budgetTokens: 30000 },
+    nodes: [node({ id: 'g', title: 'GROWER finder' })]
+  }
+  const run = await runGraph(graph, deps)
+  ok('it stops at the budget', run.stoppedBecause === 'budget', run.stoppedBecause)
+  ok('after the round that crossed it, not before', run.roundsRun === 2, String(run.roundsRun))
+}
+
+// ── dollars, where the model has a list price ──────────────────────────────
+{
+  const graph = { id: 'graph-price', title: 'Priced', cwd: dir, nodes: [node({ id: 'p', title: 'Angle', model: 'gpt-5.6-luna' })] }
+  const run = await runGraph(graph, deps)
+  // 15k fresh × $0.20 + 5k cached × $0.02 + 1k out × $1.20, per million
+  const want = (15000 * 0.2 + 5000 * 0.02 + 1000 * 1.2) / 1e6
+  ok('a step is priced at list price, cached tokens at the cached rate', Math.abs(run.nodes.p.cost - want) < 1e-9, String(run.nodes.p.cost))
+  ok('and a one-shot run totals it too', run.spent.priced === true && Math.abs(run.spent.cost - want) < 1e-9, JSON.stringify(run.spent))
 }
 
 // ── a graph cannot grant itself permission ──────────────────────────────────

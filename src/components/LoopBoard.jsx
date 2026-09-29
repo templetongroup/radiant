@@ -135,7 +135,7 @@ function StepRow ({ step, index, agents, running, onOpen }) {
           <div className='lp-step-check lp-step-nocheck'>No check — this step is done when the agent stops. Nothing verifies it.</div>
         )}
         {step.lastFail && step.state !== 'passed' && (
-          <div className='lp-step-fail'>Last check said: {step.lastFail}</div>
+          <div className='lp-step-fail'>{step.blocked ? 'Stopped — the check says no further attempt can pass: ' : 'Last check said: '}{step.lastFail}</div>
         )}
         {step.sessionId && (
           <button className='lp-mini' onClick={() => onOpen?.(step.sessionId)}>Open its chat</button>
@@ -693,7 +693,7 @@ export default function LoopBoard ({
               {/* The goal check is the only thing that can stop a loop whose every
                   step passed, so its verdict is the one sentence worth surfacing. */}
               {loop.lastGoalFail && loop.state !== 'running' && (
-                <p className='lp-note'>Every step passed but the goal did not: {loop.lastGoalFail}</p>
+                <p className='lp-note'>{loop.blockedReason === loop.lastGoalFail ? 'Every step passed, and the goal check says it cannot be met as set up: ' : 'Every step passed but the goal did not: '}{loop.lastGoalFail}</p>
               )}
               {/* ⚠️ "WORKING" AND "WAITING FOR YOU" LOOK THE SAME FROM HERE. A step
                   that hit an approval prompt sits in Working, because that is what

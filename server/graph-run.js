@@ -1,7 +1,8 @@
 import crypto from 'crypto'
 import os from 'os'
 import { runTurn } from './providers.js'
-import { planLayers, checkNodes, nodePrompt, readOutput, runReduce, gateState, leafIds, newLines, lineKeys, normalizeRepeat, DEFAULT_CONCURRENCY, MAX_CONCURRENCY } from './graph-rules.js'
+import { planLayers, checkNodes, nodePrompt, readOutput, runReduce, gateState, leafIds, newLines, lineKeys, normalizeRepeat, tally, DEFAULT_CONCURRENCY, MAX_CONCURRENCY } from './graph-rules.js'
+import { costOf } from './prices.js'
 
 /**
  * The runner. This is the part Radiant could not do before.
@@ -49,7 +50,7 @@ export function stopGraph (id) {
 /** One node's turn, in its own session, with nothing else in its context. */
 const timedOut = () => `This step ran longer than ${Math.round(maxNodeMs() / 60000) || 1} minutes and was stopped, so the rest of the graph could finish.`
 
-async function runNode ({ graph, node, results, deps, signal, seen }) {
+async function runNode ({ graph, node, results, deps, signal, seen, meter }) {
   const { loadConfig, saveSession, agentsStore, getProject, credFor } = deps
   const config = loadConfig()
   const project = graph.projectId ? getProject(graph.projectId) : null
@@ -75,6 +76,7 @@ async function runNode ({ graph, node, results, deps, signal, seen }) {
     messages: []
   }
   if (!session.model) return { state: 'failed', error: 'No model is set for this step, and there is no default to fall back on.' }
+  meter.model = session.model
 
   const prompt = nodePrompt(graph, node, results, seen)
   session.messages.push({ role: 'user', text: prompt })
@@ -97,7 +99,10 @@ async function runNode ({ graph, node, results, deps, signal, seen }) {
     computerControl: false,
     persona: agent?.persona || '',
     skills: [],
-    emit: ev => { if (ev.type === 'text_delta') text += ev.text },
+    emit: ev => {
+      if (ev.type === 'text_delta') text += ev.text
+      else if (ev.type === 'usage') for (const k of ['input', 'output', 'cacheRead', 'cacheWrite']) meter[k] += ev[k] || 0
+    },
     // See the header: a graph cannot ask. It refuses and says what it wanted.
     requestApproval: graph.autoApprove
       ? null
@@ -143,6 +148,8 @@ async function runNode ({ graph, node, results, deps, signal, seen }) {
   return { state: 'done', output: parsed.output, data: parsed.data, sessionId: session.id, retried }
 }
 
+const sumRounds = rounds => rounds.reduce((a, r) => ({ tokens: a.tokens + r.tokens, cost: a.cost + r.cost, priced: a.priced && r.priced }), { tokens: 0, cost: 0, priced: true })
+
 /**
  * Run a whole graph. Resolves with the finished run; never throws for a node's
  * sake.
@@ -178,6 +185,7 @@ export async function runGraph (graph, deps, onProgress = () => {}) {
   const byId = new Map(graph.nodes.map(n => [n.id, n]))
   const leaves = leafIds(graph.nodes)
 
+  const meters = {}
   const runOnce = (seenLines) => new Promise(resolve => {
     const pending = new Set(graph.nodes.map(n => n.id))
     const finished = id => ['done', 'failed', 'skipped'].includes(run.nodes[id]?.state)
@@ -208,8 +216,10 @@ export async function runGraph (graph, deps, onProgress = () => {}) {
         const job = node.kind === 'reduce'
           // No model, no session, no wait.
           ? Promise.resolve().then(() => { const red = runReduce(node, run.nodes); return red.ok ? { state: 'done', output: red.output } : { state: 'failed', error: red.reason } })
-          : runNode({ graph, node, results: run.nodes, deps, signal: controller.signal, seen: seenLines })
-        job.then(r => settle(id, r, started), e => settle(id, { state: 'failed', error: e.message }, started))
+          : runNode({ graph, node, results: run.nodes, deps, signal: controller.signal, seen: seenLines, meter: (meters[id] = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }) })
+        // What the step spent is kept whether it finished or not: a failed step still billed.
+        const spent = () => { const m = meters[id]; return m ? { usage: { input: m.input, output: m.output, cacheRead: m.cacheRead, cacheWrite: m.cacheWrite }, cost: costOf(m, m.model) } : {} }
+        job.then(r => settle(id, { ...r, ...spent() }, started), e => settle(id, { state: 'failed', error: e.message, ...spent() }, started))
           .finally(() => { active--; tick() })
       }
       if (!pending.size && active === 0) resolve()
@@ -225,7 +235,7 @@ export async function runGraph (graph, deps, onProgress = () => {}) {
       // of the leaves — the steps nothing else reads — and it is deduped against
       // EVERYTHING seen, not against what survived.
       const seen = new Set()
-      let dry = 0
+      let dry = 0, spentTokens = 0, overBudget = false
       for (let round = 1; round <= repeat.maxRounds; round++) {
         if (round > 1) run.nodes = freshNodes()
         await runOnce([...run.found])
@@ -239,13 +249,20 @@ export async function runGraph (graph, deps, onProgress = () => {}) {
         }
         run.found.push(...fresh)
         dry = fresh.length ? 0 : dry + 1
-        run.rounds.push({ round, newCount: fresh.length, nodes: run.nodes })
+        const spent = tally(run.nodes)
+        spentTokens += spent.tokens
+        run.rounds.push({ round, newCount: fresh.length, nodes: run.nodes, ...spent })
+        run.spent = sumRounds(run.rounds)
         onProgress(run)
         if (dry >= repeat.dryRounds) break
+        // Checked between rounds, so a round in flight finishes rather than
+        // leaving half its steps unrun; the overshoot is at most one round.
+        if (repeat.budgetTokens && spentTokens >= repeat.budgetTokens) { overBudget = true; break }
       }
       run.roundsRun = run.rounds.length
-      run.stoppedBecause = controller.signal.aborted ? 'stopped' : dry >= repeat.dryRounds ? 'dry' : 'cap'
+      run.stoppedBecause = controller.signal.aborted ? 'stopped' : dry >= repeat.dryRounds ? 'dry' : overBudget ? 'budget' : 'cap'
     }
+    if (!repeat) run.spent = tally(run.nodes)
     if (controller.signal.aborted) { run.state = 'stopped' } else {
       const failed = Object.values(run.nodes).filter(n => n.state === 'failed')
       const ran = Object.values(run.nodes).filter(n => n.state !== 'skipped')

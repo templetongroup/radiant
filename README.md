@@ -103,9 +103,13 @@
   comments itself.
 - **Loops** — a run of steps where each step has a check it must pass (a
   command that exits 0, or a sentence another agent judges); a step that fails
-  goes round again carrying the reason.
+  goes round again carrying the reason. A check can also answer *blocked* —
+  no attempt could pass — which ends the loop at once instead of spending
+  the attempts left.
 - **Graphs** — several jobs with only the waits that are real: steps that do
-  not depend on each other run at the same time.
+  not depend on each other run at the same time. A run shows what every step
+  and round spent (tokens, and dollars at list price), and a repeating graph
+  can stop at a token budget.
 - **Long builds** — no cap on rounds. The only ceiling is a spend budget you
   set, measured in real cost, and a turn that keeps failing the same kind of
   command is stopped instead of burning tokens.

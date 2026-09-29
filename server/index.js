@@ -2858,6 +2858,7 @@ app.post('/api/loops/:id/start', (req, res) => {
   // with it — carrying it forward would make pass one read as a retry.
   loop.pass = 1
   loop.lastGoalFail = null
+  loop.blockedReason = null
   loop.goalState = null
   loop.goalSessionId = null
   res.json(saveLoop(loop))
@@ -3093,8 +3094,9 @@ app.post('/api/loops/:id/advance', async (req, res) => {
       if (!hasGoalCheck(loop)) return finish('done')
 
       if (loop.goalState === 'checking') {
-        const { pass, reason } = readVerdict(lastAssistantText(loop.goalSessionId))
+        const { pass, reason, blocked } = readVerdict(lastAssistantText(loop.goalSessionId))
         if (pass) { loop.lastGoalFail = null; return finish('done') }
+        if (blocked) { loop.lastGoalFail = reason; loop.blockedReason = reason; return finish('failed') }
         if (!startAnotherPass(reason)) return finish('failed')
         loop = saveLoop(loop)
         continue
@@ -3174,7 +3176,15 @@ app.post('/api/loops/:id/advance', async (req, res) => {
     }
 
     if (step.state === 'checking') {
-      const { pass, reason } = readVerdict(lastAssistantText(step.checkSessionId))
+      const { pass, reason, blocked } = readVerdict(lastAssistantText(step.checkSessionId))
+      if (blocked) {
+        step.lastFail = reason
+        step.state = 'failed'
+        step.blocked = true
+        step.finishedAt = new Date().toISOString()
+        loop.blockedReason = reason
+        return finish('failed')
+      }
       if (pass) {
         step.state = 'passed'
         step.lastFail = null

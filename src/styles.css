@@ -3463,6 +3463,7 @@ html[data-window-chrome='native'] .brand { padding-top: 12px; }
 .gb-auto { display: flex; gap: 7px; align-items: flex-start; max-width: 52ch; font-size: 11.5px; color: var(--text); cursor: pointer; }
 .gb-auto input { accent-color: var(--accent); margin-top: 2px; }
 .gb-auto i { display: block; color: var(--text-faint); font-style: normal; line-height: 1.45; }
+.gb-auto .gb-budget { width: 9ch; margin: 0 4px; padding: 1px 4px; font: inherit; color: var(--text); background: var(--bg-input, transparent); border: 1px solid var(--border); border-radius: 4px; }
 
 .gb-list { display: flex; flex-direction: column; gap: 12px; padding: 0 18px 18px; }
 .gb-card { border-radius: 14px; background: var(--bg-panel); padding: 12px 14px; }

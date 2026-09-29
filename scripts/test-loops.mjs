@@ -22,6 +22,14 @@ ok('a clean PASS passes', readVerdict('Looks right.\nVERDICT: PASS').pass === tr
 ok('a clean FAIL fails', readVerdict('VERDICT: FAIL — the tests were never run').pass === false)
 ok('and the reason survives',
    readVerdict('VERDICT: FAIL — the tests were never run').reason === 'the tests were never run')
+// A wall, not a gap: "it cannot be done" ends the run instead of spending attempts.
+ok('BLOCKED is read as blocked', readVerdict('VERDICT: BLOCKED — the latency is outside the code').blocked === true)
+ok('and is not a pass', readVerdict('VERDICT: BLOCKED — x').pass === false)
+ok('and keeps its reason', readVerdict('VERDICT: BLOCKED — the latency is outside the code').reason === 'the latency is outside the code')
+ok('a FAIL is not blocked', !readVerdict('VERDICT: FAIL — no').blocked)
+ok('the last verdict still wins over a quoted BLOCKED',
+   readVerdict('Options: VERDICT: BLOCKED — …\nVERDICT: FAIL — tests red').blocked !== true)
+ok('the check prompt offers BLOCKED', /VERDICT: BLOCKED/.test(checkPrompt({ cwd: '/x' }, { title: 't', check: 'c' }, true)))
 ok('markdown bolding does not hide the verdict', readVerdict('**VERDICT: PASS**').pass === true)
 ok('a hyphen works as well as an em dash',
    readVerdict('VERDICT: FAIL - no file was written').reason === 'no file was written')

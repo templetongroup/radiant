@@ -77,6 +77,12 @@ export function workPrompt (loop, step) {
 }
 
 /** What to say to whoever is grading it. */
+// BLOCKED is for a wall, not a gap: nothing another attempt could change.
+const VERDICT_CHOICES = missing => 'Reply with one final line, exactly one of:\nVERDICT: PASS\n' +
+  `VERDICT: FAIL — <one sentence naming ${missing}>\n` +
+  'VERDICT: BLOCKED — <one sentence naming why no further attempt could pass: something outside the work, like missing access or a condition that cannot be met>\n' +
+  'Use BLOCKED only when retrying cannot help; if more work could get there, it is FAIL.'
+
 export function checkPrompt (loop, step, sameSession) {
   return [
     'You are checking one step of a loop, not continuing it. Do no new work: inspect what is there and judge it.',
@@ -85,7 +91,7 @@ export function checkPrompt (loop, step, sameSession) {
       : `Judge work that was just done in ${loop.cwd || 'the working folder'} by another agent. Read whatever you need to.`,
     `Step: ${step.title}`,
     `It passes only if: ${step.check}`,
-    'Reply with one final line, exactly one of:\nVERDICT: PASS\nVERDICT: FAIL — <one sentence naming what is missing or wrong>'
+    VERDICT_CHOICES('what is missing or wrong')
   ].join('\n\n')
 }
 
@@ -109,7 +115,7 @@ export function checkPrompt (loop, step, sameSession) {
 // costs an attempt and never costs a false pass — the prompt asks for one final
 // line, and being strict is the safe direction to be wrong in. List and quote
 // markers are allowed because models add them unbidden.
-const VERDICT_RE = /^[ \t]*(?:[-*>][ \t]*)*(?:\*\*)?VERDICT(?:\*\*)?[ \t]*[::][ \t]*(?:\*\*)?(PASS|FAIL)\b(?:\*\*)?[ \t]*[—\-–:.]*[ \t]*(.*)$/gim
+const VERDICT_RE = /^[ \t]*(?:[-*>][ \t]*)*(?:\*\*)?VERDICT(?:\*\*)?[ \t]*[::][ \t]*(?:\*\*)?(PASS|FAIL|BLOCKED)\b(?:\*\*)?[ \t]*[—\-–:.]*[ \t]*(.*)$/gim
 
 export function readVerdict (text) {
   const s = String(text || '')
@@ -131,6 +137,12 @@ export function readVerdict (text) {
   // the step is done. It costs an attempt, which is bounded.
   if (!last) return { pass: false, reason: 'The check did not answer PASS or FAIL.' }
   if (last[1].toUpperCase() === 'PASS') return { pass: true, reason: '' }
+  // ⚠️ "IT CANNOT BE DONE" IS AN ANSWER, NOT A FAIL TO RETRY. Watched in the
+  // wild (a16z, 2026-08): the agent diagnosed an unreachable goal on try 5 and
+  // the checker sent it back fourteen more times, each turn dearer than the
+  // last. A blocked verdict ends the run with its reason instead of spending
+  // the attempts that are left on work no attempt can finish.
+  if (last[1].toUpperCase() === 'BLOCKED') return { pass: false, blocked: true, reason: (last[2] || '').trim() || 'The check said this cannot be done as set up.' }
   return { pass: false, reason: (last[2] || '').trim() || 'The check said this step is not done.' }
 }
 
@@ -219,14 +231,14 @@ export function goalPrompt (loop) {
     `The goal was: ${loop.title}${loop.detail ? '\n' + loop.detail : ''}`,
     `It is met only if: ${loop.goalCheck}`,
     loop.cwd ? `The work was done in ${loop.cwd}. Read whatever you need to.` : '',
-    'Reply with one final line, exactly one of:\nVERDICT: PASS\nVERDICT: FAIL — <one sentence naming what is still missing>'
+    VERDICT_CHOICES('what is still missing')
   ].filter(Boolean).join('\n\n')
 }
 
 /** Wipe the step states so a new pass starts clean. Keeps what was configured. */
 export function resetSteps (steps) {
   return steps.map(s => ({
-    ...s, state: 'pending', attempts: 0, sessionId: null, checkSessionId: null, lastFail: null, startedAt: null, finishedAt: null
+    ...s, state: 'pending', attempts: 0, sessionId: null, checkSessionId: null, lastFail: null, blocked: false, startedAt: null, finishedAt: null
   }))
 }
 

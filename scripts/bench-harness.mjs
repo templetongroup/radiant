@@ -65,24 +65,7 @@ await fetchDataset()
 const DATASET = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'))
 const BY_ID = Object.fromEntries(DATASET.map(r => [r.instance_id, r]))
 
-// list prices, $ per million tokens, first-party API, read 2026-09-17
-const PRICES = {
-  'claude-sonnet-5': { in: 2, out: 10, cacheRead: 0.2, cacheWrite: 2.5 },
-  'claude-opus-5': { in: 5, out: 25, cacheRead: 0.5, cacheWrite: 6.25 },
-  'claude-opus-4-8': { in: 5, out: 25, cacheRead: 0.5, cacheWrite: 6.25 },
-  'claude-fable-5': { in: 10, out: 50, cacheRead: 1, cacheWrite: 12.5 },
-  'claude-haiku-4-5': { in: 1, out: 5, cacheRead: 0.1, cacheWrite: 1.25 },
-  // OpenAI, developers.openai.com/api/docs/pricing, read 2026-09-17; no cache-write charge
-  'gpt-6-astra': { in: 10, out: 50, cacheRead: 1, cacheWrite: 10 },
-  'gpt-5.6-sol': { in: 4, out: 20, cacheRead: 0.4, cacheWrite: 4 },
-  'gpt-5.6-terra': { in: 2, out: 12, cacheRead: 0.2, cacheWrite: 2 },
-  'gpt-5.6-luna': { in: 0.2, out: 1.2, cacheRead: 0.02, cacheWrite: 0.2 },
-  'gpt-5.5': { in: 5, out: 30, cacheRead: 0.5, cacheWrite: 5 }
-}
-const priceOf = model => {
-  const m = model.replace(/^[^/]+\//, '').replace(/:.*$/, '').replace(/\.(\d)$/, '-$1')   // anthropic/claude-sonnet-5:batch → claude-sonnet-5
-  return PRICES[m] || PRICES[model] || null
-}
+import { priceOf } from '../server/prices.js'
 const cost = (u, model) => {
   const p = priceOf(model)
   if (!p) return null
