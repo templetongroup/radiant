@@ -6,6 +6,7 @@ fail=0
 run () { printf '\n=== %s ===\n' "$1"; shift; "$@" || fail=1; }
 run "download math"  bash scripts/test-download-math.sh
 run "cloud repair"   node scripts/test-cloud-repair.mjs
+run "effort fallback" node scripts/test-effort-fallback.mjs
 run "catalog vs HF"  node scripts/test-catalog-live.mjs
 run "published list" bash scripts/test-remote-catalog.sh
 run "window drag"    node scripts/test-drag.mjs

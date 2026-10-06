@@ -398,7 +398,7 @@ for (const r of results) console.log(`  ${r.ok ? '✓' : '✗'} ${r.name}${r.det
   // Raising max_tokens matters: the budget and the reply share it.
   ok(/max_tokens = 8192 \+ THINK_BUDGET/.test(prov), 'the reply still has room beside the budget')
   // A wrong slider position must not end a turn.
-  ok(/args\.effort = 'auto'/.test(prov), 'an unsupported level degrades instead of failing')
+  ok(/\n\s+effort = 'auto'\n/.test(prov) && /noEffort\.add/.test(prov), 'an unsupported level degrades instead of failing — on the variable every round rebuilds from, and remembered')
 
   const idx = pfs.readFileSync('server/index.js', 'utf8')
   ok(/'effort'/.test(idx), 'the level is per chat and saved')

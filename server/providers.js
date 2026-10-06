@@ -643,6 +643,9 @@ function withOpenRouterClaudeCaching (body, provider, model, cachingEnabled) {
 // the field (a 400 naming it) are remembered and asked without it.
 const noStreamOptions = new Set()
 
+// Models that answered a thinking level with a 400: provider:model. Asked without it from then on.
+const noEffort = new Set()
+
 async function openaiRound ({ baseUrl, apiKey, accessToken, model, messages, tools, toolDefs, extraHeaders, effort, provider, cachingEnabled, emit, signal }) {
   const body = { model, messages, stream: true }
   if (!noStreamOptions.has(provider?.id)) body.stream_options = { include_usage: true }
@@ -1176,6 +1179,7 @@ function readOnlyRefusal (call, cwd) {
 
 // ---------- the agent loop ----------
 export async function runTurn ({ provider, model, routed, verifyClaims, apiKey, getAccessToken, getAccountId, session, useTools, computerControl, skills, persona, planAddendum, memory, agentId, groupSpeakerId, groupNames, mcpTools, callMcp, askAgent, peerAgents, research, board, judgeRelevance, readOnly, maxRounds, turnTokenBudget, projectRules, planMode, onPlanExit, effort, summarize, autoCompact, localContext, autoApproveComputer, cachingEnabled, cacheTtl, emit, requestApproval, requestUserChoice, signal }) {
+  if (effort && effort !== 'auto' && noEffort.has(`${provider?.id}:${model}`)) effort = 'auto'
   // ⚠️ NOT `session.cwd || os.homedir()`. A folder that is set and not here is
   // the case that broke every tool call in the chat — see usableCwd.
   const { dir: cwd, missing: strayCwd } = usableCwd(session.cwd)
@@ -1457,7 +1461,14 @@ export async function runTurn ({ provider, model, routed, verifyClaims, apiKey, 
         // chat — the same shape as the tools fallback above, for the same reason.
         if (args.effort && args.effort !== 'auto' && round === 0 &&
             /reasoning|thinking|effort|budget/i.test(e.message) && /support|invalid|unknown|400/i.test(e.message)) {
-          args.effort = 'auto'
+          // ⚠️ THE OUTER `effort`, NOT args.effort. `args` is built again at the top
+          // of every round from `effort`, so setting only args.effort was undone by
+          // the `continue` — the retry sent the same rejected level and the turn
+          // died (xAI: "Model grok-4.20-0309-non-reasoning does not support
+          // parameter reasoningEffort", four times in a row). Remembered per
+          // model, so the next turn does not spend a round finding out again.
+          noEffort.add(`${provider?.id}:${model}`)
+          effort = 'auto'
           emit({ type: 'notice', text: 'This model does not take a thinking level — running at its default.' })
           continue
         }
