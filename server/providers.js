@@ -864,7 +864,9 @@ export function parseInlineToolCalls (text) {
 // ChatGPT-Account-ID header. We mirror that. (Unofficial — same client as Codex.)
 // overridable so scripts/test-caching.mjs can point this path at a stub
 const CHATGPT_BASE = process.env.RADIANT_CHATGPT_BASE || 'https://chatgpt.com/backend-api/codex'
-const CODEX_CLIENT_VERSION = '0.146.0'
+// The Codex backend gates model visibility by client_version. Keep this current;
+// an override lets deployments pick up newer models before the next release.
+const CODEX_CLIENT_VERSION = process.env.RADIANT_CODEX_CLIENT_VERSION || '0.160.1'
 const CHATGPT_DEFAULT_MODEL = 'gpt-5.6-sol'
 
 // Live model list for a ChatGPT subscription (the Codex backend renames models
