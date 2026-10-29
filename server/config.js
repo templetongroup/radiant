@@ -460,7 +460,7 @@ const DEFAULT_CONFIG = {
     defaultCwd: os.homedir(),
     // Use Claude Code / Codex sessions and sign-ins already on this Mac. Off until turned on;
     // allowRemote lets a phone or second Mac use them too. See server/cli-agents-routes.js.
-    cliAgents: { enabled: false, allowRemote: false }
+    cliAgents: { enabled: false, allowRemote: false, showModels: false }
   }
 }
 

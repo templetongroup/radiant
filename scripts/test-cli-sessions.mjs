@@ -284,9 +284,14 @@ const call = async (m, p, b, headers = {}) => {
   ok('import: a long session says it was cut', cimp.status === 200 && cimp.body.messages.length === 400 && cimp.body.cliImport.truncated === true && cimp.body.cliImport.total === 900, JSON.stringify(cimp.body.cliImport))
   ok('import: a Codex chat has its provider', cimp.body.provider === 'codex' && cimp.body.cwd === '/tmp/proj-big')
 
-  // the models appear
+  // the model menu stays clean until asked: sessions work, models are absent
+  ok('models: not listed while "show in the model menu" is off, though sessions work', (await call('GET', '/api/models')).body.every(m => !m.cli))
+  await call('PUT', '/api/settings', { cliAgents: { showModels: true } })
   const models = (await call('GET', '/api/models')).body
   ok('models: offered once on and installed', models.some(m => m.provider === 'claude-code' && m.cli === true && m.id === 'sonnet') && models.some(m => m.provider === 'codex' && m.providerName === 'Codex (subscription)'))
+  await call('PUT', '/api/settings', { cliAgents: { showModels: false } })
+  ok('models: gone again when the menu switch is turned off', (await call('GET', '/api/models')).body.every(m => !m.cli))
+  await call('PUT', '/api/settings', { cliAgents: { showModels: true } })
   await call('PUT', '/api/settings', { cliAgents: { enabled: false } })
   ok('models: and gone again when turned off', (await call('GET', '/api/models')).body.every(m => !m.cli))
   ok('listing is refused again once turned off', (await call('GET', '/api/cli-sessions')).status === 403)

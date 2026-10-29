@@ -20,7 +20,7 @@ import {
 /** The settings object, always complete: anything but a literal true is off. */
 export function normalizeCliSettings (patch, base = {}) {
   const pick = k => (typeof patch?.[k] === 'boolean' ? patch[k] : base?.[k] === true)
-  return { enabled: pick('enabled'), allowRemote: pick('allowRemote') }
+  return { enabled: pick('enabled'), allowRemote: pick('allowRemote'), showModels: pick('showModels') }
 }
 
 const SSE = { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive' }
@@ -61,7 +61,8 @@ export function registerCliAgentRoutes (app, deps) {
 
   /** Models for the picker: only tools that are installed, and only when this request may use them. */
   const modelEntries = async req => {
-    if (refusal(req)) return []
+    // the sessions browser works without these; the model menu only lists them when asked
+    if (refusal(req) || !settings().showModels) return []
     const out = []
     for (const a of await detectCliAgents()) {
       if (!a.available) continue

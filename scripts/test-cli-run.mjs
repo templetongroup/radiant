@@ -337,6 +337,8 @@ const chat = async (sessionId, text, { signal } = {}) => {
   ok('server: it is kept in the machine file, not the synced config', !existsSync(join(home, '.radiant', 'config.json')) || !/cliAgents/.test(readFileSync(join(home, '.radiant', 'config.json'), 'utf8')))
   ok('server: the machine file has it', /"enabled": true/.test(readFileSync(join(home, '.radiant-machine.json'), 'utf8')))
 
+  ok('server: enabled alone does not put them in the model menu', !(await j('GET', '/api/models')).body.some(m => m.cli))
+  await j('PUT', '/api/settings', { cliAgents: { showModels: true } })
   const models = (await j('GET', '/api/models')).body
   ok('server: Claude Code and Codex appear as providers of models', models.some(m => m.provider === 'claude-code' && m.providerName === 'Claude Code (subscription)' && m.cli && m.id === 'opus') && models.some(m => m.provider === 'codex' && m.id === 'default'), JSON.stringify(models.filter(m => m.cli).slice(0, 3)))
   const info = (await j('GET', '/api/cli-agents')).body
