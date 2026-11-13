@@ -868,15 +868,28 @@ const CHATGPT_BASE = process.env.RADIANT_CHATGPT_BASE || 'https://chatgpt.com/ba
 // ⚠️ THE BACKEND HIDES MODELS FROM OLDER CLIENTS. With 0.146.0 here the picker showed only
 // gpt-5.6-*; the same account lists gpt-6-astra/sol/luna when the version is 0.156.1.
 // Tony: "why is it only showing five point six... they are already up to six point one."
-// Raise this when Codex CLI moves on (`codex --version`), or set RADIANT_CODEX_VERSION.
-const CODEX_CLIENT_VERSION = process.env.RADIANT_CODEX_VERSION || '0.156.1'
+// It happened again at 0.156.1 → gpt-6.1-* only listed from 0.169.0 ("why are models not
+// updating... gpt 6 not 6.1"), so the version is now looked up, not pinned: the newest
+// published Codex CLI, from npm, twice a day. Not the Codex installed on this Mac — the
+// subscription is Radiant's own, and nobody should need Codex to see the current models.
+let codexVersion = { v: process.env.RADIANT_CODEX_VERSION || '0.169.0', at: 0 }
+async function codexClientVersion () {
+  if (process.env.RADIANT_CODEX_VERSION || Date.now() - codexVersion.at < 12 * 3600_000) return codexVersion.v
+  codexVersion.at = Date.now()
+  try {
+    const r = await fetchRetry('https://registry.npmjs.org/@openai/codex/latest', { signal: AbortSignal.timeout(4000) })
+    const v = r.ok ? (await r.json()).version : null
+    if (/^\d+\.\d+\.\d+$/.test(v || '')) codexVersion.v = v
+  } catch { /* offline: keep the last known version */ }
+  return codexVersion.v
+}
 const CHATGPT_DEFAULT_MODEL = 'gpt-5.6-sol'
 
 // Live model list for a ChatGPT subscription (the Codex backend renames models
 // often — gpt-5-codex/gpt-5 are retired; current ids are gpt-5.6-sol etc.).
 async function chatgptModels (accessToken, accountId) {
   try {
-    const r = await fetchRetry(`${CHATGPT_BASE}/models?client_version=${CODEX_CLIENT_VERSION}`, {
+    const r = await fetchRetry(`${CHATGPT_BASE}/models?client_version=${await codexClientVersion()}`, {
       headers: { authorization: `Bearer ${accessToken}`, 'chatgpt-account-id': accountId || '', originator: 'codex_cli_rs', 'openai-beta': 'responses=experimental', accept: 'application/json' },
       signal: AbortSignal.timeout(6000)
     })

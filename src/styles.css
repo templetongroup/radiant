@@ -919,6 +919,9 @@ code, pre, .mono { font-family: var(--font-mono); }
 .model-group-label .mg-count { text-transform: none; letter-spacing: 0; font-weight: 500; color: var(--text-faint); background: var(--bg-hover); border-radius: 999px; padding: 0 6px; font-size: 10px; }
 .model-group-label.is-static { cursor: default; }
 .model-group-label.is-static:hover { color: var(--text-faint); }
+.model-signin-problem { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; font-size: 12px; color: var(--danger); }
+.model-signin-problem .mg-name { font-size: 10.5px; text-transform: uppercase; font-weight: 600; letter-spacing: 0.07em; }
+.key-expired { color: var(--danger); font-size: 12px; }
 .model-option {
   display: flex; align-items: center; gap: 8px; width: 100%; text-align: left;
   padding: 6px 10px; border: none; border-radius: 7px;

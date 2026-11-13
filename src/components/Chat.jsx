@@ -701,6 +701,7 @@ export function ModelPicker ({ session, models, onPick, onRefresh, placeholder, 
   const [q, setQ] = useState('')
   const [collapsed, setCollapsed] = useState({}) // providerName -> explicit collapse override
   const [pins, setPins] = useState(readPins)
+  const [signInProblems, setSignInProblems] = useState([])
   const ref = useRef(null)
 
   const togglePin = (m, e) => {
@@ -745,7 +746,7 @@ export function ModelPicker ({ session, models, onPick, onRefresh, placeholder, 
         aria-expanded={open}
         aria-haspopup='listbox'
         aria-controls='model-bloom'
-        onClick={() => { setOpen(o => !o); onRefresh() }}
+        onClick={() => { setOpen(o => !o); onRefresh(); api.oauthProblems().then(setSignInProblems).catch(() => {}) }}
       >
         {session?.model
           ? <>
@@ -817,6 +818,14 @@ export function ModelPicker ({ session, models, onPick, onRefresh, placeholder, 
                 </div>
               )
             })}
+            {/* a subscription whose sign-in died lists no models — say so, or the group
+                just vanishes ("why did anthropic subscription disappear?") */}
+            {!searching && signInProblems.map(p => (
+              <div key={p.provider} className='model-signin-problem' role='note'>
+                <span className='mg-name'>{p.providerName}</span>
+                <span>Sign-in expired. Sign in again in Settings → Providers to see its models.</span>
+              </div>
+            ))}
             {!filtered.length && (
               <div className='empty'>
                 No models. Add an API key in Settings, or start Ollama / LM Studio for local models.

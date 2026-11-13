@@ -19,7 +19,7 @@ import { checkVoiceRequest, liveSessionBody, createLiveSession, voiceKey, VOICE_
 import { geminiVoiceKey, checkGeminiVoiceRequest, geminiSetupFrame, mintEphemeralToken, geminiLiveModel, GEMINI_WS_URL, GEMINI_LIVE_MODELS, GEMINI_LIVE_VOICES, GEMINI_RATE_IN_PER_MINUTE, GEMINI_RATE_OUT_PER_MINUTE } from './voice-gemini.js'
 import { addressing, groupPersona } from './group.js'
 import { shouldFallBack, fallbackNotice } from './fallback.js'
-import { OAUTH_PROVIDERS, buildAuthUrl, completePaste, startLoopback, validAccessToken, startDevice, pollDevice } from './oauth.js'
+import { OAUTH_PROVIDERS, buildAuthUrl, completePaste, startLoopback, validAccessToken, startDevice, pollDevice, signInProblem } from './oauth.js'
 import { checkForUpdate } from './updater.js'
 import { ollamaBin, hermesBin, SPAWN_ENV } from './ollama.js'
 import { commandRisk } from './util.js'
@@ -1333,8 +1333,9 @@ app.get('/api/usage', async (req, res) => {
     const fetcher = USAGE[id]
     if (fetcher) {
       try { windows = await fetcher(await validAccessToken(id, config, saveConfig)) } catch {}
-    }
-    out.push({ provider: id, label, kind: 'subscription', windows, reportsUsage: Boolean(fetcher) })
+    } else await validAccessToken(id, config, saveConfig).catch(() => null)
+    // a refused renewal shows as "sign-in expired", not a green "signed in" over a dead login
+    out.push({ provider: id, label, kind: 'subscription', windows, reportsUsage: Boolean(fetcher), expired: Boolean(signInProblem(id, config)) })
   }
   res.json({ items: out })
 })
@@ -1666,8 +1667,22 @@ app.post('/api/oauth/:id/device/poll', async (req, res) => {
 })
 
 // poll whether a loopback sign-in has landed
-app.get('/api/oauth/:id/status', (req, res) => {
-  res.json({ signedIn: Boolean(config.oauth[req.params.id]) })
+// `expired` tries the renewal (once — oauth.js remembers a refusal), so Settings can say
+// "sign-in expired" instead of a green tick over a login that no longer works.
+app.get('/api/oauth/:id/status', async (req, res) => {
+  const id = req.params.id
+  if (!config.oauth[id]) return res.json({ signedIn: false })
+  await validAccessToken(id, config, saveConfig).catch(() => null)
+  const problem = signInProblem(id, config)
+  res.json({ signedIn: true, expired: Boolean(problem), problem })
+})
+
+// subscriptions whose renewal failed, for the model menu: a group that just vanished
+// read as "Radiant lost Anthropic", not "your Claude sign-in needs redoing"
+app.get('/api/oauth/problems', async (req, res) => {
+  const subs = config.providers.filter(p => config.oauth[p.id] && !config.keys[p.id])
+  await Promise.all(subs.map(p => validAccessToken(p.id, config, saveConfig).catch(() => null)))
+  res.json(subs.map(p => ({ provider: p.id, providerName: p.name, problem: signInProblem(p.id, config) })).filter(x => x.problem))
 })
 
 app.post('/api/oauth/:id/signout', (req, res) => {

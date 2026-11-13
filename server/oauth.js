@@ -189,7 +189,12 @@ export async function refreshToken (providerId, tok) {
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ grant_type: 'refresh_token', refresh_token: tok.refresh, client_id: p.clientId })
   })
-  if (!res.ok) throw new Error(isTransient(res.status) ? `${p.label} servers are temporarily unavailable (${res.status}) — try again shortly.` : `refresh failed (${res.status})`)
+  if (!res.ok) {
+    const transient = isTransient(res.status) || res.status === 429
+    const e = new Error(transient ? `${p.label} servers are temporarily unavailable (${res.status}) — try again shortly.` : `Your ${p.label} sign-in has expired. Sign in again in Settings → Providers.`)
+    e.permanent = !transient
+    throw e
+  }
   const json = await res.json()
   return {
     access: json.access_token,
@@ -288,7 +293,7 @@ async function refreshNous (tok) {
     headers: { 'content-type': 'application/x-www-form-urlencoded', 'x-nous-refresh-token': tok.refresh },
     body: new URLSearchParams({ grant_type: 'refresh_token', client_id: p.clientId })
   })
-  if (!res.ok) throw new Error(`Nous session expired — sign in again (${res.status})`)
+  if (!res.ok) throw Object.assign(new Error(`Nous session expired — sign in again (${res.status})`), { permanent: !isTransient(res.status) && res.status !== 429 })
   const j = await res.json()
   return { access: j.access_token, refresh: j.refresh_token || tok.refresh, expires: Date.now() + (j.expires_in ? j.expires_in * 1000 : 300_000) }
 }
@@ -303,6 +308,19 @@ async function refreshNous (tok) {
 const refreshing = new Map() // providerId -> Promise<fresh token record>
 const minted = new Map()     // providerId -> newest token record this process got
 
+// ⚠️ A DEAD SIGN-IN WAS SILENT AND HAMMERED. Anthropic refused Tony's refresh token
+// ("not found or invalid") from Oct 16; every model-list load retried it, the error was
+// swallowed, the whole Anthropic group vanished, and Settings still said "✓ subscription".
+// "why did anthropic subscription disappear?" The failure is now remembered against the
+// refresh token that failed: a refused one is not retried until a new sign-in replaces it,
+// a temporary one waits 5 minutes, and signInProblem() lets the UI say so.
+const renewFailures = new Map() // providerId -> { refresh, message, permanent, at }
+export function signInProblem (providerId, config) {
+  const tok = config.oauth?.[providerId]
+  const f = renewFailures.get(providerId)
+  return tok && f && f.refresh === tok.refresh ? f.message : null
+}
+
 // returns a valid access token, refreshing in-place on config if near expiry
 export async function validAccessToken (providerId, config, saveConfig) {
   const tok = config.oauth?.[providerId]
@@ -312,6 +330,8 @@ export async function validAccessToken (providerId, config, saveConfig) {
   if (tok.expires - Date.now() > skew) return tok.access
   const newer = minted.get(providerId)
   if (newer && newer.expires > tok.expires && newer.expires - Date.now() > skew) { config.oauth[providerId] = newer; return newer.access }
+  const failed = renewFailures.get(providerId)
+  if (failed && failed.refresh === tok.refresh && (failed.permanent || Date.now() - failed.at < 5 * 60_000)) throw new Error(failed.message)
   let job = refreshing.get(providerId)
   if (!job) {
     job = (async () => {
@@ -322,11 +342,15 @@ export async function validAccessToken (providerId, config, saveConfig) {
           : OAUTH_PROVIDERS[providerId]?.mode === 'device'
             ? await refreshDevice(providerId, tok)
             : await refreshToken(providerId, tok)
+      renewFailures.delete(providerId)
       minted.set(providerId, fresh)
       config.oauth[providerId] = fresh
       saveConfig(config)
       return fresh
-    })().finally(() => refreshing.delete(providerId))
+    })().catch(e => {
+      renewFailures.set(providerId, { refresh: tok.refresh, message: e.message, permanent: Boolean(e.permanent), at: Date.now() })
+      throw e
+    }).finally(() => refreshing.delete(providerId))
     refreshing.set(providerId, job)
   }
   const fresh = await job

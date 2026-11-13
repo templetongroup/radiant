@@ -39,6 +39,12 @@ function ProviderRow ({ provider, oauthInfo, onConfig }) {
 
   const [addingKey, setAddingKey] = useState(false) // paste-a-second-key mode
   const accounts = provider.accounts || []
+  // a saved sign-in the provider now refuses: a green tick over it hid the problem for a month
+  const [expired, setExpired] = useState(false)
+  useEffect(() => {
+    if (!provider.signedIn || !oauthInfo) return setExpired(false)
+    api.oauthStatus(provider.id).then(r => setExpired(Boolean(r.expired))).catch(() => {})
+  }, [provider.id, provider.signedIn, oauthInfo])
 
   const save = async (newAccount) => {
     if (!draft.trim()) return
@@ -49,6 +55,8 @@ function ProviderRow ({ provider, oauthInfo, onConfig }) {
   const clear = async () => onConfig(await api.setKey(provider.id, ''))
   const remove = async () => onConfig(await api.removeProvider(provider.id))
   const signOut = async () => onConfig(await api.oauthSignout(provider.id))
+  // the dead login goes first, so the fresh one replaces it instead of sitting beside it
+  const reconnect = async () => { await signOut(); setExpired(false); startSignIn() }
   const switchAccount = async id => onConfig(await api.activateAccount(provider.id, id))
   const removeAcct = async id => onConfig(await api.removeAccount(provider.id, id))
 
@@ -102,10 +110,15 @@ function ProviderRow ({ provider, oauthInfo, onConfig }) {
         <div className='p-name'>{provider.name}</div>
         <div className='p-url'>{provider.baseUrl}</div>
         {provider.signedIn
-          ? <>
-              <span className='key-ok'>✓ subscription</span>
-              <button className='small-btn' onClick={signOut}>Sign out</button>
-            </>
+          ? expired
+            ? <>
+                <span className='key-expired'>Sign-in expired</span>
+                <button className='small-btn primary' onClick={reconnect} disabled={busy}>Sign in again</button>
+              </>
+            : <>
+                <span className='key-ok'>✓ subscription</span>
+                <button className='small-btn' onClick={signOut}>Sign out</button>
+              </>
           : provider.auth === 'none'
             ? <span className='key-ok'>no key needed</span>
             : provider.auth === 'oauth'
@@ -3351,6 +3364,8 @@ const GUIDE = [
   {
     title: 'Chat & agents',
     items: [
+      ['Radiant tells you when a subscription sign-in has expired', 'If Claude, ChatGPT or another subscription stops accepting your saved sign-in, Radiant used to hide that provider\u2019s models without a word while Settings still showed a green tick. Now the model menu says \u201cSign-in expired\u201d under that provider, the usage line in the bottom-left corner turns red, and Settings \u2192 Providers shows a \u201cSign in again\u201d button that replaces the dead sign-in in one step. Radiant also stops asking the provider over and over once it has refused.'],
+      ['New OpenAI models show up on their own', 'The ChatGPT model list now picks up OpenAI\u2019s newest models, GPT-6.1 Sol and Terra included, without waiting for a Radiant update. OpenAI only lists its latest models to apps that say they are a recent version of its Codex tool, so Radiant now looks up the current Codex version twice a day instead of using a fixed one. You do not need Codex installed: your ChatGPT sign-in connects to Radiant directly.'],
       ['The model menu stays clean unless you ask for Claude Code and Codex in it', 'Turning on Claude Code and Codex used to add two extra groups to the model menu straight away, right beside your OpenAI list. That was easy to mistake for a duplicate, and it is not: those two run their own agents, not Radiant\u2019s. Now the groups only appear if you also turn on Settings \u2192 Agent \u2192 \u201cShow them in the model menu\u201d. It is off by default. Your saved Claude Code and Codex chats and the sessions browser work either way, and a chat you already imported keeps running through its tool.'],
       ['The OpenAI list now shows the newest models, GPT-6 included', 'If you sign in to OpenAI with your ChatGPT account, the model menu was stuck showing only the GPT-5.6 models while your account already had GPT-6 Astra, Sol and Luna. OpenAI only lists its newest models to apps that say they are a recent enough version of Codex, and Radiant was announcing an old one. It now announces the current one, so the full list appears. If a newer model ever goes missing again, that is the first thing to suspect.'],
       ['Computer control now asks which app, and never touches terminals', 'With computer control on, the first time the agent wants to click or type in an app on your Mac, Radiant now asks about that app by name: \u201cAllow for this chat\u201d, \u201cAlways allow\u201d, or \u201cDeny\u201d. Before, it asked before each action but had no idea which app the click would land in, so a click over your password manager looked the same as one over Notes. Some apps are never allowed, in any mode including Allow all: Terminal and its relatives (a click there is a command) and Radiant itself (its question card is in this window, so the agent could answer for you). Password managers and System Settings are asked every chat, with no Always option. Browsers carry a warning, since you are signed in to things there. Apps you chose Always for are listed in Settings \u2192 Agent \u2192 Apps the agent may control, each with a Revoke button. A chat running without you (a task or a loop) cannot ask, so it only uses apps you already approved. This is Mac only for now. The idea comes from LCU, a project that does the same for Codex\u2019s computer use.'],

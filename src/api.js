@@ -364,6 +364,7 @@ export const api = {
   oauthStart: (id, opts) => json('POST', `/api/oauth/${id}/start`, opts || {}),
   oauthComplete: (id, code) => json('POST', `/api/oauth/${id}/complete`, { code }),
   oauthStatus: id => json('GET', `/api/oauth/${id}/status`),
+  oauthProblems: () => json('GET', '/api/oauth/problems'),
   oauthSignout: id => json('POST', `/api/oauth/${id}/signout`),
   oauthDeviceStart: (id, opts) => json('POST', `/api/oauth/${id}/device/start`, opts || {}),
   oauthDevicePoll: id => json('POST', `/api/oauth/${id}/device/poll`),

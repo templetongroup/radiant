@@ -38,6 +38,7 @@ function UsageChip () {
     return `in ${Math.round(h / 24)}d`
   }
   const subTitle = s => {
+    if (s.expired) return `${s.label}: sign-in expired — sign in again in Settings → Providers`
     if (!s.windows?.length) {
       // Some vendors publish usage and some do not — say which, so an absent
       // gauge does not read as a bug.
@@ -78,9 +79,11 @@ function UsageChip () {
         const scope = withPct.length > 1 && primary?.name ? primary.name : ''
         return (
           <span key={s.provider} className='usage-line sub' title={subTitle(s)}>
-            <span className={'usage-dot' + (left != null && left <= 10 ? ' warn' : ' ok')} /> {s.label}
+            <span className={'usage-dot' + (s.expired || (left != null && left <= 10) ? ' warn' : ' ok')} /> {s.label}
             <span className='usage-sub'>
-              {left != null
+              {s.expired
+                ? 'sign-in expired'
+                : left != null
                 ? <><span className='num-pop' key={left}>{left}% left</span>{scope ? <span className='usage-reset'> {scope}</span> : ''}</>
                 : (stale ? 'not reachable' : 'signed in')}{reset ? <span className='usage-reset'> · ↻ {reset}</span> : ''}
             </span>
