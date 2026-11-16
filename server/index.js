@@ -26,6 +26,8 @@ import { commandRisk } from './util.js'
 import { claimLock, beatLock, releaseLock, describeHolder, sweepLegacyLocks, BEAT_MS } from './lock.js'
 import { prStatus } from './pr.js'
 import { registerGitRoutes } from './git-changes-routes.js'
+import { registerWhiteboardRoutes } from './whiteboard-routes.js'
+import { whiteboardTool, beforeChatTurn } from './whiteboard-tool.js'
 const LOCK_HOST = computerName()   // "Tony's Home MBP M4", not a DNS name
 import { IS_MAC, openCommand, chromeBinary, tailscaleBinary, defaultShell, cpuName, osVersion as osProductVersion, computerName } from './platform.js'
 import { listFacts, addFacts, addFactManual, deleteFact, clearFacts, relevantFacts } from './memory.js'
@@ -3382,6 +3384,10 @@ app.post('/api/sessions/:id/checkpoint/restore', async (req, res) => {
 
 // ---------- Changes panel: status / diff / commit / undo (server/git-changes.js) ----------
 registerGitRoutes(app, { loadSession, activeTurns, dataDir: RADIANT_DIR })
+registerWhiteboardRoutes(app, {
+  dataDir: RADIANT_DIR, loadConfig, credFor: graphCreds, loadSession, activeTurns,
+  listTasks, loadTask, saveTask, newTaskId: TASK_ID, taskActivity, port: () => boundPort
+})
 
 // rewind: drop all messages from `index` onward (branch the conversation)
 app.post('/api/sessions/:id/truncate', (req, res) => {
@@ -3714,7 +3720,8 @@ app.post('/api/chat', async (req, res) => {
   const emit = ev => { reflectTaskState(sessionId, ev); res.write(`data: ${JSON.stringify(ev)}\n\n`) }
 
   // content is either a string or { text, attachments:[{name,mime,dataB64,kind}] }
-  const text = typeof content === 'string' ? content : (content.text || '')
+  // a chat linked to a whiteboard hears what changed on it (whiteboard-tool.js), once access is on
+  const text = (typeof content === 'string' ? content : (content.text || '')) + beforeChatTurn(sessionId, Boolean(config.settings.whiteboard?.chatAccess))
   const attachments = (typeof content === 'object' && content.attachments) || []
   const spoken = typeof content === 'object' && Boolean(content.voice)
   session.messages.push({ role: 'user', text, attachments, ...(spoken ? { voice: true } : {}), ...(messageId ? { id: messageId } : {}) })
@@ -4174,6 +4181,7 @@ ${r.error ? `(no answer: ${r.error})` : (r.answer || '(the subagent returned not
         peerAgents,
         research,
         board: args => boardTool(args, session),
+        whiteboard: config.settings.whiteboard?.chatAccess ? args => whiteboardTool(args, session) : null,
         planMode: Boolean(session.planMode),
         effort: session.effort || 'auto',
         onPlanExit: () => { session.planMode = false; emit({ type: 'plan_mode', on: false }) }
@@ -4326,6 +4334,7 @@ ${r.error ? `(no answer: ${r.error})` : (r.answer || '(the subagent returned not
           askAgent,
           research,
           board: args => boardTool(args, session),
+        whiteboard: config.settings.whiteboard?.chatAccess ? args => whiteboardTool(args, session) : null,
           peerAgents,
           planMode: Boolean(session.planMode),
           effort: session.effort || 'auto',

@@ -51,6 +51,7 @@ run "thrash breaker" node scripts/test-thrash-live.mjs
 run "project rules" node scripts/test-project-rules-live.mjs
 run "pr status" node scripts/test-pr-status.mjs
 run "changes panel" node scripts/test-git-changes.mjs
+run "whiteboard" node scripts/test-whiteboard.mjs
 run "extension ports" node scripts/test-ext-ports.mjs
 run "one turn per chat" node scripts/test-chat-claim-live.mjs
 run "token refresh"  node scripts/test-oauth-refresh.mjs
