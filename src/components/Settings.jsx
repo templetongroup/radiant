@@ -294,7 +294,7 @@ function CliAgentsBlock ({ s, onSettings }) {
       </label>
       <label className='check-row' style={{ opacity: cli.enabled ? 1 : 0.5 }}>
         <input type='checkbox' disabled={!cli.enabled} checked={cli.showModels === true} onChange={e => onSettings({ cliAgents: { ...cli, showModels: e.target.checked } })} />
-        <span>Show them in the model menu <span className='desc'>— adds \u201cClaude Code\u201d and \u201cCodex\u201d groups so you can start a new chat with either; off keeps the menu to your providers</span></span>
+        <span>Show them in the model menu <span className='desc'>{'\u2014 adds \u201cClaude Code\u201d and \u201cCodex\u201d groups so you can start a new chat with either; off keeps the menu to your providers'}</span></span>
       </label>
       <label className='check-row' style={{ opacity: cli.enabled ? 1 : 0.5 }}>
         <input type='checkbox' disabled={!cli.enabled} checked={cli.allowRemote === true} onChange={e => onSettings({ cliAgents: { ...cli, allowRemote: e.target.checked } })} />
@@ -303,6 +303,42 @@ function CliAgentsBlock ({ s, onSettings }) {
       <div style={{ fontSize: 11.5, color: 'var(--text-faint)', marginTop: 6 }}>
         <strong>What this reads.</strong> The saved sessions are a full record of what you asked those tools and every file they opened, so this is off until you turn it on, and other devices cannot see them unless you also allow that. Radiant never touches their sign-in files. Radiant&apos;s own tools, memory and skills do not apply to these chats — the tool is the agent.
       </div>
+    </div>
+  )
+}
+
+// The whiteboard's switches: which models do its work, and whether chats can reach boards.
+function WhiteboardBlock ({ s, onSettings }) {
+  const w = s.whiteboard || {}
+  const [models, setModels] = useState([])
+  useEffect(() => { api.getModels().then(r => setModels(r.models || r || [])).catch(() => {}) }, [])
+  const set = patch => onSettings({ whiteboard: { ...w, ...patch } })
+  const pick = (kind, label, desc) => {
+    const value = w[kind + 'Model'] ? `${w[kind + 'Provider'] || ''}::${w[kind + 'Model']}` : ''
+    return (
+      <label className='check-row' style={{ alignItems: 'center' }}>
+        <span style={{ minWidth: 120 }}>{label}</span>
+        <select value={value} onChange={e => { const [provider, ...rest] = e.target.value.split('::'); set({ [kind + 'Provider']: e.target.value ? provider : null, [kind + 'Model']: e.target.value ? rest.join('::') : null }) }} style={{ maxWidth: 280 }}>
+          <option value=''>Radiant default</option>
+          {models.map(m => <option key={m.provider + m.id} value={`${m.provider}::${m.id}`}>{m.providerName} · {m.id}</option>)}
+          {value && !models.some(m => `${m.provider}::${m.id}` === value) && <option value={value}>{w[kind + 'Model']} (not available now)</option>}
+        </select>
+        <span className='desc'>{desc}</span>
+      </label>
+    )
+  }
+  return (
+    <div style={{ margin: '14px 0 4px' }}>
+      <div style={{ fontSize: 13, fontWeight: 500 }}>Whiteboard</div>
+      <div style={{ fontSize: 12, color: 'var(--text-muted)', margin: '2px 0 8px' }}>
+        {'Which models do the whiteboard\u2019s work. \u201cRadiant default\u201d uses your default model. If a model you pick here cannot be used, that run stops and says so \u2014 it is never quietly retried on another one.'}
+      </div>
+      {pick('plan', 'Planning model', '\u2014 lays out boards, groups notes, unpacks results, writes the brief')}
+      {pick('agent', 'Agent model', '\u2014 Hand to Radiant, Run the route, Ask')}
+      <label className='check-row'>
+        <input type='checkbox' checked={w.chatAccess === true} onChange={e => set({ chatAccess: e.target.checked })} />
+        <span>Chats can read my boards <span className='desc'>{'\u2014 any chat can then read your boards, start a new one, and suggest notes, groups and results that wait on the board for you. A chat linked to a board also marks notes as it works and hears what you change there. Off by default.'}</span></span>
+      </label>
     </div>
   )
 }
@@ -2125,6 +2161,7 @@ function AgentPane ({ config, onSettings }) {
       </div>
       <ComputerAppsBlock />
       <CliAgentsBlock s={s} onSettings={onSettings} />
+      <WhiteboardBlock s={s} onSettings={onSettings} />
       <label className='check-row'>
         <input
           type='checkbox'
@@ -3364,6 +3401,7 @@ const GUIDE = [
   {
     title: 'Chat & agents',
     items: [
+      ['Whiteboard: plan on a board, and let agents do the work on it', 'Open Tools \u2192 Whiteboard. Type what you are planning (\u201ca podcast launch in six weeks\u201d) and Radiant lays it out as a route of steps, columns side by side, or a map around one idea. Double-click anywhere for a note; drag sections and they carry their notes. Mark a note as an Action item and press Hand to Radiant: an agent does it (searching the web if it helps) and puts the finished result beside the note. Run works the whole route stop by stop, up to three agents at once, hands each stop what the last one found, and ends with a short brief. Select anything and press Ask to get an answer card. Group my notes and Unpack (on a result) send suggestions to the Suggestions panel for you to accept or skip, and \u2318Z takes any of it back. Agents cannot ask you anything while they work, so anything that would need your approval is refused and the card says so; each agent stops after 4 minutes or 24 steps, and Stop ends a run. Export saves Markdown or CSV, or copies a table for a spreadsheet. In Settings \u2192 Automation \u2192 Whiteboard you choose which models do the planning and the agent work, and whether chats can read your boards. With that on, any chat can read a board and suggest notes for you to accept; a board linked to a chat (Link chat) can hand work to that chat, shows when it is working, and tells it what you changed. Send to Tasks turns notes into tasks on the Task board, parked until you start them, and New board from Tasks lays the Task board out as columns.'],
       ['Radiant tells you when a subscription sign-in has expired', 'If Claude, ChatGPT or another subscription stops accepting your saved sign-in, Radiant used to hide that provider\u2019s models without a word while Settings still showed a green tick. Now the model menu says \u201cSign-in expired\u201d under that provider, the usage line in the bottom-left corner turns red, and Settings \u2192 Providers shows a \u201cSign in again\u201d button that replaces the dead sign-in in one step. Radiant also stops asking the provider over and over once it has refused.'],
       ['New OpenAI models show up on their own', 'The ChatGPT model list now picks up OpenAI\u2019s newest models, GPT-6.1 Sol and Terra included, without waiting for a Radiant update. OpenAI only lists its latest models to apps that say they are a recent version of its Codex tool, so Radiant now looks up the current Codex version twice a day instead of using a fixed one. You do not need Codex installed: your ChatGPT sign-in connects to Radiant directly.'],
       ['The model menu stays clean unless you ask for Claude Code and Codex in it', 'Turning on Claude Code and Codex used to add two extra groups to the model menu straight away, right beside your OpenAI list. That was easy to mistake for a duplicate, and it is not: those two run their own agents, not Radiant\u2019s. Now the groups only appear if you also turn on Settings \u2192 Agent \u2192 \u201cShow them in the model menu\u201d. It is off by default. Your saved Claude Code and Codex chats and the sessions browser work either way, and a chat you already imported keeps running through its tool.'],

@@ -21,7 +21,7 @@ const SF_NAME = {
   close: 'xmark', monitor: 'desktopcomputer', clipboard: 'list.clipboard', unlock: 'lock.open', zap: 'bolt',
   bulb: 'lightbulb', hand: 'hand.raised', wrench: 'wrench', users: 'person.2', file: 'doc.text',
   branch: 'arrow.triangle.branch', folder: 'folder', archive: 'archivebox', unarchive: 'tray.and.arrow.up',
-  trash: 'trash', mic: 'mic', target: 'scope', waves: 'waveform', bot: 'cpu', chevronDown: 'chevron.down', check: 'checkmark', chat: 'bubble.left.and.bubble.right', checklist: 'checklist', repeat: 'repeat', graph: 'point.3.connected.trianglepath.dotted'
+  trash: 'trash', mic: 'mic', target: 'scope', waves: 'waveform', bot: 'cpu', chevronDown: 'chevron.down', check: 'checkmark', chat: 'bubble.left.and.bubble.right', checklist: 'checklist', repeat: 'repeat', graph: 'point.3.connected.trianglepath.dotted', whiteboard: 'scribble.variable'
 }
 function Sf ({ name, size = 16 }) {
   const s = SF_SYMBOLS[name]

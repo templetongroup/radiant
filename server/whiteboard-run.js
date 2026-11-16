@@ -44,7 +44,7 @@ export function stopBoard (boardId) {
   return true
 }
 
-/** Which model does this kind of work: Settings → Whiteboard, else Radiant's default. */
+/** Which model does this kind of work: Settings → Automation → Whiteboard, else Radiant's default. */
 export function pickModel (config, kind) {
   const wb = config.settings.whiteboard || {}
   const p = kind === 'plan' ? { provider: wb.planProvider, model: wb.planModel } : { provider: wb.agentProvider, model: wb.agentModel }
@@ -56,7 +56,7 @@ export function pickModel (config, kind) {
 async function turn ({ deps, kind, prompt, tools, signal, title }) {
   const config = deps.loadConfig()
   const who = pickModel(config, kind)
-  if (!who.provider || !who.model) throw new Error('No model is set. Pick one in Settings → Whiteboard, or set a default model.')
+  if (!who.provider || !who.model) throw new Error('No model is set. Pick one in Settings → Automation → Whiteboard, or set a default model.')
   const cred = await deps.credFor(who.provider)
   if (!cred) throw new Error(who.picked ? `The ${kind === 'plan' ? 'planning' : 'agent'} model you picked (${who.model}) cannot be used: not signed in to ${who.provider}. It was not retried on your default model.` : `Not signed in to ${who.provider}.`)
   const session = {
@@ -219,11 +219,15 @@ export function runRoute (deps, boardId) {
         const res = readAgentReply(out.text)
         if (res) {
           updateBoard(boardId, (bd, rev) => {
-            const last = plan[plan.length - 1].g
-            const anchor = bd.items.find(i => i.id === last.id)
-            const { board } = addResult(bd, rev, { title: res.title || 'Brief', text: res.text, stamp: 'Brief', model: out.model || undefined })
-            const card = board.items[board.items.length - 1]
-            if (anchor) { card.x = anchor.x + anchor.w + 120; card.y = anchor.y; board.links.push({ id: uid('l'), kind: 'road', from: anchor.id, to: card.id, rev }) }
+            // at the end of the road: after the last stop, past everything on the board
+            const stops = routeStops(bd)
+            const anchor = stops[stops.length - 1]
+            const { board, card } = addResult(bd, rev, { title: res.title || 'Brief', text: res.text, stamp: 'Brief', model: out.model || undefined })
+            if (anchor) {
+              card.x = Math.max(...bd.items.filter(i => i.id !== card.id).map(i => i.x + i.w)) + 120
+              card.y = anchor.y
+              board.links.push({ id: uid('l'), kind: 'road', from: anchor.id, to: card.id, rev })
+            }
             board.brief = { text: res.text, at: new Date().toISOString() }
             return board
           })

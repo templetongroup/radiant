@@ -1,6 +1,6 @@
 import {
   listBoards, loadBoard, saveBoard, updateBoard, newBoard, placePlan, boardText, notesOf, groupsOf,
-  sectionOf, clean, uid, addResult, LAYOUTS
+  sectionOf, clean, real, uid, addResult, LAYOUTS
 } from './whiteboard.js'
 
 /**
@@ -58,7 +58,7 @@ export function whiteboardTool (args, session) {
         const proposals = []
         const notes = []
         for (const n of (args.notes || []).slice(0, 20)) if (clean(n.text)) proposals.push({ kind: 'note', text: clean(n.text, 280), section: clean(n.section, 80) || undefined, reason: clean(n.reason, 160) })
-        for (const a of (args.actions || []).slice(0, 20)) if (clean(a.text)) proposals.push({ kind: 'action', text: clean(a.text, 280), owner: clean(a.owner, 60) || undefined, due: clean(a.due, 30) || undefined, section: clean(a.section, 80) || undefined, reason: clean(a.reason, 160) })
+        for (const a of (args.actions || []).slice(0, 20)) if (clean(a.text)) proposals.push({ kind: 'action', text: clean(a.text, 280), owner: real(a.owner, 60), due: real(a.due, 30), section: clean(a.section, 80) || undefined, reason: clean(a.reason, 160) })
         for (const g of (args.groups || []).slice(0, 10)) {
           const noteIds = (g.notes || []).filter(id => ids.has(id))
           if (noteIds.length && clean(g.title)) proposals.push({ kind: 'group', title: clean(g.title, 60), noteIds, reason: clean(g.reason, 160) })

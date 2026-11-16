@@ -1153,7 +1153,7 @@ function PrRow ({ cwd, sessionId }) {
   )
 }
 
-export default function Chat ({ session, live, todos = [], stats, approval, question, onAnswer, usage, error, models, agents = [], recipes = [], onSend, onStop, onApproval, onPickModel, onToggleTools, onToggleComputer, onTogglePlan, onSetCwd, onNew, onNewGroup, onTruncate, onRefreshModels, skillSuggestion, onReviewSkill, onDismissSuggestion, onOpenLibrary, rightOpen, onToggleRight, onMenu, approvalMode = 'ask', onCycleApproval, onFork, onFollowUp, onSessionReplaced, skills = [], onAddSkill, onRemoveSkill, serverHost, platform, onSetEffort, showThinking = true, onToggleThinking, voice = null, onToggleVoice, tabsBar = null }) {
+export default function Chat ({ session, live, todos = [], stats, approval, question, onAnswer, usage, error, models, agents = [], recipes = [], onSend, onStop, onApproval, onPickModel, onToggleTools, onToggleComputer, onTogglePlan, onSetCwd, onNew, onNewGroup, onTruncate, onRefreshModels, skillSuggestion, onReviewSkill, onDismissSuggestion, onOpenLibrary, rightOpen, onToggleRight, onMenu, approvalMode = 'ask', onCycleApproval, onFork, onFollowUp, onSessionReplaced, skills = [], onAddSkill, onRemoveSkill, serverHost, platform, onSetEffort, showThinking = true, onToggleThinking, voice = null, onToggleVoice, tabsBar = null, composeDraft = null }) {
   // ⚠️ TOOLS RUN ON THE SERVER'S MAC. Computer control is the one where that is
   // dangerous rather than merely surprising: the mouse that moves, the keys that
   // get typed and the screen that is captured all belong to the machine running
@@ -1164,6 +1164,13 @@ export default function Chat ({ session, live, todos = [], stats, approval, ques
   const [groupPicker, setGroupPicker] = useState(false)
   const [pickAgent, setPickAgent] = useState(false) // splash: reveal the agent picker
   const [draft, setDraft] = useState('')
+  // a request written by another screen (the whiteboard's "Ask in the linked chat"):
+  // it goes in the box for the person to read and send, never sent for them
+  useEffect(() => {
+    if (!composeDraft || composeDraft.sessionId !== session?.id) return
+    setDraft(composeDraft.text)
+    setTimeout(() => textareaRef.current?.focus(), 0)
+  }, [composeDraft?.nonce, session?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ⚠️ DICTATION IS ON-DEVICE. The helper refuses any locale without an offline
   // model rather than sending your microphone to Apple; see native/RadiantControl

@@ -18,6 +18,7 @@ import Settings from './components/Settings.jsx'
 import TaskBoard from './components/TaskBoard.jsx'
 import LoopBoard from './components/LoopBoard.jsx'
 import GraphBoard from './components/GraphBoard.jsx'
+import Whiteboard from './components/Whiteboard.jsx'
 import MotionBackground from './components/MotionBackground.jsx'
 import CommandPalette from './components/CommandPalette.jsx'
 import ComparePanel from './components/ComparePanel.jsx'
@@ -108,6 +109,7 @@ function DesktopApp () {
   // do. Hold the opening message until the session it belongs to is actually
   // the live one, then send.
   const [pendingPrompt, setPendingPrompt] = useState(null) // { sessionId, text, taskId }
+  const [composeDraft, setComposeDraft] = useState(null) // { sessionId, text, nonce } — put in the box, not sent
   const [todos, setTodos] = useState([]) // agent checklist for the active session
   const [questionMap, setQuestionMap] = useState({})
   // chats whose turn finished while another chat was open — listed under "For you"
@@ -901,6 +903,18 @@ function DesktopApp () {
           onError={setError}
           onRefreshModels={refreshModels}
         />
+      ) : view === 'whiteboard' ? (
+        <Whiteboard
+          models={models}
+          sessions={sessions}
+          onError={setError}
+          onOpenChat={id => { setView('chat'); openSession(id) }}
+          onAskInChat={async (id, text) => {
+            setView('chat')
+            await openSession(id)
+            setComposeDraft({ sessionId: id, text, nonce: Date.now() })
+          }}
+        />
       ) : view === 'tasks' ? (
         <TaskBoard
           agents={config.agents || []}
@@ -931,6 +945,7 @@ function DesktopApp () {
         />
       ) : (
       <Chat
+        composeDraft={composeDraft}
         tabsBar={<SessionTabs
           tabs={tabs}
           activeId={session?.id}

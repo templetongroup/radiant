@@ -126,6 +126,15 @@
   not depend on each other run at the same time. A run shows what every step
   and round spent (tokens, and dollars at list price), and a repeating graph
   can stop at a token budget.
+- **Whiteboard** — think a plan through on a board. Say what you are planning
+  and Radiant lays it out as a route, columns or a map; Group my notes suggests
+  groups, owners and action items for you to accept or skip. Hand any note to
+  Radiant, or Run the route: agents work each stop's action items (three at a
+  time, each stop building on the last), put their results beside the notes,
+  and finish with one brief. Ask about anything you select. Notes, sections,
+  arrows, a pen, stickers, undo, and Markdown/CSV export. Optional: chats can
+  read boards and propose changes, a board can follow its linked chat, and
+  notes can go to the Task board. Modelled on Hermes Whiteboard (MIT).
 - **Long builds** — no cap on rounds. The only ceiling is a spend budget you
   set, measured in real cost, and a turn that keeps failing the same kind of
   command is stopped instead of burning tokens.

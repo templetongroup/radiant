@@ -37,6 +37,9 @@ const HEAD = 64 // a section's title band
 
 export const uid = p => `${p}${crypto.randomBytes(5).toString('hex')}`
 export const clean = (s, n = 280) => String(s ?? '').replace(/\s+/g, ' ').trim().slice(0, n)
+// A model asked for an owner or a due date it does not have writes "Unassigned" or "Not set".
+const PLACEHOLDER = /^(unassigned|none|n\/?a|not set|not specified|tbd|tba|unknown|nobody|no one|null|undefined|-+|—)$/i
+export const real = (s, n = 60) => { const v = clean(s, n); return v && !PLACEHOLDER.test(v) ? v : undefined }
 
 // ---------- storage ----------
 
@@ -89,7 +92,7 @@ export function normalizeItem (it) {
   if (!it || typeof it !== 'object' || !it.kind) return null
   const base = { id: String(it.id || uid('i')), kind: it.kind, x: num(it.x), y: num(it.y), w: Math.max(20, num(it.w, NOTE.w)), h: Math.max(20, num(it.h, NOTE.h)), by: it.by || 'you', rev: num(it.rev, 0) }
   switch (it.kind) {
-    case 'note': return { ...base, text: String(it.text ?? '').slice(0, 2000), color: COLORS.includes(it.color) ? it.color : 'yellow', owner: clean(it.owner, 60) || undefined, due: clean(it.due, 30) || undefined, action: Boolean(it.action), mark: it.mark || undefined, taskId: it.taskId || undefined, taskState: it.taskState || undefined, chatAsk: it.chatAsk || undefined, sticker: STICKERS[it.sticker] ? it.sticker : undefined }
+    case 'note': return { ...base, text: String(it.text ?? '').slice(0, 2000), color: COLORS.includes(it.color) ? it.color : 'yellow', owner: real(it.owner, 60), due: real(it.due, 30), action: Boolean(it.action), mark: it.mark || undefined, taskId: it.taskId || undefined, taskState: it.taskState || undefined, chatAsk: it.chatAsk || undefined, sticker: STICKERS[it.sticker] ? it.sticker : undefined }
     case 'group': return { ...base, title: clean(it.title, 80), label: clean(it.label, 30) || undefined, sticker: STICKERS[it.sticker] ? it.sticker : undefined, color: COLORS.includes(it.color) ? it.color : undefined, taskState: it.taskState || undefined }
     case 'text': return { ...base, text: String(it.text ?? '').slice(0, 2000), size: num(it.size, 22) }
     case 'sticker': return { ...base, sticker: STICKERS[it.sticker] ? it.sticker : 'star' }
@@ -239,7 +242,7 @@ export function placePlan (plan, { by = 'radiant', origin = { x: 0, y: 0 } } = {
     const g = { id: uid('g'), kind: 'group', x: origin.x + x, y: origin.y + y, w: W, h, title: clean(s.title, 60) || `Part ${i + 1}`, label: clean(s.label, 30) || undefined, sticker: STICKERS[s.sticker] ? s.sticker : undefined, by }
     items.push(g)
     notes.forEach((n, j) => {
-      items.push({ id: uid('n'), kind: 'note', x: g.x + 20, y: g.y + HEAD + j * (NOTE.h + GAP), w: NOTE.w, h: NOTE.h, text: clean(n.text, 280), owner: clean(n.owner, 60) || undefined, due: clean(n.due, 30) || undefined, action: Boolean(n.action), color: n.action ? 'orange' : COLORS[i % 4 === 3 ? 2 : [0, 1, 3][i % 3]], by })
+      items.push({ id: uid('n'), kind: 'note', x: g.x + 20, y: g.y + HEAD + j * (NOTE.h + GAP), w: NOTE.w, h: NOTE.h, text: clean(n.text, 280), owner: real(n.owner, 60), due: real(n.due, 30), action: Boolean(n.action), color: n.action ? 'orange' : COLORS[i % 4 === 3 ? 2 : [0, 1, 3][i % 3]], by })
     })
     return g
   })
@@ -260,6 +263,18 @@ export function spotBeside (b, anchor, size = { w: 300, h: 180 }) {
   }
   const maxX = Math.max(0, ...b.items.map(i => i.x + i.w))
   return { x: maxX + 40, y: sy }
+}
+
+/**
+ * Under a section, clear of everything. ⚠️ BESIDE THE NOTE WAS WRONG ON A ROUTE:
+ * stops sit 90px apart, so a 320px card beside a note landed on the next stop.
+ */
+export function spotBelow (b, sec, size) {
+  const x = sec.x + (sec.w - size.w) / 2
+  const clear = y => !b.items.some(i => i.kind !== 'ink' && x < i.x + i.w + 12 && x + size.w + 12 > i.x && y < i.y + i.h + 12 && y + size.h + 12 > i.y)
+  let y = sec.y + sec.h + 28
+  for (let k = 0; k < 200 && !clear(y); k++) y += 24
+  return { x, y }
 }
 
 // ---------- replies ----------
@@ -424,12 +439,12 @@ export function proposalsFromGrouping (reply, aliases) {
   }
   for (const a of (reply.actions || []).slice(0, 4)) {
     if (!clean(a.text)) continue
-    out.push({ id: uid('p'), kind: 'action', text: clean(a.text, 200), owner: clean(a.owner, 60) || undefined, due: clean(a.due, 30) || undefined, from: id(a.source) || undefined, reason: clean(a.reason, 160), state: 'pending', by: 'radiant' })
+    out.push({ id: uid('p'), kind: 'action', text: clean(a.text, 200), owner: real(a.owner, 60), due: real(a.due, 30), from: id(a.source) || undefined, reason: clean(a.reason, 160), state: 'pending', by: 'radiant' })
   }
   for (const o of (reply.owners || []).slice(0, 8)) {
     const n = id(o.note)
-    if (!n || !clean(o.owner)) continue
-    out.push({ id: uid('p'), kind: 'owner', noteId: n, owner: clean(o.owner, 60), reason: clean(o.reason, 160), state: 'pending', by: 'radiant' })
+    if (!n || !real(o.owner)) continue
+    out.push({ id: uid('p'), kind: 'owner', noteId: n, owner: real(o.owner, 60), reason: clean(o.reason, 160), state: 'pending', by: 'radiant' })
   }
   return out
 }
@@ -441,7 +456,8 @@ export function addResult (b, rev, { noteId, title, text, sources = [], model, a
   const without = old ? { ...b, items: b.items.filter(i => i.id !== old.id), links: b.links.filter(l => l.to !== old.id && l.from !== old.id) } : b
   const lines = Math.min(16, 3 + Math.ceil(String(text).length / 46))
   const size = { w: 320, h: 70 + lines * 18 }
-  const at = old ? { x: old.x, y: old.y } : spotBeside(without, note, size)
+  const sec = note ? sectionOf(without, note) : null
+  const at = old ? { x: old.x, y: old.y } : sec ? spotBelow(without, sec, size) : spotBeside(without, note, size)
   const card = normalizeItem({ id: uid('r'), kind: 'result', ...at, ...size, for: noteId || undefined, title, text, sources, model, acted, stamp, by, rev })
   without.items.push(card)
   if (note) without.links.push({ id: uid('l'), kind: 'result', from: note.id, to: card.id, rev })

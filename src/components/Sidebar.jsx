@@ -263,7 +263,7 @@ function SessionRow ({ s, showAgent = true, ctx }) {
 
 // ⚠️ ORDER IS THE PILL'S POSITION. The bottom row's selected tab is found by
 // index in this list, so reordering it moves the pill; it is not decoration.
-const WORK = ['tasks', 'loops', 'graph']
+const WORK = ['tasks', 'loops', 'graph', 'whiteboard']
 
 export default function Sidebar ({ section = 'chat', onSection, onOpenAgents, sessions, activeId, working, onOpen, onNew, onNewGroup, onDelete, onArchive, onRename, onPin, agents = [], projects = [], projectsError = null, onNewProject, onRenameProject, onDeleteProject, onSetProjectCwd, onMoveSession, onSettings, mode, onToggleMode, updateInfo, onUpdate, onCloseNav, platform }) {
   const agentOf = id => agents.find(a => a.id === id)
@@ -449,14 +449,15 @@ export default function Sidebar ({ section = 'chat', onSection, onOpenAgents, se
           className={'sidebar-tools' + (WORK.includes(section) ? ' is-active' : '')}
           ariaLabel='Tools'
           placeholder='Tools'
-          menuWidth={150}
+          menuWidth={164}
           triggerIcon={<Icon.wrench size={14} />}
           value={WORK.includes(section) ? section : null}
           onChange={v => onSection?.(v)}
           options={[
             { value: 'tasks', label: 'Task', icon: <Icon.checklist size={14} /> },
             { value: 'loops', label: 'Loop', icon: <Icon.repeat size={14} /> },
-            { value: 'graph', label: 'Graph', icon: <Icon.graph size={14} /> }
+            { value: 'graph', label: 'Graph', icon: <Icon.graph size={14} /> },
+            { value: 'whiteboard', label: 'Whiteboard', short: 'Board', icon: <Icon.whiteboard size={14} /> }
           ]}
         />
       </div>

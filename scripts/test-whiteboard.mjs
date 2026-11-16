@@ -35,6 +35,8 @@ ok(routeStops(rb).map(g => g.title).join() === 'Prep,Ship,Tell people', 'route s
 ok(notesOf(rb).every(n => sectionOf(rb, n)), 'every laid-out note sits inside its section')
 ok(placePlan({ ...plan, layout: 'map' }).items.some(i => i.kind === 'text'), 'a map has its centre')
 ok(placePlan({ ...plan, layout: 'nonsense' }).layout === 'columns', 'an unknown layout falls back to columns')
+const filler = placePlan({ layout: 'columns', sections: [{ title: 'A', notes: [{ text: 'x', owner: 'Unassigned', due: 'Not set' }, { text: 'y', owner: 'Dana', due: 'Friday' }] }] }).items.filter(i => i.kind === 'note')
+ok(!filler[0].owner && !filler[0].due && filler[1].owner === 'Dana' && filler[1].due === 'Friday', 'a model\'s "Unassigned" / "Not set" is dropped, real names and dates kept')
 
 ok(lastJsonObject('Here you go:\n```json\n{"a": {"b": "}"}, "ok": 1}\n```\nHope that helps {not json}', o => o.ok)?.a?.b === '}', 'the last JSON object is found through fences, prose and a brace in a string')
 ok(lastJsonObject('no json') === null, 'no JSON → null')
@@ -61,6 +63,25 @@ const csv = toCsv(again.board)
 ok(csv.split('\n')[0] === 'section,note,action,owner,due,status,result' && /Prep,Write the post,yes/.test(csv), `CSV has a header and one row per note`)
 ok(/^# Launch/.test(toMarkdown(again.board)) && /- \[ \] Write the post/.test(toMarkdown(again.board)), 'Markdown lists sections with action items as checkboxes')
 ok(/\[n[0-9a-f]+\]/.test(boardText(again.board)), 'board text gives a chat the note ids')
+
+// ---------- the page's own logic (src/whiteboard/board.js) ----------
+
+const page2 = await import('../src/whiteboard/board.js')
+const pb = { name: 'P', items: [{ id: 'a', kind: 'note', x: 0, y: 0, w: 240, h: 110, text: 'one', mark: { state: 'done' }, taskId: 't1' }, { id: 'b', kind: 'note', x: 0, y: 200, w: 240, h: 110, text: 'two' }], links: [{ id: 'l1', kind: 'arrow', from: 'a', to: 'b' }], proposals: [] }
+const pc = page2.pasted(page2.copyOf(pb, ['a', 'b']))
+ok(pc.items.every(i => !['a', 'b'].includes(i.id)) && pc.links[0].from === pc.items[0].id, 'paste gives fresh ids and keeps the arrow between the copies')
+ok(!pc.items[0].mark && !pc.items[0].taskId, 'a pasted note does not inherit its status mark or task')
+const h = page2.history()
+h.push(pb)
+const after = page2.removeItems(pb, ['a'])
+ok(after.links.length === 0, 'removing a note removes its arrows')
+ok(h.undo(after).items.length === 2 && h.canRedo, 'undo brings it back, and redo is offered')
+const grouped = page2.acceptProposal({ ...pb, proposals: [{ id: 'p1', kind: 'group', title: 'Both', noteIds: ['a', 'b'], state: 'pending' }] }, { id: 'p1', kind: 'group', title: 'Both', noteIds: ['a', 'b'] })
+const g = grouped.items.find(i => i.kind === 'group')
+ok(g && grouped.items.filter(i => i.kind === 'note').every(n => page2.inside(n, g)), 'accepting a group puts its notes inside a new section')
+ok(grouped.proposals[0].state === 'accepted', '…and marks the suggestion accepted')
+ok(page2.asTable(pb).split('\n')[0] === 'Section\tNote\tAction\tOwner\tDue\tResult', 'copy as table has a header row for a spreadsheet')
+ok(/please do this item/.test(page2.chatRequest(pb, [pb.items[0]])), 'a request for the linked chat names the item')
 
 // ---------- chat tool + linked chat (on disk, no model) ----------
 

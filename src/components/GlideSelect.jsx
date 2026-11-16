@@ -110,7 +110,7 @@ export default function GlideSelect ({ options = [], value, onChange, ariaLabel 
         onKeyDown={onKey}
       >
         {(current?.icon || triggerIcon) && <span className='glide-ico' aria-hidden>{current?.icon || triggerIcon}</span>}
-        <span className='glide-value'>{current ? current.label : placeholder}</span>
+        <span className='glide-value'>{current ? (current.short || current.label) : placeholder}</span>
         {!current?.badge && totalBadge ? <span className='glide-badge'>{totalBadge}</span> : null}
         <span className='glide-chevron'><Icon.chevronDown size={8} /></span>
       </button>

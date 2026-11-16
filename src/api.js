@@ -214,9 +214,10 @@ export async function testServer (base, token) {
  */
 const REST_TIMEOUT_MS = 30000
 
-async function json (method, path, body) {
+// timeoutMs: a model turn (laying out a whiteboard, grouping notes) outlasts 30 s
+async function json (method, path, body, timeoutMs = REST_TIMEOUT_MS) {
   const ctl = new AbortController()
-  const timer = setTimeout(() => ctl.abort(), REST_TIMEOUT_MS)
+  const timer = setTimeout(() => ctl.abort(), timeoutMs)
   let res
   try {
     res = await fetch(apiUrl(path), {
@@ -605,6 +606,35 @@ export const cliApi = {
  * text) and `snapshotId`. Pass the last `revision` to `changes` to get a tiny
  * `{ unchanged: true }` back when nothing moved.
  */
+// The whiteboard (server/whiteboard-routes.js). Layout, group and unpack wait on one model turn.
+const SLOW = 180000
+export const whiteboardApi = {
+  list: () => json('GET', '/api/whiteboards'),
+  create: name => json('POST', '/api/whiteboards', { name }),
+  get: id => json('GET', `/api/whiteboards/${id}`),
+  save: (id, board, baseRev) => json('PUT', `/api/whiteboards/${id}`, { board, baseRev }),
+  remove: id => json('DELETE', `/api/whiteboards/${id}`),
+  layout: (id, request, layout) => json('POST', `/api/whiteboards/${id}/layout`, { request, layout }, SLOW),
+  group: id => json('POST', `/api/whiteboards/${id}/group`, null, SLOW),
+  unpack: (id, resultId) => json('POST', `/api/whiteboards/${id}/unpack`, { resultId }, SLOW),
+  hand: (id, noteIds) => json('POST', `/api/whiteboards/${id}/hand`, { noteIds }),
+  run: id => json('POST', `/api/whiteboards/${id}/run`),
+  ask: (id, itemIds, question) => json('POST', `/api/whiteboards/${id}/ask`, { itemIds, question }),
+  activity: id => json('GET', `/api/whiteboards/${id}/activity`),
+  stop: id => json('POST', `/api/whiteboards/${id}/stop`),
+  acceptResult: (id, pid) => json('POST', `/api/whiteboards/${id}/proposals/${pid}/accept-result`),
+  exportUrl: (id, format) => apiUrl(`/api/whiteboards/${id}/export?format=${format}`),
+  chat: id => json('GET', `/api/whiteboards/${id}/chat`),
+  asked: (id, noteIds) => json('POST', `/api/whiteboards/${id}/chat/asked`, { noteIds }),
+  changes: id => json('GET', `/api/whiteboards/${id}/chat/changes`),
+  told: id => json('POST', `/api/whiteboards/${id}/chat/told`),
+  clearMark: (id, noteId) => json('POST', `/api/whiteboards/${id}/clear-mark`, { noteId }),
+  sendTasks: (id, noteIds, start) => json('POST', `/api/whiteboards/${id}/send-tasks`, { noteIds, start }),
+  taskStates: id => json('GET', `/api/whiteboards/${id}/task-states`),
+  fromTasks: () => json('POST', '/api/whiteboards/from-tasks'),
+  tasksRefresh: id => json('GET', `/api/whiteboards/${id}/tasks-refresh`)
+}
+
 export const changesApi = {
   changes: (id, rev) => json('GET', `/api/sessions/${id}/changes${rev ? `?rev=${encodeURIComponent(rev)}` : ''}`),
   diff: (id, p, staged) => json('GET', `/api/sessions/${id}/changes/diff?path=${encodeURIComponent(p)}${staged === undefined ? '' : `&staged=${staged ? 1 : 0}`}`),
